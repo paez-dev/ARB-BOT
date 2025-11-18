@@ -49,14 +49,8 @@ ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
 # Crear directorio si no existe
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Cargar documentos existentes si hay
+# Cargar documentos existentes si hay (se cargará cuando se use RAG por primera vez)
 INDEX_FILE = 'rag_index.json'
-if os.path.exists(INDEX_FILE):
-    try:
-        rag_service.load_index(INDEX_FILE)
-        logger.info("Documentos institucionales cargados desde índice")
-    except Exception as e:
-        logger.warning(f"No se pudo cargar índice: {e}")
 
 def allowed_file(filename):
     """Verificar si el archivo tiene extensión permitida"""
@@ -115,11 +109,13 @@ def generate_content():
         logger.info("Texto procesado exitosamente")
         
         # Paso 2: Buscar contexto relevante en documentos (RAG)
-        context = rag_service.get_context_for_query(processed_input, top_k=3)
+        rag = get_rag_service()
+        context = rag.get_context_for_query(processed_input, top_k=3)
         logger.info(f"Contexto encontrado: {len(context)} caracteres")
         
         # Paso 3: Generar contenido usando IA con contexto
-        generated_content = content_generator.generate(
+        ai_model_instance, generator = get_ai_model()
+        generated_content = generator.generate(
             processed_input,
             max_tokens=app.config['MAX_TOKENS'],
             temperature=app.config['TEMPERATURE'],
@@ -135,12 +131,12 @@ def generate_content():
             'generated_content': generated_content,
             'model_used': app.config['DEFAULT_MODEL'],
             'timestamp': datetime.now().isoformat(),
-            'metadata': {
+                'metadata': {
                 'input_length': len(user_input),
                 'output_length': len(generated_content),
                 'processing_time': 'N/A',
                 'context_used': len(context) > 0,
-                'rag_documents': rag_service.get_stats()['total_documents']
+                'rag_documents': rag.get_stats()['total_documents'] if rag else 0
             }
         }
         
@@ -324,10 +320,19 @@ def upload_document():
             chunks = document_processor.process_document(filepath)
             
             # Agregar al sistema RAG
-            rag_service.add_documents(chunks)
+            rag = get_rag_service()
+            rag.add_documents(chunks)
             
             # Guardar índice
-            rag_service.save_index(INDEX_FILE)
+            rag.save_index(INDEX_FILE)
+            
+            # Cargar índice si existe
+            if os.path.exists(INDEX_FILE):
+                try:
+                    rag.load_index(INDEX_FILE)
+                    logger.info("Documentos institucionales cargados desde índice")
+                except Exception as e:
+                    logger.warning(f"No se pudo cargar índice: {e}")
             
             return jsonify({
                 'status': 'success',
@@ -354,7 +359,8 @@ def upload_document():
 def get_rag_stats():
     """Obtener estadísticas del sistema RAG"""
     try:
-        stats = rag_service.get_stats()
+        rag = get_rag_service()
+        stats = rag.get_stats()
         return jsonify({
             'status': 'success',
             'stats': stats
@@ -381,7 +387,8 @@ def search_documents():
         query = data['query']
         top_k = data.get('top_k', 3)
         
-        results = rag_service.search(query, top_k)
+        rag = get_rag_service()
+        results = rag.search(query, top_k)
         
         return jsonify({
             'status': 'success',

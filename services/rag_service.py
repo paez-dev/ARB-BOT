@@ -32,12 +32,23 @@ class RAGService:
         self._load_embeddings_model()
     
     def _load_embeddings_model(self):
-        """Cargar modelo de embeddings"""
+        """Cargar modelo de embeddings con optimizaciones de memoria"""
         try:
             from sentence_transformers import SentenceTransformer
+            import torch
+            
+            # Optimizaciones de memoria
+            torch.set_num_threads(1)
             
             logger.info(f"Cargando modelo de embeddings: {self.embeddings_model_name}")
-            self.embeddings_model = SentenceTransformer(self.embeddings_model_name)
+            self.embeddings_model = SentenceTransformer(
+                self.embeddings_model_name,
+                device='cpu',
+                model_kwargs={
+                    'torch_dtype': torch.float32,
+                    'low_cpu_mem_usage': True
+                }
+            )
             logger.info("Modelo de embeddings cargado exitosamente")
             
         except Exception as e:

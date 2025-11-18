@@ -29,24 +29,42 @@ class AIModel:
         self._load_model()
     
     def _load_model(self):
-        """Cargar el modelo desde Hugging Face"""
+        """Cargar el modelo desde Hugging Face con optimizaciones de memoria"""
         try:
             logger.info(f"Cargando modelo: {self.model_name}")
             
-            # Cargar tokenizador y modelo
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
+            # Optimizaciones de memoria para PyTorch
+            import torch
+            torch.set_num_threads(1)  # Reducir threads para ahorrar memoria
+            
+            # Cargar tokenizador y modelo con opciones de bajo consumo
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                self.model_name,
+                use_fast=True
+            )
+            
+            # Cargar modelo con optimizaciones de memoria
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_name,
+                torch_dtype=torch.float32,  # Usar float32 en lugar de float16 para CPU
+                low_cpu_mem_usage=True,  # Optimización de memoria
+                device_map="cpu"  # Forzar CPU
+            )
             
             # Configurar padding token si no existe
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             
-            # Crear pipeline de generación
+            # Crear pipeline de generación con opciones optimizadas
             self.generator = pipeline(
                 'text-generation',
                 model=self.model,
                 tokenizer=self.tokenizer,
-                device=-1  # CPU (gratuito, no requiere GPU)
+                device=-1,  # CPU
+                model_kwargs={
+                    'low_cpu_mem_usage': True,
+                    'torch_dtype': torch.float32
+                }
             )
             
             logger.info(f"Modelo {self.model_name} cargado exitosamente")
@@ -60,9 +78,20 @@ class AIModel:
     def _load_fallback_model(self):
         """Cargar modelo de respaldo si el principal falla"""
         try:
-            self.model_name = 'gpt2'
-            self.tokenizer = AutoTokenizer.from_pretrained('gpt2')
-            self.model = AutoModelForCausalLM.from_pretrained('gpt2')
+            import torch
+            torch.set_num_threads(1)
+            
+            self.model_name = 'distilgpt2'  # Usar el más ligero
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                'distilgpt2',
+                use_fast=True
+            )
+            self.model = AutoModelForCausalLM.from_pretrained(
+                'distilgpt2',
+                torch_dtype=torch.float32,
+                low_cpu_mem_usage=True,
+                device_map="cpu"
+            )
             
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -71,7 +100,11 @@ class AIModel:
                 'text-generation',
                 model=self.model,
                 tokenizer=self.tokenizer,
-                device=-1
+                device=-1,
+                model_kwargs={
+                    'low_cpu_mem_usage': True,
+                    'torch_dtype': torch.float32
+                }
             )
             
             logger.info("Modelo de respaldo cargado exitosamente")
