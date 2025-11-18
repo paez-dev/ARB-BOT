@@ -11,7 +11,7 @@ transformers==4.35.0
 torch==2.5.0
 sentence-transformers==2.2.2
 langchain==0.0.350
-huggingface-hub==0.19.4
+huggingface-hub>=0.16.4,<0.17
 
 # RAG y Base de Datos Vectorial (Gratuito)
 faiss-cpu==1.13.0
