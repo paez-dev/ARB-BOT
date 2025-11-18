@@ -1,6 +1,6 @@
 """
 ARB-BOT - Aplicación Principal
-Prototipo funcional usando herramientas gratuitas
+Sistema de chatbot institucional con IA usando RAG
 """
 
 from flask import Flask, render_template, request, jsonify, session
@@ -85,7 +85,7 @@ def allowed_file(filename):
 
 @app.route('/')
 def index():
-    """Página principal del prototipo"""
+    """Página principal"""
     return render_template('index.html')
 
 @app.route('/api/health', methods=['GET'])
@@ -95,14 +95,42 @@ def health_check():
         'status': 'healthy',
         'service': 'ARB-BOT',
         'version': '1.0.0',
-        'timestamp': datetime.now().isoformat()
+        'timestamp': datetime.now().isoformat(),
+        'models_loaded': ai_model is not None
     })
+
+@app.route('/api/warmup', methods=['POST'])
+def warmup():
+    """Pre-cargar modelos manualmente (útil para Render)"""
+    try:
+        logger.info("Iniciando warmup de modelos...")
+        
+        # Cargar modelo de IA
+        get_ai_model()
+        logger.info("Modelo de IA cargado")
+        
+        # Cargar RAG si hay documentos
+        if os.path.exists(INDEX_FILE):
+            get_rag_service()
+            logger.info("Servicio RAG cargado")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Modelos pre-cargados exitosamente',
+            'ai_model_loaded': ai_model is not None,
+            'rag_loaded': rag_service is not None
+        })
+    except Exception as e:
+        logger.error(f"Error en warmup: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
 
 @app.route('/api/generate', methods=['POST'])
 def generate_content():
     """
     Endpoint principal para generación de contenido
-    Demuestra la lógica del sistema
     """
     try:
         data = request.get_json()
@@ -157,7 +185,7 @@ def generate_content():
             'generated_content': generated_content,
             'model_used': app.config['DEFAULT_MODEL'],
             'timestamp': datetime.now().isoformat(),
-                'metadata': {
+            'metadata': {
                 'input_length': len(user_input),
                 'output_length': len(generated_content),
                 'processing_time': 'N/A',
@@ -230,7 +258,8 @@ def get_stats():
                 'active_model': app.config['DEFAULT_MODEL'],
                 'system_status': 'operational',
                 'last_interaction': last_interaction_time,
-                'models_available': len(app.config['AVAILABLE_MODELS'])
+                'models_available': len(app.config['AVAILABLE_MODELS']),
+                'models_loaded': ai_model is not None
             }
         })
     except Exception as e:
@@ -242,7 +271,8 @@ def get_stats():
                 'active_model': app.config['DEFAULT_MODEL'],
                 'system_status': 'operational',
                 'last_interaction': None,
-                'models_available': len(app.config['AVAILABLE_MODELS'])
+                'models_available': len(app.config['AVAILABLE_MODELS']),
+                'models_loaded': False
             }
         })
 
@@ -363,7 +393,7 @@ def upload_document():
                 'status': 'success',
                 'message': f'Documento {filename} procesado exitosamente',
                 'chunks_added': len(chunks),
-                'total_documents': rag_service.get_stats()['total_documents']
+                'total_documents': rag.get_stats()['total_documents']
             })
         else:
             return jsonify({
@@ -451,4 +481,3 @@ if __name__ == '__main__':
         port=port,
         debug=app.config['FLASK_DEBUG']
     )
-
