@@ -209,3 +209,53 @@ body {
     background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%);
 }
 
+/* Warmup Progress Indicator */
+.warmup-progress-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    max-width: 350px;
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.warmup-progress-card {
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-left: 4px solid #0d6efd;
+}
+
+.warmup-progress-card strong {
+    color: #0d6efd;
+    font-size: 0.95rem;
+}
+
+.warmup-progress-card .progress {
+    background-color: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.warmup-progress-card .progress-bar {
+    transition: width 0.3s ease;
+}
+
+.warmup-progress-card small {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.85rem;
+}
+
