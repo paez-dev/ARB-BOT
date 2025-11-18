@@ -429,34 +429,120 @@ class ARBBot {
                 return;
             }
 
-            // Mostrar indicador de carga (opcional, no intrusivo)
-            console.log('Pre-cargando modelos de IA... (esto puede tardar 30-60 segundos)');
+            // Mostrar indicador de progreso
+            this.showWarmupProgress();
             
-            // Hacer warmup en background (no bloquea la UI)
-            fetch('/api/warmup', { 
-                method: 'POST',
-                // No esperar respuesta, hacerlo en background
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    console.log('✅ Modelos pre-cargados exitosamente');
-                    sessionStorage.setItem('warmup_done', 'true');
-                    
-                    // Mostrar notificación discreta
-                    this.showWarmupSuccess();
-                } else {
-                    console.log('Warmup opcional falló (no crítico):', data.error);
-                }
-            })
-            .catch(error => {
-                // No es crítico si falla, los modelos se cargarán bajo demanda
-                console.log('Warmup opcional falló (no crítico):', error);
-            });
+            // Hacer warmup con seguimiento de progreso
+            this.startWarmupWithProgress();
             
         } catch (error) {
             // No es crítico si falla
             console.log('Warmup automático no disponible:', error);
+        }
+    }
+
+    showWarmupProgress() {
+        // Crear contenedor de progreso
+        const progressContainer = document.createElement('div');
+        progressContainer.id = 'warmupProgressContainer';
+        progressContainer.className = 'warmup-progress-container';
+        progressContainer.innerHTML = `
+            <div class="warmup-progress-card">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <strong>Preparando modelos de IA...</strong>
+                </div>
+                <div class="progress mb-2" style="height: 6px;">
+                    <div id="warmupProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 0%"></div>
+                </div>
+                <small class="text-muted" id="warmupStatus">Iniciando carga de modelos...</small>
+            </div>
+        `;
+        document.body.appendChild(progressContainer);
+    }
+
+    async startWarmupWithProgress() {
+        const progressBar = document.getElementById('warmupProgressBar');
+        const statusText = document.getElementById('warmupStatus');
+        
+        // Simular progreso mientras se carga
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            if (progress < 90) {
+                progress += Math.random() * 5;
+                if (progress > 90) progress = 90;
+                progressBar.style.width = progress + '%';
+                
+                // Actualizar mensajes según el progreso
+                if (progress < 30) {
+                    statusText.textContent = 'Descargando modelo de IA...';
+                } else if (progress < 60) {
+                    statusText.textContent = 'Cargando modelo de embeddings...';
+                } else if (progress < 90) {
+                    statusText.textContent = 'Inicializando servicios...';
+                }
+            }
+        }, 500);
+
+        try {
+            // Hacer warmup
+            const response = await fetch('/api/warmup', { 
+                method: 'POST'
+            });
+            
+            const data = await response.json();
+            
+            // Completar progreso
+            clearInterval(progressInterval);
+            progressBar.style.width = '100%';
+            progressBar.classList.remove('progress-bar-animated');
+            progressBar.classList.add('bg-success');
+            statusText.textContent = '✅ Modelos listos';
+            
+            if (data.status === 'success') {
+                console.log('✅ Modelos pre-cargados exitosamente');
+                sessionStorage.setItem('warmup_done', 'true');
+                
+                // Ocultar progreso después de 2 segundos
+                setTimeout(() => {
+                    this.hideWarmupProgress();
+                    this.showWarmupSuccess();
+                }, 2000);
+            } else {
+                statusText.textContent = '⚠️ Carga parcial (se cargarán bajo demanda)';
+                setTimeout(() => {
+                    this.hideWarmupProgress();
+                }, 3000);
+            }
+        } catch (error) {
+            // No es crítico si falla
+            clearInterval(progressInterval);
+            progressBar.style.width = '100%';
+            progressBar.classList.remove('progress-bar-animated');
+            progressBar.classList.add('bg-warning');
+            statusText.textContent = '⚠️ Los modelos se cargarán cuando los necesites';
+            
+            console.log('Warmup opcional falló (no crítico):', error);
+            
+            setTimeout(() => {
+                this.hideWarmupProgress();
+            }, 3000);
+        }
+    }
+
+    hideWarmupProgress() {
+        const container = document.getElementById('warmupProgressContainer');
+        if (container) {
+            container.style.opacity = '0';
+            container.style.transition = 'opacity 0.5s';
+            setTimeout(() => {
+                if (container.parentNode) {
+                    container.remove();
+                }
+            }, 500);
         }
     }
 
