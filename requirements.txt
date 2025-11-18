@@ -14,7 +14,7 @@ langchain==0.0.350
 huggingface-hub==0.19.4
 
 # RAG y Base de Datos Vectorial (Gratuito)
-faiss-cpu==1.7.4
+faiss-cpu==1.13.0
 chromadb==0.4.22
 
 # Procesamiento de Documentos (Gratuito)
