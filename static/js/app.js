@@ -1,0 +1,414 @@
+// ARB-BOT - JavaScript Principal
+
+class ARBBot {
+    constructor() {
+        this.currentModel = 'distilgpt2';
+        this.history = [];
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.loadHistory();
+        this.loadStats();
+        this.loadRAGStats();
+        this.checkSystemHealth();
+    }
+
+    setupEventListeners() {
+        // Formulario de generación
+        document.getElementById('generateForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.generateContent();
+        });
+
+        // Selector de modelo
+        document.getElementById('modelSelector')?.addEventListener('change', (e) => {
+            this.changeModel(e.target.value);
+        });
+
+        // Botón de limpiar
+        document.getElementById('clearBtn')?.addEventListener('click', () => {
+            this.clearInput();
+        });
+
+        // Botón de historial
+        document.getElementById('showHistoryBtn')?.addEventListener('click', () => {
+            this.toggleHistory();
+        });
+
+        // Formulario de carga de documentos
+        document.getElementById('uploadForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.uploadDocument();
+        });
+    }
+
+    async generateContent() {
+        const userInput = document.getElementById('userInput').value;
+        const loading = document.getElementById('loading');
+        const resultCard = document.getElementById('resultCard');
+
+        // Validación
+        if (!this.validateInput(userInput)) {
+            return;
+        }
+
+        // Mostrar loading
+        this.showLoading(true);
+        this.hideResult();
+
+        try {
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    input: userInput
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                this.displayResult(data);
+                this.addToHistory(data);
+                this.loadStats();
+                
+                // Mostrar fuentes si se usó contexto
+                if (data.metadata && data.metadata.context_used) {
+                    this.showSources(data);
+                }
+            } else {
+                this.showError(data.error || 'Error desconocido');
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            this.showError('Error al comunicarse con el servidor');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    validateInput(text) {
+        if (text.length < 3) {
+            this.showError('El texto debe tener al menos 3 caracteres');
+            return false;
+        }
+
+        if (text.length > 500) {
+            this.showError('El texto no puede exceder 500 caracteres');
+            return false;
+        }
+
+        return true;
+    }
+
+    displayResult(data) {
+        document.getElementById('originalInput').textContent = data.input;
+        document.getElementById('generatedContent').textContent = data.generated_content;
+        document.getElementById('modelUsed').textContent = data.model_used;
+        document.getElementById('timestamp').textContent = new Date(data.timestamp).toLocaleString();
+        
+        const resultCard = document.getElementById('resultCard');
+        resultCard.style.display = 'block';
+        resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    async showSources(data) {
+        // Buscar fuentes utilizadas
+        try {
+            const response = await fetch('/api/search-documents', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    query: data.input,
+                    top_k: 3
+                })
+            });
+
+            const searchData = await response.json();
+            if (searchData.status === 'success' && searchData.results.length > 0) {
+                const sourcesSection = document.getElementById('sourcesSection');
+                const sourcesList = document.getElementById('sourcesList');
+                
+                sourcesList.innerHTML = searchData.results.map((result, index) => `
+                    <div class="alert alert-light mb-2">
+                        <strong>Fuente ${index + 1}:</strong> ${result.source || 'Documento'}<br>
+                        <small class="text-muted">Similitud: ${(result.similarity * 100).toFixed(1)}%</small>
+                        <div class="mt-2 small text-muted">
+                            ${result.text.substring(0, 150)}${result.text.length > 150 ? '...' : ''}
+                        </div>
+                    </div>
+                `).join('');
+                
+                sourcesSection.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error obteniendo fuentes:', error);
+        }
+    }
+
+    showLoading(show) {
+        const loading = document.getElementById('loading');
+        loading.style.display = show ? 'block' : 'none';
+    }
+
+    hideResult() {
+        const resultCard = document.getElementById('resultCard');
+        resultCard.style.display = 'none';
+    }
+
+    showError(message) {
+        // Crear o actualizar alerta de error
+        let alertDiv = document.getElementById('errorAlert');
+        if (!alertDiv) {
+            alertDiv = document.createElement('div');
+            alertDiv.id = 'errorAlert';
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+            alertDiv.setAttribute('role', 'alert');
+            document.querySelector('.main-container').insertBefore(alertDiv, document.querySelector('.main-container').firstChild);
+        }
+        
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        // Auto-dismiss después de 5 segundos
+        setTimeout(() => {
+            if (alertDiv) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+
+    async changeModel(modelName) {
+        try {
+            const response = await fetch('/api/change-model', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: modelName
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                this.currentModel = modelName;
+                this.showSuccess(`Modelo cambiado a ${modelName}`);
+            } else {
+                this.showError(data.error || 'Error al cambiar modelo');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            this.showError('Error al cambiar modelo');
+        }
+    }
+
+    async loadHistory() {
+        try {
+            const response = await fetch('/api/history?limit=10');
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                this.history = data.history;
+                this.displayHistory();
+            }
+        } catch (error) {
+            console.error('Error cargando historial:', error);
+        }
+    }
+
+    displayHistory() {
+        const historyContainer = document.getElementById('historyContainer');
+        if (!historyContainer) return;
+
+        if (this.history.length === 0) {
+            historyContainer.innerHTML = '<p class="text-muted">No hay historial disponible</p>';
+            return;
+        }
+
+        historyContainer.innerHTML = this.history.map((item, index) => `
+            <div class="history-item">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <strong>Input:</strong> ${item.user_input.substring(0, 100)}${item.user_input.length > 100 ? '...' : ''}<br>
+                        <strong>Output:</strong> ${item.generated_output ? item.generated_output.substring(0, 100) + (item.generated_output.length > 100 ? '...' : '') : 'N/A'}<br>
+                        <small class="text-muted">${new Date(item.timestamp).toLocaleString()}</small>
+                    </div>
+                    <span class="badge bg-primary">${item.model_used || 'N/A'}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async loadStats() {
+        try {
+            const response = await fetch('/api/stats');
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                const stats = data.stats;
+                document.getElementById('totalInteractions').textContent = stats.total_interactions || 0;
+                document.getElementById('activeModel').textContent = stats.active_model || 'N/A';
+            }
+        } catch (error) {
+            console.error('Error cargando estadísticas:', error);
+        }
+    }
+
+    async checkSystemHealth() {
+        try {
+            const response = await fetch('/api/health');
+            const data = await response.json();
+            console.log('Sistema:', data);
+        } catch (error) {
+            console.error('Error verificando sistema:', error);
+        }
+    }
+
+    addToHistory(data) {
+        this.history.unshift({
+            user_input: data.input,
+            generated_output: data.generated_content,
+            model_used: data.model_used,
+            timestamp: data.timestamp
+        });
+
+        // Mantener solo los últimos 10
+        if (this.history.length > 10) {
+            this.history = this.history.slice(0, 10);
+        }
+
+        this.displayHistory();
+    }
+
+    clearInput() {
+        document.getElementById('userInput').value = '';
+        this.hideResult();
+    }
+
+    toggleHistory() {
+        const historySection = document.getElementById('historySection');
+        if (historySection) {
+            historySection.style.display = historySection.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+
+    showSuccess(message) {
+        // Similar a showError pero con alert-success
+        let alertDiv = document.getElementById('successAlert');
+        if (!alertDiv) {
+            alertDiv = document.createElement('div');
+            alertDiv.id = 'successAlert';
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.setAttribute('role', 'alert');
+            document.querySelector('.main-container').insertBefore(alertDiv, document.querySelector('.main-container').firstChild);
+        }
+        
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        setTimeout(() => {
+            if (alertDiv) {
+                alertDiv.remove();
+            }
+        }, 3000);
+    }
+
+    async uploadDocument() {
+        const fileInput = document.getElementById('documentFile');
+        const uploadStatus = document.getElementById('uploadStatus');
+        
+        if (!fileInput.files || fileInput.files.length === 0) {
+            this.showError('Por favor selecciona un archivo');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        uploadStatus.style.display = 'block';
+        uploadStatus.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Procesando documento...';
+
+        try {
+            const response = await fetch('/api/upload-document', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                uploadStatus.innerHTML = `
+                    <div class="alert alert-success">
+                        ✅ ${data.message}<br>
+                        <small>Chunks agregados: ${data.chunks_added} | Total documentos: ${data.total_documents}</small>
+                    </div>
+                `;
+                this.loadRAGStats();
+                fileInput.value = '';
+            } else {
+                uploadStatus.innerHTML = `
+                    <div class="alert alert-danger">
+                        ❌ Error: ${data.error || 'Error desconocido'}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            uploadStatus.innerHTML = `
+                <div class="alert alert-danger">
+                    ❌ Error al comunicarse con el servidor
+                </div>
+            `;
+        }
+    }
+
+    async loadRAGStats() {
+        try {
+            const response = await fetch('/api/rag-stats');
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                const stats = data.stats;
+                const ragStatsDiv = document.getElementById('ragStats');
+                
+                if (stats.total_documents > 0) {
+                    ragStatsDiv.innerHTML = `
+                        <div class="mt-2">
+                            <span class="badge bg-success">${stats.total_documents} documentos cargados</span><br>
+                            <small class="text-muted">
+                                Fuentes: ${stats.sources.join(', ')}
+                            </small>
+                        </div>
+                    `;
+                } else {
+                    ragStatsDiv.innerHTML = `
+                        <div class="alert alert-warning mt-2">
+                            <small>⚠️ No hay documentos cargados. Sube documentos para que el sistema pueda responder preguntas.</small>
+                        </div>
+                    `;
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando stats RAG:', error);
+        }
+    }
+}
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    window.arbBot = new ARBBot();
+});
+

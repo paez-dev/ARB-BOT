@@ -1,0 +1,211 @@
+/* ARB-BOT - Estilos Personalizados */
+
+:root {
+    --primary-color: #667eea;
+    --secondary-color: #764ba2;
+    --success-color: #10b981;
+    --danger-color: #ef4444;
+    --warning-color: #f59e0b;
+    --info-color: #3b82f6;
+    --dark-color: #1f2937;
+    --light-color: #f9fafb;
+}
+
+body {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.main-container {
+    padding: 2rem 0;
+}
+
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    margin-bottom: 1.5rem;
+    transition: transform 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.card-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: white;
+    border-radius: 15px 15px 0 0 !important;
+    padding: 1.5rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    border: none;
+    border-radius: 10px;
+    padding: 0.75rem 2rem;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%);
+}
+
+.result-card {
+    margin-top: 2rem;
+    display: none;
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.loading {
+    display: none;
+    text-align: center;
+    padding: 2rem;
+}
+
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+.tech-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    margin: 0.25rem;
+    background: #e9ecef;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+}
+
+.tech-badge:hover {
+    background: #dee2e6;
+    transform: scale(1.05);
+}
+
+.history-item {
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border-left: 4px solid var(--primary-color);
+    transition: all 0.3s ease;
+}
+
+.history-item:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+}
+
+.model-selector {
+    padding: 0.5rem;
+    border-radius: 8px;
+    border: 2px solid #dee2e6;
+    transition: all 0.3s ease;
+}
+
+.model-selector:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.stats-card {
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.stats-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.stats-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+.input-group-text {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: white;
+    border: none;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.alert {
+    border-radius: 10px;
+    border: none;
+}
+
+.badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+}
+
+/* Animaciones */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .main-container {
+        padding: 1rem 0;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .stats-number {
+        font-size: 2rem;
+    }
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%);
+}
+

@@ -1,0 +1,77 @@
+# ARB-BOT - Archivos a ignorar en Git
+
+# Entorno virtual
+venv/
+env/
+ENV/
+.venv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Flask
+instance/
+.webassets-cache
+
+# Variables de entorno
+.env
+.env.local
+.env.production
+
+# Base de datos
+*.db
+*.sqlite
+*.sqlite3
+
+# Documentos cargados (pueden ser grandes)
+documents/
+*.pdf
+*.docx
+*.doc
+
+# Índices RAG
+rag_index.json
+rag_index_embeddings.npy
+*.npy
+
+# Modelos descargados (muy grandes) - Solo archivos binarios, NO el código
+# models/  # NO ignorar - contiene código Python esencial
+*.bin
+*.pt
+*.pth
+*.safetensors
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Archivos temporales
+*.tmp
+*.temp
+.cache/
+
+# Hugging Face cache (muy grande)
+.huggingface/
+
+# Guías y documentación local (opcional - no necesarios para producción)
+# ARCHIVOS_EXCLUIR.md
+# DEPLOYMENT.md
+# GUIA_USO.md
+# INSTALACION.md
+# TECNOLOGIA.md
+# limpiar_proyecto.ps1

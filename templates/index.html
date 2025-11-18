@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARB-BOT - Sistema de IA Generativa</title>
+    
+    <!-- Bootstrap 5 (Gratuito) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Estilos personalizados -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container main-container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <!-- Header -->
+                <div class="card mb-4">
+                    <div class="card-header text-center">
+                        <h1 class="mb-0">🤖 ARB-BOT</h1>
+                        <p class="mb-0 mt-2">Sistema de IA Generativa</p>
+                        <small>100% Herramientas Gratuitas</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="stats-card">
+                                    <div class="stats-number" id="totalInteractions">0</div>
+                                    <div class="stats-label">Interacciones</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="stats-card">
+                                    <div class="stats-number" id="activeModel">-</div>
+                                    <div class="stats-label">Modelo Activo</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="stats-card">
+                                    <div class="stats-number">✓</div>
+                                    <div class="stats-label">Sistema Operativo</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Carga de Documentos Institucionales -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">📚 Documentos Institucionales</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">
+                            Sube documentos como el manual de convivencia, reglamentos, etc. 
+                            El sistema los procesará para responder preguntas basándose en ellos.
+                        </p>
+                        <form id="uploadForm" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="documentFile" class="form-label">Seleccionar documento:</label>
+                                <input type="file" class="form-control" id="documentFile" 
+                                       accept=".pdf,.docx,.txt" required>
+                                <small class="form-text text-muted">
+                                    Formatos permitidos: PDF, DOCX, TXT
+                                </small>
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                📤 Subir y Procesar Documento
+                            </button>
+                        </form>
+                        <div id="uploadStatus" class="mt-3" style="display: none;"></div>
+                        <div class="mt-3">
+                            <strong>Documentos cargados:</strong>
+                            <div id="ragStats" class="text-muted">
+                                <small>Cargando información...</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Selector de Modelo -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">⚙️ Configuración</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="modelSelector" class="form-label">Modelo de IA:</label>
+                                <select class="form-select model-selector" id="modelSelector">
+                                    <option value="distilgpt2">DistilGPT-2 (Rápido)</option>
+                                    <option value="gpt2">GPT-2 (Mejor Calidad)</option>
+                                </select>
+                                <small class="form-text text-muted">
+                                    Selecciona el modelo de IA a utilizar
+                                </small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Información del Modelo:</label>
+                                <div id="modelInfo" class="text-muted">
+                                    <small>Selecciona un modelo para ver información</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Formulario de Entrada -->
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">💬 Hacer Pregunta</h5>
+                        <p class="text-muted small">
+                            El sistema responderá basándose en los documentos institucionales cargados 
+                            (manual de convivencia, reglamentos, etc.)
+                        </p>
+                        <form id="generateForm">
+                            <div class="mb-3">
+                                <label for="userInput" class="form-label">Tu pregunta:</label>
+                                <textarea 
+                                    class="form-control" 
+                                    id="userInput" 
+                                    rows="5" 
+                                    placeholder="Ejemplo: ¿Cuáles son las normas de convivencia? ¿Qué dice el manual sobre la asistencia? ¿Cuáles son los horarios de la institución?"
+                                    required
+                                ></textarea>
+                                <div class="d-flex justify-content-between mt-2">
+                                    <small class="form-text text-muted">
+                                        Mínimo 3 caracteres, máximo 500 caracteres
+                                    </small>
+                                    <small class="text-muted" id="charCount">0/500</small>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="button" class="btn btn-outline-secondary" id="clearBtn">
+                                    Limpiar
+                                </button>
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    💬 Hacer Pregunta
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <!-- Loading -->
+                        <div class="loading" id="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                            <p class="mt-3">Generando contenido con IA...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Resultados -->
+                <div class="card result-card" id="resultCard">
+                    <div class="card-header">
+                        <h5 class="mb-0">✨ Resultado Generado</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <strong>📝 Input Original:</strong>
+                            <div class="alert alert-light mt-2" id="originalInput"></div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>🤖 Respuesta del Sistema:</strong>
+                            <div class="alert alert-info mt-2" id="generatedContent" style="white-space: pre-wrap;"></div>
+                        </div>
+                        <div class="mb-3" id="sourcesSection" style="display: none;">
+                            <strong>📄 Fuentes utilizadas:</strong>
+                            <div id="sourcesList" class="mt-2"></div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted">
+                                    <strong>Modelo:</strong> <span id="modelUsed" class="badge bg-primary"></span>
+                                </small>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <small class="text-muted" id="timestamp"></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Historial -->
+                <div class="card mt-4" id="historySection" style="display: none;">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">📚 Historial de Interacciones</h5>
+                        <button class="btn btn-sm btn-outline-light" onclick="window.arbBot.toggleHistory()">
+                            Ocultar
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="historyContainer">
+                            <p class="text-muted text-center">Cargando historial...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Botones de Acción -->
+                <div class="card mt-4">
+                    <div class="card-body text-center">
+                        <button class="btn btn-outline-primary me-2" id="showHistoryBtn">
+                            📚 Ver Historial
+                        </button>
+                        <button class="btn btn-outline-info me-2" onclick="window.arbBot.loadStats()">
+                            📊 Actualizar Estadísticas
+                        </button>
+                        <a href="/api/models" class="btn btn-outline-success" target="_blank">
+                            🔍 Ver Modelos Disponibles
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Información del Sistema -->
+                <div class="card mt-4">
+                    <div class="card-body">
+                        <h5 class="card-title">ℹ️ Información del Sistema</h5>
+                        <p class="card-text">
+                            <strong>ARB-BOT</strong> es un chatbot institucional que responde preguntas basándose en 
+                            documentos como el manual de convivencia, reglamentos y políticas de la institución.
+                        </p>
+                        <p class="card-text">
+                            <strong>¿Cómo funciona?</strong>
+                        </p>
+                        <ol>
+                            <li>Sube documentos institucionales (PDF, DOCX, TXT)</li>
+                            <li>El sistema procesa y analiza los documentos</li>
+                            <li>Cuando alguien pregunta, busca información relevante</li>
+                            <li>Genera respuestas basadas en los documentos cargados</li>
+                        </ol>
+                        <p class="card-text">
+                            <strong>Tecnologías utilizadas (100% gratuitas):</strong>
+                        </p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <ul>
+                                    <li><strong>Backend:</strong> Python + Flask</li>
+                                    <li><strong>IA:</strong> Hugging Face Transformers</li>
+                                    <li><strong>Base de Datos:</strong> SQLite</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <ul>
+                                    <li><strong>Frontend:</strong> Bootstrap 5 + JavaScript</li>
+                                    <li><strong>Modelos:</strong> DistilGPT-2, GPT-2</li>
+                                    <li><strong>Licencia:</strong> Open Source</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <span class="tech-badge">Python</span>
+                            <span class="tech-badge">Flask</span>
+                            <span class="tech-badge">Hugging Face</span>
+                            <span class="tech-badge">SQLite</span>
+                            <span class="tech-badge">Bootstrap</span>
+                            <span class="tech-badge">JavaScript</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- JavaScript personalizado -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    
+    <!-- Contador de caracteres -->
+    <script>
+        document.getElementById('userInput')?.addEventListener('input', function(e) {
+            const count = e.target.value.length;
+            document.getElementById('charCount').textContent = `${count}/500`;
+            
+            if (count > 500) {
+                document.getElementById('charCount').classList.add('text-danger');
+            } else {
+                document.getElementById('charCount').classList.remove('text-danger');
+            }
+        });
+        
+        // Cargar información de modelos
+        document.getElementById('modelSelector')?.addEventListener('change', async function(e) {
+            const modelName = e.target.value;
+            try {
+                const response = await fetch('/api/models');
+                const data = await response.json();
+                if (data.status === 'success' && data.models[modelName]) {
+                    const model = data.models[modelName];
+                    document.getElementById('modelInfo').innerHTML = `
+                        <strong>${model.name}</strong><br>
+                        <small>${model.description}</small><br>
+                        <span class="badge bg-success">Gratuito</span>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error cargando info del modelo:', error);
+            }
+        });
+        
+        // Cargar info del modelo inicial
+        if (document.getElementById('modelSelector')) {
+            document.getElementById('modelSelector').dispatchEvent(new Event('change'));
+        }
+    </script>
+</body>
+</html>

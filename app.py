@@ -1,0 +1,422 @@
+"""
+ARB-BOT - Aplicación Principal
+Prototipo funcional usando herramientas gratuitas
+"""
+
+from flask import Flask, render_template, request, jsonify, session
+from datetime import datetime
+import os
+import logging
+
+from config import config
+from models.ai_model import AIModel
+from services.text_processor import TextProcessor
+from services.generator import ContentGenerator
+from services.document_processor import DocumentProcessor
+from services.rag_service import RAGService
+from database.db import init_db, get_db_session, save_interaction, get_recent_interactions
+from werkzeug.utils import secure_filename
+import shutil
+
+# Configurar logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Inicializar Flask
+app = Flask(__name__, static_folder='static', template_folder='templates')
+
+# Cargar configuración
+config_name = os.getenv('FLASK_ENV', 'development')
+app.config.from_object(config[config_name])
+
+# Inicializar base de datos
+init_db(app.config['DATABASE_URL'])
+
+# Inicializar servicios
+text_processor = TextProcessor()
+ai_model = AIModel(app.config['DEFAULT_MODEL'])
+content_generator = ContentGenerator(ai_model, text_processor)
+document_processor = DocumentProcessor()
+rag_service = RAGService()
+
+# Directorio para documentos
+UPLOAD_FOLDER = 'documents'
+ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
+
+# Crear directorio si no existe
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Cargar documentos existentes si hay
+INDEX_FILE = 'rag_index.json'
+if os.path.exists(INDEX_FILE):
+    try:
+        rag_service.load_index(INDEX_FILE)
+        logger.info("Documentos institucionales cargados desde índice")
+    except Exception as e:
+        logger.warning(f"No se pudo cargar índice: {e}")
+
+def allowed_file(filename):
+    """Verificar si el archivo tiene extensión permitida"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/')
+def index():
+    """Página principal del prototipo"""
+    return render_template('index.html')
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Endpoint de salud del sistema"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'ARB-BOT',
+        'version': '1.0.0',
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/api/generate', methods=['POST'])
+def generate_content():
+    """
+    Endpoint principal para generación de contenido
+    Demuestra la lógica del sistema
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'input' not in data:
+            return jsonify({
+                'error': 'Input requerido',
+                'status': 'error'
+            }), 400
+        
+        user_input = data['input']
+        
+        # Validar input
+        if len(user_input) < app.config['MIN_INPUT_LENGTH']:
+            return jsonify({
+                'error': f'Input muy corto. Mínimo {app.config["MIN_INPUT_LENGTH"]} caracteres',
+                'status': 'error'
+            }), 400
+        
+        if len(user_input) > app.config['MAX_INPUT_LENGTH']:
+            return jsonify({
+                'error': f'Input muy largo. Máximo {app.config["MAX_INPUT_LENGTH"]} caracteres',
+                'status': 'error'
+            }), 400
+        
+        logger.info(f"Procesando input: {user_input[:50]}...")
+        
+        # Paso 1: Procesar el texto de entrada
+        processed_input = text_processor.process(user_input)
+        logger.info("Texto procesado exitosamente")
+        
+        # Paso 2: Buscar contexto relevante en documentos (RAG)
+        context = rag_service.get_context_for_query(processed_input, top_k=3)
+        logger.info(f"Contexto encontrado: {len(context)} caracteres")
+        
+        # Paso 3: Generar contenido usando IA con contexto
+        generated_content = content_generator.generate(
+            processed_input,
+            max_tokens=app.config['MAX_TOKENS'],
+            temperature=app.config['TEMPERATURE'],
+            context=context if context else None
+        )
+        logger.info("Contenido generado exitosamente")
+        
+        # Paso 3: Preparar respuesta
+        response = {
+            'status': 'success',
+            'input': user_input,
+            'processed_input': processed_input,
+            'generated_content': generated_content,
+            'model_used': app.config['DEFAULT_MODEL'],
+            'timestamp': datetime.now().isoformat(),
+            'metadata': {
+                'input_length': len(user_input),
+                'output_length': len(generated_content),
+                'processing_time': 'N/A',
+                'context_used': len(context) > 0,
+                'rag_documents': rag_service.get_stats()['total_documents']
+            }
+        }
+        
+        # Guardar en base de datos
+        try:
+            import time
+            start_time = time.time()
+            processing_time = time.time() - start_time
+            
+            save_interaction(
+                user_input=user_input,
+                generated_output=generated_content,
+                model_used=app.config['DEFAULT_MODEL'],
+                processing_time=processing_time,
+                metadata={
+                    'input_length': len(user_input),
+                    'output_length': len(generated_content),
+                    'temperature': app.config['TEMPERATURE']
+                }
+            )
+        except Exception as e:
+            logger.warning(f"No se pudo guardar en BD: {e}")
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        logger.error(f"Error en generación: {str(e)}")
+        return jsonify({
+            'error': 'Error interno del servidor',
+            'message': str(e),
+            'status': 'error'
+        }), 500
+
+@app.route('/api/models', methods=['GET'])
+def list_models():
+    """Listar modelos disponibles"""
+    return jsonify({
+        'status': 'success',
+        'models': app.config['AVAILABLE_MODELS'],
+        'current_model': app.config['DEFAULT_MODEL']
+    })
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    """Obtener estadísticas del sistema"""
+    try:
+        db_session = get_db_session()
+        cursor = db_session.cursor()
+        
+        # Contar total de interacciones
+        cursor.execute('SELECT COUNT(*) as total FROM interactions')
+        total_interactions = cursor.fetchone()['total']
+        
+        # Obtener última interacción
+        cursor.execute('SELECT timestamp FROM interactions ORDER BY timestamp DESC LIMIT 1')
+        last_interaction = cursor.fetchone()
+        last_interaction_time = last_interaction['timestamp'] if last_interaction else None
+        
+        db_session.close()
+        
+        return jsonify({
+            'status': 'success',
+            'stats': {
+                'total_interactions': total_interactions,
+                'active_model': app.config['DEFAULT_MODEL'],
+                'system_status': 'operational',
+                'last_interaction': last_interaction_time,
+                'models_available': len(app.config['AVAILABLE_MODELS'])
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas: {str(e)}")
+        return jsonify({
+            'status': 'success',
+            'stats': {
+                'total_interactions': 0,
+                'active_model': app.config['DEFAULT_MODEL'],
+                'system_status': 'operational',
+                'last_interaction': None,
+                'models_available': len(app.config['AVAILABLE_MODELS'])
+            }
+        })
+
+@app.route('/api/history', methods=['GET'])
+def get_history():
+    """Obtener historial de interacciones"""
+    try:
+        limit = request.args.get('limit', 10, type=int)
+        history = get_recent_interactions(limit)
+        
+        return jsonify({
+            'status': 'success',
+            'history': history,
+            'count': len(history)
+        })
+    except Exception as e:
+        logger.error(f"Error obteniendo historial: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+@app.route('/api/change-model', methods=['POST'])
+def change_model():
+    """Cambiar el modelo de IA activo"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'model' not in data:
+            return jsonify({
+                'error': 'Modelo requerido',
+                'status': 'error'
+            }), 400
+        
+        model_name = data['model']
+        
+        # Validar que el modelo existe
+        if model_name not in app.config['AVAILABLE_MODELS']:
+            return jsonify({
+                'error': f'Modelo {model_name} no disponible',
+                'status': 'error',
+                'available_models': list(app.config['AVAILABLE_MODELS'].keys())
+            }), 400
+        
+        # Cambiar modelo
+        global ai_model, content_generator
+        ai_model = AIModel(model_name)
+        content_generator = ContentGenerator(ai_model, text_processor)
+        app.config['DEFAULT_MODEL'] = model_name
+        
+        logger.info(f"Modelo cambiado a: {model_name}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Modelo cambiado a {model_name}',
+            'current_model': model_name
+        })
+        
+    except Exception as e:
+        logger.error(f"Error cambiando modelo: {str(e)}")
+        return jsonify({
+            'error': 'Error al cambiar modelo',
+            'message': str(e),
+            'status': 'error'
+        }), 500
+
+@app.errorhandler(404)
+def not_found(error):
+    """Manejo de errores 404"""
+    return jsonify({
+        'error': 'Endpoint no encontrado',
+        'status': 'error'
+    }), 404
+
+@app.route('/api/upload-document', methods=['POST'])
+def upload_document():
+    """Subir y procesar documento institucional"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({
+                'error': 'No se proporcionó archivo',
+                'status': 'error'
+            }), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({
+                'error': 'No se seleccionó archivo',
+                'status': 'error'
+            }), 400
+        
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(filepath)
+            
+            logger.info(f"Procesando documento: {filename}")
+            
+            # Procesar documento
+            chunks = document_processor.process_document(filepath)
+            
+            # Agregar al sistema RAG
+            rag_service.add_documents(chunks)
+            
+            # Guardar índice
+            rag_service.save_index(INDEX_FILE)
+            
+            return jsonify({
+                'status': 'success',
+                'message': f'Documento {filename} procesado exitosamente',
+                'chunks_added': len(chunks),
+                'total_documents': rag_service.get_stats()['total_documents']
+            })
+        else:
+            return jsonify({
+                'error': 'Formato de archivo no permitido',
+                'allowed_formats': list(ALLOWED_EXTENSIONS),
+                'status': 'error'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error subiendo documento: {str(e)}")
+        return jsonify({
+            'error': 'Error procesando documento',
+            'message': str(e),
+            'status': 'error'
+        }), 500
+
+@app.route('/api/rag-stats', methods=['GET'])
+def get_rag_stats():
+    """Obtener estadísticas del sistema RAG"""
+    try:
+        stats = rag_service.get_stats()
+        return jsonify({
+            'status': 'success',
+            'stats': stats
+        })
+    except Exception as e:
+        logger.error(f"Error obteniendo stats RAG: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+@app.route('/api/search-documents', methods=['POST'])
+def search_documents():
+    """Buscar en documentos sin generar respuesta"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'query' not in data:
+            return jsonify({
+                'error': 'Query requerido',
+                'status': 'error'
+            }), 400
+        
+        query = data['query']
+        top_k = data.get('top_k', 3)
+        
+        results = rag_service.search(query, top_k)
+        
+        return jsonify({
+            'status': 'success',
+            'query': query,
+            'results': results,
+            'count': len(results)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error buscando documentos: {str(e)}")
+        return jsonify({
+            'error': 'Error en búsqueda',
+            'message': str(e),
+            'status': 'error'
+        }), 500
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Manejo de errores 500"""
+    return jsonify({
+        'error': 'Error interno del servidor',
+        'status': 'error'
+    }), 500
+
+if __name__ == '__main__':
+    logger.info("Iniciando ARB-BOT...")
+    logger.info(f"Modo: {config_name}")
+    logger.info(f"Modelo por defecto: {app.config['DEFAULT_MODEL']}")
+    
+    # Obtener puerto de variable de entorno (para producción)
+    port = int(os.environ.get('PORT', 5000))
+    
+    app.run(
+        host='0.0.0.0',
+        port=port,
+        debug=app.config['FLASK_DEBUG']
+    )
+
