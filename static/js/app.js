@@ -238,8 +238,10 @@ class ARBBot {
     }
 
     showLoading(show) {
-        const loading = document.getElementById('loading');
-        loading.style.display = show ? 'block' : 'none';
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = show ? 'flex' : 'none';
+        }
     }
 
     hideResult() {
@@ -376,8 +378,15 @@ class ARBBot {
     }
 
     clearInput() {
-        document.getElementById('userInput').value = '';
-        this.hideResult();
+        const input = document.getElementById('userInput');
+        if (input) {
+            input.value = '';
+            input.style.height = 'auto';
+            const charCount = document.getElementById('charCount');
+            if (charCount) {
+                charCount.textContent = '0/500';
+            }
+        }
     }
 
     toggleHistory() {
