@@ -35,12 +35,38 @@ app.config.from_object(config[config_name])
 # Inicializar base de datos
 init_db(app.config['DATABASE_URL'])
 
-# Inicializar servicios
+# Inicializar servicios (modelos se cargarán bajo demanda para ahorrar memoria)
 text_processor = TextProcessor()
-ai_model = AIModel(app.config['DEFAULT_MODEL'])
-content_generator = ContentGenerator(ai_model, text_processor)
 document_processor = DocumentProcessor()
-rag_service = RAGService()
+
+# Modelos de IA se inicializarán bajo demanda (lazy loading)
+ai_model = None
+content_generator = None
+rag_service = None
+
+def get_ai_model():
+    """Obtener modelo de IA (carga bajo demanda)"""
+    global ai_model, content_generator
+    if ai_model is None:
+        logger.info("Cargando modelo de IA (primera vez)...")
+        ai_model = AIModel(app.config['DEFAULT_MODEL'])
+        content_generator = ContentGenerator(ai_model, text_processor)
+    return ai_model, content_generator
+
+def get_rag_service():
+    """Obtener servicio RAG (carga bajo demanda)"""
+    global rag_service
+    if rag_service is None:
+        logger.info("Cargando servicio RAG (primera vez)...")
+        rag_service = RAGService()
+        # Cargar índice si existe
+        if os.path.exists(INDEX_FILE):
+            try:
+                rag_service.load_index(INDEX_FILE)
+                logger.info("Documentos institucionales cargados desde índice")
+            except Exception as e:
+                logger.warning(f"No se pudo cargar índice: {e}")
+    return rag_service
 
 # Directorio para documentos
 UPLOAD_FOLDER = 'documents'
@@ -263,6 +289,13 @@ def change_model():
         
         # Cambiar modelo
         global ai_model, content_generator
+        # Liberar modelo anterior si existe
+        if ai_model is not None:
+            del ai_model
+            del content_generator
+            import gc
+            gc.collect()
+        
         ai_model = AIModel(model_name)
         content_generator = ContentGenerator(ai_model, text_processor)
         app.config['DEFAULT_MODEL'] = model_name
@@ -325,14 +358,6 @@ def upload_document():
             
             # Guardar índice
             rag.save_index(INDEX_FILE)
-            
-            # Cargar índice si existe
-            if os.path.exists(INDEX_FILE):
-                try:
-                    rag.load_index(INDEX_FILE)
-                    logger.info("Documentos institucionales cargados desde índice")
-                except Exception as e:
-                    logger.warning(f"No se pudo cargar índice: {e}")
             
             return jsonify({
                 'status': 'success',
