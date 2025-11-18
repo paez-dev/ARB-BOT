@@ -13,6 +13,7 @@ class ARBBot {
         this.loadStats();
         this.loadRAGStats();
         this.checkSystemHealth();
+        this.autoWarmup(); // Pre-cargar modelos automáticamente
     }
 
     setupEventListeners() {
@@ -404,6 +405,79 @@ class ARBBot {
         } catch (error) {
             console.error('Error cargando stats RAG:', error);
         }
+    }
+
+    async autoWarmup() {
+        /**
+         * Pre-cargar modelos automáticamente al abrir la app
+         * Solo se ejecuta una vez por sesión para evitar múltiples warmups
+         */
+        try {
+            // Verificar si ya se hizo warmup en esta sesión
+            if (sessionStorage.getItem('warmup_done') === 'true') {
+                console.log('Modelos ya pre-cargados en esta sesión');
+                return;
+            }
+
+            // Verificar si los modelos ya están cargados
+            const healthResponse = await fetch('/api/health');
+            const healthData = await healthResponse.json();
+            
+            if (healthData.models_loaded) {
+                console.log('Modelos ya están cargados');
+                sessionStorage.setItem('warmup_done', 'true');
+                return;
+            }
+
+            // Mostrar indicador de carga (opcional, no intrusivo)
+            console.log('Pre-cargando modelos de IA... (esto puede tardar 30-60 segundos)');
+            
+            // Hacer warmup en background (no bloquea la UI)
+            fetch('/api/warmup', { 
+                method: 'POST',
+                // No esperar respuesta, hacerlo en background
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    console.log('✅ Modelos pre-cargados exitosamente');
+                    sessionStorage.setItem('warmup_done', 'true');
+                    
+                    // Mostrar notificación discreta
+                    this.showWarmupSuccess();
+                } else {
+                    console.log('Warmup opcional falló (no crítico):', data.error);
+                }
+            })
+            .catch(error => {
+                // No es crítico si falla, los modelos se cargarán bajo demanda
+                console.log('Warmup opcional falló (no crítico):', error);
+            });
+            
+        } catch (error) {
+            // No es crítico si falla
+            console.log('Warmup automático no disponible:', error);
+        }
+    }
+
+    showWarmupSuccess() {
+        // Mostrar notificación discreta de que los modelos están listos
+        const notification = document.createElement('div');
+        notification.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 end-0 m-3';
+        notification.style.zIndex = '9999';
+        notification.style.maxWidth = '300px';
+        notification.innerHTML = `
+            <small>✅ Modelos de IA listos</small>
+            <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(notification);
+        
+        // Auto-ocultar después de 3 segundos
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 3000);
     }
 }
 
