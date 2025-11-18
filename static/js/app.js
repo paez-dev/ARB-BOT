@@ -46,18 +46,28 @@ class ARBBot {
     }
 
     async generateContent() {
-        const userInput = document.getElementById('userInput').value;
-        const loading = document.getElementById('loading');
-        const resultCard = document.getElementById('resultCard');
+        const userInput = document.getElementById('userInput').value.trim();
+        const inputElement = document.getElementById('userInput');
 
         // Validación
         if (!this.validateInput(userInput)) {
             return;
         }
 
+        // Agregar mensaje del usuario al chat
+        this.addMessageToChat(userInput, 'user');
+        
+        // Limpiar input
+        inputElement.value = '';
+        inputElement.style.height = 'auto';
+        document.getElementById('charCount').textContent = '0/500';
+        
+        // Deshabilitar botón de envío
+        const sendBtn = document.getElementById('sendBtn');
+        sendBtn.disabled = true;
+
         // Mostrar loading
         this.showLoading(true);
-        this.hideResult();
 
         try {
             const response = await fetch('/api/generate', {
@@ -73,23 +83,27 @@ class ARBBot {
             const data = await response.json();
 
             if (data.status === 'success') {
-                this.displayResult(data);
+                // Agregar respuesta del bot al chat
+                this.addMessageToChat(data.generated_content, 'bot', data);
                 this.addToHistory(data);
                 this.loadStats();
-                
-                // Mostrar fuentes si se usó contexto
-                if (data.metadata && data.metadata.context_used) {
-                    this.showSources(data);
-                }
             } else {
-                this.showError(data.error || 'Error desconocido');
+                this.addMessageToChat(
+                    `❌ Error: ${data.error || 'Error desconocido'}`,
+                    'bot'
+                );
             }
 
         } catch (error) {
             console.error('Error:', error);
-            this.showError('Error al comunicarse con el servidor');
+            this.addMessageToChat(
+                '❌ Error al comunicarse con el servidor. Por favor, intenta de nuevo.',
+                'bot'
+            );
         } finally {
             this.showLoading(false);
+            sendBtn.disabled = false;
+            inputElement.focus();
         }
     }
 
@@ -107,15 +121,84 @@ class ARBBot {
         return true;
     }
 
-    displayResult(data) {
-        document.getElementById('originalInput').textContent = data.input;
-        document.getElementById('generatedContent').textContent = data.generated_content;
-        document.getElementById('modelUsed').textContent = data.model_used;
-        document.getElementById('timestamp').textContent = new Date(data.timestamp).toLocaleString();
+    addMessageToChat(text, type, data = null) {
+        const chatMessages = document.getElementById('chatMessages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${type}-message`;
         
-        const resultCard = document.getElementById('resultCard');
-        resultCard.style.display = 'block';
-        resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        const time = new Date().toLocaleTimeString('es-ES', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        let avatarIcon = type === 'user' ? '<i class="bi bi-person-fill"></i>' : '<i class="bi bi-robot"></i>';
+        
+        messageDiv.innerHTML = `
+            <div class="message-avatar">
+                ${avatarIcon}
+            </div>
+            <div class="message-content">
+                <div class="message-text">${this.formatMessage(text)}</div>
+                <div class="message-time">${time}</div>
+            </div>
+        `;
+        
+        chatMessages.appendChild(messageDiv);
+        
+        // Scroll al final
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // Si hay fuentes, agregarlas después
+        if (data && data.metadata && data.metadata.context_used) {
+            setTimeout(() => {
+                this.showSourcesInChat(data, messageDiv);
+            }, 500);
+        }
+    }
+
+    formatMessage(text) {
+        // Escapar HTML y convertir saltos de línea
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\n/g, '<br>');
+    }
+
+    async showSourcesInChat(data, messageElement) {
+        try {
+            const response = await fetch('/api/search-documents', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    query: data.input,
+                    top_k: 3
+                })
+            });
+
+            const searchData = await response.json();
+            if (searchData.status === 'success' && searchData.results.length > 0) {
+                const sourcesDiv = document.createElement('div');
+                sourcesDiv.className = 'mt-2 p-2 bg-light rounded';
+                sourcesDiv.style.fontSize = '0.85rem';
+                sourcesDiv.innerHTML = `
+                    <strong>📄 Fuentes utilizadas:</strong>
+                    ${searchData.results.map((result, index) => `
+                        <div class="mt-1">
+                            • ${result.source || 'Documento'} 
+                            <small class="text-muted">(${(result.similarity * 100).toFixed(1)}% relevante)</small>
+                        </div>
+                    `).join('')}
+                `;
+                
+                const messageContent = messageElement.querySelector('.message-content');
+                messageContent.appendChild(sourcesDiv);
+            }
+        } catch (error) {
+            console.error('Error obteniendo fuentes:', error);
+        }
     }
 
     async showSources(data) {
