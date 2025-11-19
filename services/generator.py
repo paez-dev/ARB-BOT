@@ -128,12 +128,9 @@ class ContentGenerator:
         Returns:
             Prompt formateado
         """
-        # Formato simplificado para DialoGPT
-        prompt = f"""Eres ARB-BOT, asistente de una institución educativa. Responde en español de manera clara y profesional.
-
-Pregunta: {query}
-
-Respuesta:"""
+        # Formato conversacional para DialoGPT
+        prompt = f"""Usuario: {query}
+Asistente:"""
         
         return prompt
     
@@ -148,21 +145,25 @@ Respuesta:"""
         Returns:
             Prompt formateado
         """
-        # Para DialoGPT, usar un formato más simple y conversacional
-        # Limitar el contexto a los primeros 600 caracteres para evitar prompts muy largos
+        # Para DialoGPT, usar formato conversacional
+        # Limitar el contexto a los primeros 400 caracteres para evitar prompts muy largos
         # Y limpiar el contexto de caracteres especiales que puedan confundir al modelo
-        context_limited = context[:600] + "..." if len(context) > 600 else context
+        context_limited = context[:400] + "..." if len(context) > 400 else context
         # Remover saltos de línea múltiples y espacios excesivos
         import re
         context_limited = re.sub(r'\n+', ' ', context_limited)
         context_limited = re.sub(r' +', ' ', context_limited).strip()
+        # Remover etiquetas de fuente que pueden confundir
+        context_limited = re.sub(r'\[Fuente:.*?\]', '', context_limited)
+        context_limited = re.sub(r'---.*?---', '', context_limited)
+        context_limited = context_limited.strip()
         
-        # Formato simplificado para DialoGPT - más directo
-        prompt = f"""Basándote en esta información: {context_limited}
+        # Formato conversacional para DialoGPT - como si fuera una conversación
+        # DialoGPT funciona mejor con formato de diálogo
+        prompt = f"""Información del manual: {context_limited}
 
-Responde esta pregunta en español: {query}
-
-Respuesta:"""
+Usuario: {query}
+Asistente:"""
         
         return prompt
     

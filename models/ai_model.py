@@ -234,8 +234,11 @@ class AIModel:
                         logger.info(f"Prompt encontrado en posición {prompt_index}, texto restante: {len(generated_text)} caracteres")
                     else:
                         # Si no se encuentra el prompt completo, intentar encontrar solo la última parte
-                        # Buscar "Respuesta:" o "Responde" que es lo que viene después del contexto
-                        if "Respuesta:" in generated_text:
+                        # Para DialoGPT con formato conversacional, buscar "Asistente:"
+                        if "Asistente:" in generated_text:
+                            generated_text = generated_text.split("Asistente:")[-1].strip()
+                            logger.info(f"Encontrado 'Asistente:' en el texto, usando lo que viene después")
+                        elif "Respuesta:" in generated_text:
                             generated_text = generated_text.split("Respuesta:")[-1].strip()
                             logger.info(f"Encontrado 'Respuesta:' en el texto, usando lo que viene después")
                         elif "Responde" in generated_text and ":" in generated_text:
@@ -297,6 +300,9 @@ class AIModel:
                             # Para el segundo intento, remover el prompt simple si está presente
                             if generated_text.startswith(simple_prompt):
                                 generated_text = generated_text[len(simple_prompt):].strip()
+                            elif "Asistente:" in generated_text:
+                                # Si hay "Asistente:" en el texto, usar solo lo que viene después
+                                generated_text = generated_text.split("Asistente:")[-1].strip()
                             elif "Respuesta:" in generated_text:
                                 # Si hay "Respuesta:" en el texto, usar solo lo que viene después
                                 generated_text = generated_text.split("Respuesta:")[-1].strip()
