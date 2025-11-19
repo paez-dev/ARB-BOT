@@ -439,14 +439,49 @@ def upload_document():
             
             logger.info(f"Procesando documento: {filename}")
             
-            # Procesar documento
-            chunks = document_processor.process_document(filepath)
+            # Verificar tamaño del archivo
+            file_size = os.path.getsize(filepath)
+            file_size_mb = file_size / (1024 * 1024)
             
-            # Agregar al sistema RAG
+            if file_size_mb > 10:
+                logger.warning(f"Archivo grande detectado: {file_size_mb:.2f} MB. El procesamiento puede tardar varios minutos.")
+            
+            # Procesar documento (limitar a 100 páginas para PDFs grandes)
+            try:
+                chunks = document_processor.process_document(filepath, max_pages=100)
+            except Exception as e:
+                logger.error(f"Error procesando documento: {str(e)}")
+                # Limpiar archivo si hay error
+                try:
+                    os.remove(filepath)
+                except:
+                    pass
+                return jsonify({
+                    'error': f'Error procesando documento: {str(e)}',
+                    'status': 'error',
+                    'hint': 'El documento puede ser muy grande o estar corrupto. Intenta con un archivo más pequeño o verifica que el PDF no esté protegido.'
+                }), 500
+            
+            if not chunks or len(chunks) == 0:
+                return jsonify({
+                    'error': 'No se pudo extraer contenido del documento',
+                    'status': 'error',
+                    'hint': 'El documento puede estar vacío o protegido.'
+                }), 400
+            
+            logger.info(f"Agregando {len(chunks)} chunks al sistema RAG...")
+            
+            # Agregar al sistema RAG en lotes para evitar problemas de memoria
             rag = get_rag_service()
-            rag.add_documents(chunks)
+            batch_size = 50  # Procesar en lotes de 50 chunks
+            
+            for i in range(0, len(chunks), batch_size):
+                batch = chunks[i:i + batch_size]
+                rag.add_documents(batch)
+                logger.info(f"Procesado lote {i//batch_size + 1}/{(len(chunks)-1)//batch_size + 1}")
             
             # Guardar índice
+            logger.info("Guardando índice...")
             rag.save_index(INDEX_FILE)
             
             return jsonify({

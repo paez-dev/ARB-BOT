@@ -22,12 +22,13 @@ class DocumentProcessor:
         self.chunk_size = 500  # Tamaño de chunks para embeddings
         self.chunk_overlap = 50  # Solapamiento entre chunks
     
-    def process_document(self, file_path: str) -> List[Dict]:
+    def process_document(self, file_path: str, max_pages: int = 100) -> List[Dict]:
         """
         Procesar un documento y extraer texto
         
         Args:
             file_path: Ruta al archivo
+            max_pages: Número máximo de páginas para PDFs (por defecto 100)
         
         Returns:
             Lista de chunks con texto y metadata
@@ -35,8 +36,10 @@ class DocumentProcessor:
         try:
             file_ext = os.path.splitext(file_path)[1].lower()
             
+            logger.info(f"Iniciando extracción de texto de {file_ext}")
+            
             if file_ext == '.pdf':
-                text = self._extract_from_pdf(file_path)
+                text = self._extract_from_pdf(file_path, max_pages=max_pages)
             elif file_ext == '.docx':
                 text = self._extract_from_docx(file_path)
             elif file_ext == '.txt':
@@ -44,7 +47,13 @@ class DocumentProcessor:
             else:
                 raise ValueError(f"Formato no soportado: {file_ext}")
             
+            if not text or len(text.strip()) < 10:
+                raise ValueError("No se pudo extraer texto del documento o el documento está vacío")
+            
+            logger.info(f"Texto extraído: {len(text)} caracteres")
+            
             # Dividir en chunks
+            logger.info("Dividiendo texto en chunks...")
             chunks = self._split_into_chunks(text, file_path)
             
             logger.info(f"Documento procesado: {len(chunks)} chunks extraídos")
@@ -54,17 +63,40 @@ class DocumentProcessor:
             logger.error(f"Error procesando documento {file_path}: {str(e)}")
             raise
     
-    def _extract_from_pdf(self, file_path: str) -> str:
-        """Extraer texto de PDF"""
+    def _extract_from_pdf(self, file_path: str, max_pages: int = 100) -> str:
+        """
+        Extraer texto de PDF con límite de páginas para evitar timeouts
+        
+        Args:
+            file_path: Ruta al archivo PDF
+            max_pages: Número máximo de páginas a procesar (por defecto 100)
+        """
         try:
             import PyPDF2
             
             text = ""
             with open(file_path, 'rb') as file:
                 pdf_reader = PyPDF2.PdfReader(file)
-                for page_num, page in enumerate(pdf_reader.pages):
-                    page_text = page.extract_text()
-                    text += f"\n--- Página {page_num + 1} ---\n{page_text}\n"
+                total_pages = len(pdf_reader.pages)
+                
+                # Limitar número de páginas para evitar timeouts
+                pages_to_process = min(total_pages, max_pages)
+                
+                if total_pages > max_pages:
+                    logger.warning(f"PDF tiene {total_pages} páginas. Procesando solo las primeras {max_pages} páginas.")
+                
+                for page_num in range(pages_to_process):
+                    try:
+                        page = pdf_reader.pages[page_num]
+                        page_text = page.extract_text()
+                        if page_text.strip():
+                            text += f"\n--- Página {page_num + 1} ---\n{page_text}\n"
+                    except Exception as page_error:
+                        logger.warning(f"Error extrayendo página {page_num + 1}: {str(page_error)}")
+                        continue
+                
+                if total_pages > max_pages:
+                    text += f"\n\n[Nota: Este documento tiene {total_pages} páginas. Se procesaron las primeras {max_pages} páginas.]"
             
             return text.strip()
             
@@ -76,8 +108,24 @@ class DocumentProcessor:
                 text = ""
                 with open(file_path, 'rb') as file:
                     pdf_reader = pypdf.PdfReader(file)
-                    for page in pdf_reader.pages:
-                        text += page.extract_text() + "\n"
+                    total_pages = len(pdf_reader.pages)
+                    pages_to_process = min(total_pages, max_pages)
+                    
+                    if total_pages > max_pages:
+                        logger.warning(f"PDF tiene {total_pages} páginas. Procesando solo las primeras {max_pages} páginas.")
+                    
+                    for page_num in range(pages_to_process):
+                        try:
+                            page = pdf_reader.pages[page_num]
+                            page_text = page.extract_text()
+                            if page_text.strip():
+                                text += page_text + "\n"
+                        except Exception:
+                            continue
+                    
+                    if total_pages > max_pages:
+                        text += f"\n\n[Nota: Este documento tiene {total_pages} páginas. Se procesaron las primeras {max_pages} páginas.]"
+                
                 return text.strip()
             except ImportError:
                 raise Exception(f"No se pudo extraer texto del PDF. Instala PyPDF2 o pypdf: {str(e)}")
