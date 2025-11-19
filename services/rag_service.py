@@ -200,11 +200,19 @@ class RAGService:
                     results = []
                     for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
                         if idx < len(self.document_store):
-                            similarity = 1 - distance  # Convertir distancia a similitud
+                            # Calcular similitud coseno correctamente
+                            # Con embeddings normalizados L2, la distancia L2 al cuadrado es: 2 - 2*cosine_similarity
+                            # Entonces: cosine_similarity = 1 - (distance^2 / 2)
+                            # Pero como ya están normalizados, podemos usar: similarity = max(0, 1 - distance)
+                            # Para asegurar valores entre 0 y 1
+                            similarity = max(0.0, min(1.0, 1.0 - (distance / 2.0)))
                             result = self.document_store[idx].copy()
                             result['similarity'] = float(similarity)
                             result['rank'] = i + 1
                             results.append(result)
+                    
+                    # Filtrar resultados con similitud muy baja (< 0.3) para mejor calidad
+                    results = [r for r in results if r['similarity'] >= 0.3]
                 except Exception as e:
                     logger.warning(f"Error usando FAISS ({e}), usando búsqueda lineal")
                     self.index = None
@@ -258,7 +266,7 @@ class RAGService:
             logger.error(f"Error en búsqueda: {str(e)}")
             return []
     
-    def get_context_for_query(self, query: str, top_k: int = 3, max_context_length: int = 800) -> str:
+    def get_context_for_query(self, query: str, top_k: int = 3, max_context_length: int = 500) -> str:
         """
         Obtener contexto relevante para una consulta
         
@@ -274,6 +282,18 @@ class RAGService:
         
         if not results:
             return ""
+        
+        # Filtrar resultados con similitud muy baja antes de construir contexto
+        # Solo usar chunks con similitud >= 0.3 para asegurar calidad
+        quality_results = [r for r in results if r.get('similarity', 0) >= 0.3]
+        
+        if not quality_results:
+            # Si no hay resultados de calidad, retornar vacío (el fallback se encargará)
+            logger.warning(f"No se encontraron resultados con similitud suficiente (>= 0.3) para la consulta")
+            return ""
+        
+        # Usar solo los resultados de calidad
+        results = quality_results
         
         context_parts = []
         total_length = 0

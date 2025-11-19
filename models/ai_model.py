@@ -200,7 +200,7 @@ class AIModel:
             logger.debug(f"Prompt tokens: {prompt_tokens}, max_new_tokens: {max_new_tokens}")
             
             # Generar texto usando max_new_tokens en lugar de max_length
-            # Para DialoGPT, usar repetition_penalty para evitar repeticiones del prompt
+            # Parámetros profesionales para evitar repeticiones y mejorar calidad
             results = self.generator(
                 prompt,
                 max_new_tokens=max_new_tokens,
@@ -209,7 +209,10 @@ class AIModel:
                 do_sample=True,
                 pad_token_id=self.tokenizer.eos_token_id,
                 truncation=True,
-                repetition_penalty=1.15  # Penalizar repeticiones (evita repetir el prompt)
+                repetition_penalty=1.4,  # Aumentado para evitar repeticiones del prompt
+                no_repeat_ngram_size=3,  # Evitar repetición de trigramas (profesional)
+                top_p=0.9,  # Nucleus sampling para mejor calidad
+                top_k=50  # Top-k sampling
             )
             
             # Extraer texto generado
@@ -226,13 +229,25 @@ class AIModel:
                 # Extraer respuesta de manera profesional
                 # DialoGPT puede incluir el prompt completo o solo generar la respuesta
                 
-                # Estrategia 1: Buscar "Asistente:" que es el marcador de inicio de respuesta
-                if "Asistente:" in generated_text:
+                # Estrategia 1: Buscar "RESPUESTA:" que es el marcador explícito del nuevo formato
+                if "RESPUESTA:" in generated_text:
+                    # Dividir por "RESPUESTA:" y tomar la última parte
+                    parts = generated_text.split("RESPUESTA:")
+                    if len(parts) > 1:
+                        generated_text = parts[-1].strip()
+                        logger.info(f"Respuesta extraída después de 'RESPUESTA:' - {len(generated_text)} caracteres")
+                    else:
+                        generated_text = generated_text.strip()
+                # Estrategia 1b: Buscar "Asistente:" (formato antiguo, mantener compatibilidad)
+                elif "Asistente:" in generated_text:
                     # Dividir por "Asistente:" y tomar la última parte (puede haber múltiples)
                     parts = generated_text.split("Asistente:")
                     if len(parts) > 1:
                         # Tomar la última parte después de "Asistente:"
                         generated_text = parts[-1].strip()
+                        # Limpiar repeticiones de "Asistente:" si las hay
+                        while generated_text.startswith("Asistente:"):
+                            generated_text = generated_text[10:].strip()
                         logger.info(f"Respuesta extraída después de 'Asistente:' - {len(generated_text)} caracteres")
                     else:
                         generated_text = generated_text.strip()
@@ -316,7 +331,10 @@ class AIModel:
                             do_sample=True,
                             pad_token_id=self.tokenizer.eos_token_id,
                             truncation=True,
-                            repetition_penalty=1.2  # Evitar repeticiones
+                            repetition_penalty=1.4,  # Aumentado para evitar repeticiones
+                            no_repeat_ngram_size=3,  # Evitar repetición de trigramas
+                            top_p=0.9,
+                            top_k=50
                         )
                         if results and len(results) > 0:
                             generated_text = results[0]['generated_text']
@@ -345,6 +363,28 @@ class AIModel:
                             logger.info(f"Segundo intento - Texto después de remover prompt: '{generated_text[:200]}'")
                     except Exception as retry_error:
                         logger.error(f"Error en segundo intento: {retry_error}")
+                
+                # Limpiar repeticiones de palabras o frases
+                if generated_text:
+                    # Detectar y eliminar repeticiones excesivas (ej: "Asistente: Asistente: Asistente:")
+                    import re
+                    # Remover repeticiones de "Asistente:" al inicio
+                    generated_text = re.sub(r'^(Asistente:\s*)+', '', generated_text, flags=re.IGNORECASE)
+                    # Remover repeticiones de palabras consecutivas (más de 2 veces)
+                    words = generated_text.split()
+                    cleaned_words = []
+                    last_word = None
+                    repeat_count = 0
+                    for word in words:
+                        if word.lower() == last_word:
+                            repeat_count += 1
+                            if repeat_count <= 2:  # Permitir máximo 2 repeticiones
+                                cleaned_words.append(word)
+                        else:
+                            cleaned_words.append(word)
+                            last_word = word.lower()
+                            repeat_count = 1
+                    generated_text = ' '.join(cleaned_words)
                 
                 # Si aún está vacío, verificar si el texto original tiene contenido útil
                 if not generated_text or len(generated_text.strip()) == 0:

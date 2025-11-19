@@ -144,16 +144,20 @@ Asistente:"""
     
     def _build_prompt_with_context(self, query: str, context: str) -> str:
         """
-        Construir prompt con contexto de documentos
+        Construir prompt con contexto de documentos usando formato profesional RAG
+        
+        Basado en mejores prácticas de sistemas RAG profesionales (ChatGPT, Gemini, etc.)
+        - Instrucciones explícitas para usar el contexto
+        - Formato estructurado que el modelo puede seguir
+        - Separación clara entre contexto, instrucción y pregunta
         
         Args:
             query: Pregunta del usuario
             context: Contexto relevante de documentos
         
         Returns:
-            Prompt formateado
+            Prompt formateado profesionalmente
         """
-        # Limpiar y preparar el contexto de manera profesional
         import re
         
         # Limpiar contexto: remover etiquetas, separadores y normalizar
@@ -162,24 +166,34 @@ Asistente:"""
         context_clean = re.sub(r'\n+', ' ', context_clean)
         context_clean = re.sub(r' +', ' ', context_clean).strip()
         
-        # Limitar contexto a 300 caracteres para evitar prompts muy largos
-        # DialoGPT funciona mejor con contexto conciso
-        if len(context_clean) > 300:
+        # Aumentar límite de contexto a 500 caracteres para más información
+        # DialoGPT puede manejar más contexto si está bien estructurado
+        if len(context_clean) > 500:
             # Truncar en un punto completo si es posible
-            truncated = context_clean[:300]
+            truncated = context_clean[:500]
             last_period = truncated.rfind('.')
-            if last_period > 200:  # Si hay un punto razonablemente cerca
+            if last_period > 350:  # Si hay un punto razonablemente cerca
                 context_clean = truncated[:last_period + 1]
             else:
                 context_clean = truncated + "..."
         
-        # Formato profesional para DialoGPT con contexto
-        # DialoGPT fue entrenado con formato de diálogo, pero necesita contexto claro
-        # Usar un formato que combine contexto y pregunta de manera natural
-        prompt = f"""Contexto: {context_clean}
+        # FORMATO PROFESIONAL RAG (basado en mejores prácticas)
+        # Estructura: Instrucción clara + Contexto + Pregunta + Formato de respuesta
+        # Esto le dice explícitamente al modelo qué hacer con el contexto
+        prompt = f"""Eres un asistente que responde preguntas basándote ÚNICAMENTE en la información proporcionada.
 
-Usuario: {query}
-Asistente:"""
+INFORMACIÓN DEL MANUAL DE CONVIVENCIA:
+{context_clean}
+
+PREGUNTA DEL USUARIO: {query}
+
+INSTRUCCIONES:
+- Responde SOLO usando la información del manual proporcionada arriba
+- Si la información no está en el contexto, di que no tienes esa información
+- Responde en español de manera clara y completa
+- Sé específico y menciona detalles relevantes del manual
+
+RESPUESTA:"""
         
         return prompt
     
@@ -277,6 +291,7 @@ Asistente:"""
     def _create_fallback_from_context(self, context: str, query: str) -> Optional[str]:
         """
         Crear respuesta de fallback basada en el contexto cuando el modelo falla
+        Usa un enfoque profesional: extraer información relevante directamente del contexto
         
         Args:
             context: Contexto relevante de documentos
@@ -297,36 +312,46 @@ Asistente:"""
             if len(context_clean) < 50:
                 return None
             
-            # Crear respuesta simple basada en el contexto
-            # Tomar las primeras 2-3 oraciones del contexto más relevante
-            sentences = context_clean.split('.')
-            relevant_sentences = []
-            query_words = set(query.lower().split())
+            # Extraer palabras clave de la pregunta (palabras significativas)
+            query_words = set()
+            stop_words = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'que', 'qué', 'sobre', 'sobre', 'del', 'en', 'con', 'para', 'por'}
+            for word in query.lower().split():
+                if len(word) > 3 and word not in stop_words:
+                    query_words.add(word)
             
-            # Buscar oraciones que contengan palabras de la pregunta
+            # Dividir contexto en oraciones
+            sentences = re.split(r'[.!?]+', context_clean)
+            sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 20]
+            
+            # Buscar oraciones más relevantes (que contengan palabras clave)
+            scored_sentences = []
             for sentence in sentences:
                 sentence_lower = sentence.lower()
-                # Contar cuántas palabras de la pregunta están en la oración
-                matches = sum(1 for word in query_words if word in sentence_lower and len(word) > 3)
-                if matches > 0:
-                    relevant_sentences.append(sentence.strip())
-                    if len(relevant_sentences) >= 3:
-                        break
+                # Calcular score: cuántas palabras clave aparecen
+                score = sum(1 for word in query_words if word in sentence_lower)
+                if score > 0:
+                    scored_sentences.append((score, sentence))
             
-            # Si no encontramos oraciones relevantes, usar las primeras 2
-            if not relevant_sentences:
-                relevant_sentences = [s.strip() for s in sentences[:2] if s.strip()]
+            # Ordenar por relevancia
+            scored_sentences.sort(reverse=True, key=lambda x: x[0])
+            
+            # Tomar las 2-3 oraciones más relevantes
+            if scored_sentences:
+                relevant_sentences = [s for _, s in scored_sentences[:3]]
+            else:
+                # Si no hay coincidencias, usar las primeras oraciones completas
+                relevant_sentences = sentences[:2]
             
             if relevant_sentences:
-                # Construir respuesta
-                response = ". ".join(relevant_sentences[:2])
+                # Construir respuesta profesional
+                response = ". ".join(relevant_sentences)
                 if not response.endswith('.'):
                     response += "."
                 
-                # Agregar prefijo para que suene más natural
+                # Agregar prefijo profesional
                 response = f"Según el manual de convivencia: {response}"
                 
-                if len(response) > 20:  # Validar que tenga sentido
+                if len(response) > 30:  # Validar que tenga sentido
                     return response
             
             return None
