@@ -69,14 +69,20 @@ def get_rag_service():
     return rag_service
 
 # Directorio para documentos
-UPLOAD_FOLDER = 'documents'
+# Usar disco persistente si está disponible (Render), sino usar directorio local
+if os.path.exists('/persistent'):
+    UPLOAD_FOLDER = '/persistent/documents'
+    INDEX_FILE = '/persistent/rag_index.json'
+    logger.info("Usando disco persistente de Render para almacenamiento")
+else:
+    UPLOAD_FOLDER = 'documents'
+    INDEX_FILE = 'rag_index.json'
+    logger.info("Usando almacenamiento local (desarrollo)")
+
 ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
 
 # Crear directorio si no existe
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# Cargar documentos existentes si hay (se cargará cuando se use RAG por primera vez)
-INDEX_FILE = 'rag_index.json'
 
 def allowed_file(filename):
     """Verificar si el archivo tiene extensión permitida"""
