@@ -102,11 +102,11 @@ class AIModel:
             # Determinar modelo de respaldo basado en el modelo original
             original_model = self.model_name.lower()
             if 'spanish' in original_model or 'es' in original_model or 'bne' in original_model or 'plan' in original_model:
-                # Si el modelo original era en español, intentar modelos en español
-                fallback_models = ['microsoft/DialoGPT-small', 'gpt2', 'distilgpt2']
+                # Si el modelo original era en español, intentar modelos conversacionales
+                fallback_models = ['microsoft/DialoGPT-medium', 'microsoft/DialoGPT-small', 'gpt2']
             else:
-                # Si no, usar modelos estándar
-                fallback_models = ['distilgpt2', 'gpt2']
+                # Si no, usar modelos conversacionales de mejor calidad
+                fallback_models = ['microsoft/DialoGPT-medium', 'microsoft/DialoGPT-small', 'gpt2', 'distilgpt2']
             
             # Intentar cargar modelos de respaldo en orden
             for fallback_model in fallback_models:

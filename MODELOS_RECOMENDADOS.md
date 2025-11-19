@@ -91,10 +91,15 @@ DEFAULT_MODEL=microsoft/DialoGPT-medium
 
 ## ⚙️ Configuración Actual
 
-Tu modelo actual es: `distilgpt2` (básico, no recomendado)
+**Modelo por defecto:** `microsoft/DialoGPT-medium` ⭐⭐⭐⭐⭐
 
-Para cambiarlo, agrega en Railway:
+Este es el mejor modelo para conversaciones y funciona muy bien con RAG. Si necesitas cambiarlo, agrega en Railway:
 ```
 DEFAULT_MODEL=microsoft/DialoGPT-medium
+```
+
+O para español puro:
+```
+DEFAULT_MODEL=PlanTL-GOB-ES/gpt2-base-bne
 ```
 
