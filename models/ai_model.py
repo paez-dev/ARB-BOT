@@ -171,7 +171,7 @@ class AIModel:
         
         Args:
             prompt: Texto de entrada
-            max_length: Longitud máxima de la salida
+            max_length: Longitud máxima total (prompt + generación) - DEPRECATED, usar max_new_tokens
             temperature: Control de creatividad (0.0-1.0)
             num_return_sequences: Número de secuencias a generar
         
@@ -182,15 +182,28 @@ class AIModel:
             if not self.generator:
                 raise Exception("Modelo no inicializado")
             
-            # Generar texto
+            # Calcular max_new_tokens basado en max_length y longitud del prompt
+            # Si max_length es 150 y el prompt es largo, usar max_new_tokens en su lugar
+            prompt_tokens = len(self.tokenizer.encode(prompt))
+            
+            # Usar max_new_tokens para evitar el error cuando el prompt es largo
+            # max_new_tokens especifica cuántos tokens nuevos generar, no el total
+            if prompt_tokens >= max_length:
+                # Si el prompt ya es muy largo, generar solo 50 tokens nuevos
+                max_new_tokens = 50
+            else:
+                # Generar tokens nuevos hasta alcanzar max_length total
+                max_new_tokens = max(50, max_length - prompt_tokens)
+            
+            # Generar texto usando max_new_tokens en lugar de max_length
             results = self.generator(
                 prompt,
-                max_length=max_length,
+                max_new_tokens=max_new_tokens,
                 temperature=temperature,
                 num_return_sequences=num_return_sequences,
                 do_sample=True,
                 pad_token_id=self.tokenizer.eos_token_id,
-                truncation=True  # Agregar truncation explícito
+                truncation=True
             )
             
             # Extraer texto generado

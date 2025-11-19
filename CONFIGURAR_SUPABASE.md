@@ -96,6 +96,20 @@ SUPABASE_KEY=tu-anon-key-aqui
 - Ve a Storage → Policies
 - Crea una política que permita lectura/escritura pública
 
+### Error: "400 Client Error: Bad Request" al guardar índice RAG
+- **Causa:** El bucket no permite los tipos MIME necesarios para guardar el índice
+- **Solución:**
+  1. Ve a Supabase → Storage → `documents` → **Bucket details** (o edita el bucket)
+  2. En **"Allowed MIME types"**, asegúrate de tener:
+     ```
+     application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/json,application/octet-stream
+     ```
+  3. Si ya tienes el bucket creado, puedes editarlo:
+     - Ve a Storage → `documents` → **Settings** (⚙️)
+     - Edita **"Allowed MIME types"** y agrega: `application/json,application/octet-stream`
+     - Guarda los cambios
+  4. **Nota:** El sistema guardará localmente como respaldo si Supabase falla, pero es mejor configurarlo correctamente
+
 ---
 
 ## 🎯 ¿Listo?
