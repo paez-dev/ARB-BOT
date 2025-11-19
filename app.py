@@ -444,10 +444,21 @@ def upload_document():
             if file_size_mb > 10:
                 logger.warning(f"Archivo grande detectado: {file_size_mb:.2f} MB. El procesamiento puede tardar varios minutos.")
             
-            # Procesar documento (limitar a 50 páginas para PDFs grandes en free tier)
-            # Para documentos más grandes, dividir en partes más pequeñas
+            # Procesar documento completo
+            # Si el documento es muy grande, se procesará en lotes más pequeños
             try:
-                chunks = document_processor.process_document(filepath, max_pages=50)
+                # Determinar límite de páginas basado en el tamaño del archivo
+                file_size_mb = file_size / (1024 * 1024)
+                if file_size_mb > 5:
+                    # Archivos grandes: procesar en lotes más pequeños
+                    max_pages = 100
+                    logger.info(f"Archivo grande ({file_size_mb:.2f} MB). Procesando hasta {max_pages} páginas por lote.")
+                else:
+                    # Archivos normales: procesar todo
+                    max_pages = None  # Sin límite
+                    logger.info(f"Procesando documento completo ({file_size_mb:.2f} MB)")
+                
+                chunks = document_processor.process_document(filepath, max_pages=max_pages)
             except Exception as e:
                 logger.error(f"Error procesando documento: {str(e)}")
                 # Limpiar archivo si hay error
