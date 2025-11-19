@@ -213,28 +213,40 @@ class AIModel:
             # Extraer texto generado
             if results and len(results) > 0:
                 generated_text = results[0]['generated_text']
-                logger.debug(f"Texto generado completo: {generated_text[:200]}...")
+                logger.info(f"Texto generado completo (primeros 300 chars): {generated_text[:300]}")
+                logger.info(f"Longitud del texto generado: {len(generated_text)} caracteres")
+                logger.info(f"Longitud del prompt: {len(prompt)} caracteres")
+                
+                # Para DialoGPT, el formato puede ser diferente
+                # DialoGPT puede incluir el prompt o generar directamente
+                original_generated = generated_text
                 
                 # Remover el prompt original de la salida
                 if generated_text.startswith(prompt):
                     generated_text = generated_text[len(prompt):].strip()
+                    logger.info(f"Prompt encontrado al inicio, texto restante: {len(generated_text)} caracteres")
                 else:
                     # Si no empieza con el prompt, puede que el modelo haya generado algo diferente
                     # Intentar encontrar el prompt en el texto
                     prompt_index = generated_text.find(prompt)
                     if prompt_index >= 0:
                         generated_text = generated_text[prompt_index + len(prompt):].strip()
-                    # Si no se encuentra, usar todo el texto generado
-                    generated_text = generated_text.strip()
+                        logger.info(f"Prompt encontrado en posición {prompt_index}, texto restante: {len(generated_text)} caracteres")
+                    else:
+                        # Si no se encuentra, usar todo el texto generado (DialoGPT puede hacer esto)
+                        logger.info(f"Prompt no encontrado en el texto generado, usando todo el texto generado")
+                        generated_text = generated_text.strip()
                 
                 # Validar que el texto generado no esté vacío
                 if not generated_text or len(generated_text.strip()) == 0:
-                    logger.warning("El modelo generó texto vacío, intentando con parámetros diferentes...")
+                    logger.warning(f"El modelo generó texto vacío después de remover prompt. Texto original: '{original_generated[:100]}'")
+                    logger.warning("Intentando con parámetros diferentes...")
+                    
                     # Intentar de nuevo con más tokens y temperatura más alta
                     results = self.generator(
                         prompt,
-                        max_new_tokens=100,
-                        temperature=min(0.9, temperature + 0.1),
+                        max_new_tokens=120,
+                        temperature=min(0.9, temperature + 0.2),
                         num_return_sequences=1,
                         do_sample=True,
                         pad_token_id=self.tokenizer.eos_token_id,
@@ -242,16 +254,21 @@ class AIModel:
                     )
                     if results and len(results) > 0:
                         generated_text = results[0]['generated_text']
+                        logger.info(f"Segundo intento - Texto generado: {generated_text[:200]}")
+                        
                         if generated_text.startswith(prompt):
                             generated_text = generated_text[len(prompt):].strip()
                         else:
+                            # Para DialoGPT, puede que no incluya el prompt
                             generated_text = generated_text.strip()
                 
                 # Si aún está vacío, retornar mensaje de error
                 if not generated_text or len(generated_text.strip()) == 0:
-                    logger.error("No se pudo generar contenido después de múltiples intentos")
+                    logger.error(f"No se pudo generar contenido después de múltiples intentos. Modelo: {self.model_name}")
+                    logger.error(f"Prompt usado: {prompt[:200]}...")
                     return "Lo siento, no pude generar una respuesta. Por favor, intenta reformular tu pregunta o verifica que hay documentos cargados en el sistema."
                 
+                logger.info(f"Texto final generado: {len(generated_text)} caracteres - '{generated_text[:100]}...'")
                 return generated_text
             else:
                 logger.error("El modelo no retornó resultados")

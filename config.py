@@ -25,7 +25,8 @@ class Config:
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
     
     # Configuración de Modelos de IA
-    DEFAULT_MODEL = os.getenv('DEFAULT_MODEL', 'PlanTL-GOB-ES/gpt2-base-bne')  # Modelo en español por defecto
+    # Cambiado a DialoGPT-small porque PlanTL-GOB-ES/gpt2-base-bne no se puede cargar
+    DEFAULT_MODEL = os.getenv('DEFAULT_MODEL', 'microsoft/DialoGPT-small')  # Modelo conversacional que funciona mejor
     MAX_TOKENS = int(os.getenv('MAX_TOKENS', '150'))
     TEMPERATURE = float(os.getenv('TEMPERATURE', '0.7'))
     
