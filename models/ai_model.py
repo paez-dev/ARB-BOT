@@ -239,34 +239,63 @@ class AIModel:
                 
                 # Validar que el texto generado no esté vacío
                 if not generated_text or len(generated_text.strip()) == 0:
-                    logger.warning(f"El modelo generó texto vacío después de remover prompt. Texto original: '{original_generated[:100]}'")
+                    logger.warning(f"El modelo generó texto vacío después de remover prompt.")
+                    logger.warning(f"Texto original completo: '{original_generated}'")
+                    logger.warning(f"Prompt usado: '{prompt[:200]}...'")
                     logger.warning("Intentando con parámetros diferentes...")
                     
                     # Intentar de nuevo con más tokens y temperatura más alta
-                    results = self.generator(
-                        prompt,
-                        max_new_tokens=120,
-                        temperature=min(0.9, temperature + 0.2),
-                        num_return_sequences=1,
-                        do_sample=True,
-                        pad_token_id=self.tokenizer.eos_token_id,
-                        truncation=True
-                    )
-                    if results and len(results) > 0:
-                        generated_text = results[0]['generated_text']
-                        logger.info(f"Segundo intento - Texto generado: {generated_text[:200]}")
+                    # También intentar con un prompt más corto para DialoGPT
+                    try:
+                        # Para DialoGPT, puede funcionar mejor con un prompt más simple
+                        simple_prompt = prompt.split("PREGUNTA DEL USUARIO:")[-1].split("RESPUESTA")[0].strip() if "PREGUNTA DEL USUARIO:" in prompt else prompt[-200:]
                         
-                        if generated_text.startswith(prompt):
-                            generated_text = generated_text[len(prompt):].strip()
-                        else:
-                            # Para DialoGPT, puede que no incluya el prompt
-                            generated_text = generated_text.strip()
+                        results = self.generator(
+                            simple_prompt,
+                            max_new_tokens=120,
+                            temperature=min(0.9, temperature + 0.2),
+                            num_return_sequences=1,
+                            do_sample=True,
+                            pad_token_id=self.tokenizer.eos_token_id,
+                            truncation=True
+                        )
+                        if results and len(results) > 0:
+                            generated_text = results[0]['generated_text']
+                            logger.info(f"Segundo intento - Texto generado: {generated_text[:200]}")
+                            
+                            # Para el segundo intento, si el prompt simple está al inicio, removerlo
+                            if generated_text.startswith(simple_prompt):
+                                generated_text = generated_text[len(simple_prompt):].strip()
+                            else:
+                                # Para DialoGPT, puede que no incluya el prompt
+                                generated_text = generated_text.strip()
+                    except Exception as retry_error:
+                        logger.error(f"Error en segundo intento: {retry_error}")
+                
+                # Si aún está vacío, verificar si el texto original tiene contenido útil
+                if not generated_text or len(generated_text.strip()) == 0:
+                    # Último recurso: verificar si el texto original tiene algo útil
+                    # A veces DialoGPT genera sin incluir el prompt completo
+                    if original_generated and len(original_generated) > len(prompt):
+                        # Si el texto generado es más largo que el prompt, puede que tenga contenido
+                        # Intentar extraer solo las últimas palabras que no están en el prompt
+                        words_generated = original_generated.split()
+                        words_prompt = prompt.split()
+                        
+                        # Buscar dónde termina el prompt en el texto generado
+                        if len(words_generated) > len(words_prompt):
+                            # Tomar las últimas palabras que no están en el prompt
+                            potential_response = ' '.join(words_generated[len(words_prompt):])
+                            if potential_response.strip() and len(potential_response.strip()) > 10:
+                                logger.info(f"Extrayendo respuesta de texto generado: {potential_response[:100]}")
+                                generated_text = potential_response.strip()
                 
                 # Si aún está vacío, retornar mensaje de error
                 if not generated_text or len(generated_text.strip()) == 0:
                     logger.error(f"No se pudo generar contenido después de múltiples intentos. Modelo: {self.model_name}")
-                    logger.error(f"Prompt usado: {prompt[:200]}...")
-                    return "Lo siento, no pude generar una respuesta. Por favor, intenta reformular tu pregunta o verifica que hay documentos cargados en el sistema."
+                    logger.error(f"Prompt usado (últimos 300 chars): ...{prompt[-300:]}")
+                    logger.error(f"Texto original generado (primeros 200 chars): {original_generated[:200]}")
+                    return "Lo siento, no pude generar una respuesta con el modelo actual. Por favor, intenta reformular tu pregunta de manera más específica."
                 
                 logger.info(f"Texto final generado: {len(generated_text)} caracteres - '{generated_text[:100]}...'")
                 return generated_text
