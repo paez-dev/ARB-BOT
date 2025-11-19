@@ -146,7 +146,8 @@ class AIModel:
                 temperature=temperature,
                 num_return_sequences=num_return_sequences,
                 do_sample=True,
-                pad_token_id=self.tokenizer.eos_token_id
+                pad_token_id=self.tokenizer.eos_token_id,
+                truncation=True  # Agregar truncation explícito
             )
             
             # Extraer texto generado

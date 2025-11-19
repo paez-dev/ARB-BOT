@@ -179,19 +179,45 @@ class RAGService:
             # Buscar documentos similares
             if self.index is not None:
                 # Búsqueda con FAISS (rápida)
-                faiss.normalize_L2(query_embedding)
-                distances, indices = self.index.search(
-                    query_embedding.astype('float32'),
-                    min(top_k, len(self.document_store))
-                )
-                
-                results = []
-                for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
-                    if idx < len(self.document_store):
-                        similarity = 1 - distance  # Convertir distancia a similitud
+                try:
+                    import faiss
+                    faiss.normalize_L2(query_embedding)
+                    distances, indices = self.index.search(
+                        query_embedding.astype('float32'),
+                        min(top_k, len(self.document_store))
+                    )
+                    
+                    results = []
+                    for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
+                        if idx < len(self.document_store):
+                            similarity = 1 - distance  # Convertir distancia a similitud
+                            result = self.document_store[idx].copy()
+                            result['similarity'] = float(similarity)
+                            result['rank'] = i + 1
+                            results.append(result)
+                except (ImportError, NameError) as e:
+                    # Si FAISS no está disponible, usar búsqueda lineal
+                    logger.warning(f"FAISS no disponible en búsqueda ({e}), usando método lineal")
+                    self.index = None  # Forzar búsqueda lineal en el futuro
+                    # Continuar con búsqueda lineal
+                    query_embedding = query_embedding[0]
+                    similarities = []
+                    
+                    for i, doc_embedding in enumerate(self.embeddings_store):
+                        # Calcular similitud coseno
+                        similarity = np.dot(query_embedding, doc_embedding) / (
+                            np.linalg.norm(query_embedding) * np.linalg.norm(doc_embedding)
+                        )
+                        similarities.append((similarity, i))
+                    
+                    # Ordenar por similitud
+                    similarities.sort(reverse=True, key=lambda x: x[0])
+                    
+                    results = []
+                    for rank, (similarity, idx) in enumerate(similarities[:top_k]):
                         result = self.document_store[idx].copy()
                         result['similarity'] = float(similarity)
-                        result['rank'] = i + 1
+                        result['rank'] = rank + 1
                         results.append(result)
                 
             else:
