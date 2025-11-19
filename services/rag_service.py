@@ -258,14 +258,14 @@ class RAGService:
             logger.error(f"Error en búsqueda: {str(e)}")
             return []
     
-    def get_context_for_query(self, query: str, top_k: int = 3, max_context_length: int = 1500) -> str:
+    def get_context_for_query(self, query: str, top_k: int = 3, max_context_length: int = 800) -> str:
         """
         Obtener contexto relevante para una consulta
         
         Args:
             query: Pregunta del usuario
             top_k: Número de chunks a incluir
-            max_context_length: Longitud máxima del contexto en caracteres (por defecto 1500)
+            max_context_length: Longitud máxima del contexto en caracteres (reducido a 800 para DialoGPT)
         
         Returns:
             Texto de contexto formateado
@@ -281,27 +281,41 @@ class RAGService:
         for result in results:
             # Limitar el texto de cada chunk si es muy largo
             chunk_text = result['text']
-            if len(chunk_text) > 500:  # Limitar cada chunk a 500 caracteres
-                chunk_text = chunk_text[:500] + "..."
+            # Limitar cada chunk a 300 caracteres para contexto más conciso
+            if len(chunk_text) > 300:
+                # Truncar en un punto completo si es posible
+                truncated = chunk_text[:300]
+                last_period = truncated.rfind('.')
+                if last_period > 200:
+                    chunk_text = truncated[:last_period + 1]
+                else:
+                    chunk_text = truncated + "..."
             
-            context_part = f"[Fuente: {os.path.basename(result.get('source', 'Desconocido'))}]\n{chunk_text}\n"
+            # Formato más limpio sin etiquetas de fuente (se removerán después)
+            context_part = chunk_text.strip()
             
             # Verificar si agregar este chunk excedería el límite
-            if total_length + len(context_part) > max_context_length:
+            if total_length + len(context_part) + 10 > max_context_length:  # +10 para separador
                 # Si ya tenemos al menos un chunk, parar aquí
                 if context_parts:
                     break
-                # Si es el primer chunk y es muy largo, truncarlo
-                remaining = max_context_length - total_length
-                if remaining > 100:  # Solo si queda espacio razonable
-                    context_part = context_part[:remaining] + "..."
+                # Si es el primer chunk y es muy largo, truncarlo más
+                remaining = max_context_length - total_length - 10
+                if remaining > 50:
+                    truncated = context_part[:remaining]
+                    last_period = truncated.rfind('.')
+                    if last_period > remaining * 0.7:
+                        context_part = truncated[:last_period + 1]
+                    else:
+                        context_part = truncated + "..."
                     context_parts.append(context_part)
                 break
             
             context_parts.append(context_part)
-            total_length += len(context_part)
+            total_length += len(context_part) + 10  # +10 para separador estimado
         
-        return "\n---\n".join(context_parts)
+        # Unir con espacios simples (más limpio que "---")
+        return " ".join(context_parts)
     
     def save_index(self, filepath: str):
         """Guardar índice y documentos"""

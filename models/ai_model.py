@@ -188,18 +188,19 @@ class AIModel:
             
             # Usar max_new_tokens para evitar el error cuando el prompt es largo
             # max_new_tokens especifica cuántos tokens nuevos generar, no el total
-            # Para DialoGPT, dar más espacio para generar respuestas completas
+            # Para DialoGPT-medium, usar más tokens para respuestas completas
             if prompt_tokens >= max_length:
-                # Si el prompt ya es muy largo, generar al menos 100 tokens nuevos
-                max_new_tokens = 100
+                # Si el prompt ya es muy largo, generar al menos 120 tokens nuevos
+                max_new_tokens = 120
             else:
                 # Generar tokens nuevos hasta alcanzar max_length total
-                # Asegurar mínimo de 100 tokens para respuestas útiles (aumentado para DialoGPT)
-                max_new_tokens = max(100, min(150, max_length - prompt_tokens + 50))
+                # Asegurar mínimo de 120 tokens para respuestas útiles (DialoGPT-medium necesita más)
+                max_new_tokens = max(120, min(180, max_length - prompt_tokens + 70))
             
             logger.debug(f"Prompt tokens: {prompt_tokens}, max_new_tokens: {max_new_tokens}")
             
             # Generar texto usando max_new_tokens en lugar de max_length
+            # Para DialoGPT, usar repetition_penalty para evitar repeticiones del prompt
             results = self.generator(
                 prompt,
                 max_new_tokens=max_new_tokens,
@@ -207,7 +208,8 @@ class AIModel:
                 num_return_sequences=num_return_sequences,
                 do_sample=True,
                 pad_token_id=self.tokenizer.eos_token_id,
-                truncation=True
+                truncation=True,
+                repetition_penalty=1.15  # Penalizar repeticiones (evita repetir el prompt)
             )
             
             # Extraer texto generado
@@ -221,38 +223,57 @@ class AIModel:
                 # DialoGPT puede incluir el prompt o generar directamente
                 original_generated = generated_text
                 
-                # Remover el prompt original de la salida
-                # Para DialoGPT, el prompt puede estar al inicio o puede que el modelo genere directamente
-                if generated_text.startswith(prompt):
+                # Extraer respuesta de manera profesional
+                # DialoGPT puede incluir el prompt completo o solo generar la respuesta
+                
+                # Estrategia 1: Buscar "Asistente:" que es el marcador de inicio de respuesta
+                if "Asistente:" in generated_text:
+                    # Dividir por "Asistente:" y tomar la última parte (puede haber múltiples)
+                    parts = generated_text.split("Asistente:")
+                    if len(parts) > 1:
+                        # Tomar la última parte después de "Asistente:"
+                        generated_text = parts[-1].strip()
+                        logger.info(f"Respuesta extraída después de 'Asistente:' - {len(generated_text)} caracteres")
+                    else:
+                        generated_text = generated_text.strip()
+                
+                # Estrategia 2: Si el prompt está al inicio completo, removerlo
+                elif generated_text.startswith(prompt):
                     generated_text = generated_text[len(prompt):].strip()
-                    logger.info(f"Prompt encontrado al inicio, texto restante: {len(generated_text)} caracteres")
-                else:
-                    # Intentar encontrar el prompt en el texto
+                    logger.info(f"Prompt completo encontrado al inicio, removido - {len(generated_text)} caracteres restantes")
+                
+                # Estrategia 3: Buscar el prompt en alguna posición
+                elif prompt in generated_text:
                     prompt_index = generated_text.find(prompt)
                     if prompt_index >= 0:
                         generated_text = generated_text[prompt_index + len(prompt):].strip()
-                        logger.info(f"Prompt encontrado en posición {prompt_index}, texto restante: {len(generated_text)} caracteres")
+                        logger.info(f"Prompt encontrado en posición {prompt_index}, removido - {len(generated_text)} caracteres restantes")
                     else:
-                        # Si no se encuentra el prompt completo, intentar encontrar solo la última parte
-                        # Para DialoGPT con formato conversacional, buscar "Asistente:"
-                        if "Asistente:" in generated_text:
-                            generated_text = generated_text.split("Asistente:")[-1].strip()
-                            logger.info(f"Encontrado 'Asistente:' en el texto, usando lo que viene después")
-                        elif "Respuesta:" in generated_text:
-                            generated_text = generated_text.split("Respuesta:")[-1].strip()
-                            logger.info(f"Encontrado 'Respuesta:' en el texto, usando lo que viene después")
-                        elif "Responde" in generated_text and ":" in generated_text:
-                            # Buscar la última ocurrencia de "Responde" seguida de ":"
-                            parts = generated_text.split("Responde")
-                            if len(parts) > 1:
-                                last_part = parts[-1]
-                                if ":" in last_part:
-                                    generated_text = last_part.split(":", 1)[-1].strip()
-                                    logger.info(f"Encontrado 'Responde:' en el texto, usando lo que viene después")
+                        generated_text = generated_text.strip()
+                
+                # Estrategia 4: Si no se encuentra el prompt, verificar si hay contenido útil
+                else:
+                    # Verificar si el texto generado es más largo que el prompt (tiene contenido nuevo)
+                    if len(generated_text) > len(prompt) + 20:  # Al menos 20 caracteres más
+                        # Intentar extraer solo la parte nueva
+                        # Buscar palabras clave que indiquen el inicio de la respuesta
+                        response_markers = ["Según", "De acuerdo", "El manual", "En el manual", "Según el", "De"]
+                        for marker in response_markers:
+                            if marker in generated_text:
+                                marker_index = generated_text.find(marker)
+                                # Verificar que el marcador esté después del prompt
+                                if marker_index > len(prompt) * 0.8:  # Al menos 80% del prompt
+                                    generated_text = generated_text[marker_index:].strip()
+                                    logger.info(f"Respuesta extraída usando marcador '{marker}' - {len(generated_text)} caracteres")
+                                    break
                         else:
-                            # Si no se encuentra, usar todo el texto generado (DialoGPT puede hacer esto)
-                            logger.info(f"Prompt no encontrado en el texto generado, usando todo el texto generado")
+                            # Si no hay marcadores, usar todo el texto (DialoGPT puede generar directamente)
+                            logger.info(f"Usando todo el texto generado - {len(generated_text)} caracteres")
                             generated_text = generated_text.strip()
+                    else:
+                        # El texto es muy similar al prompt, probablemente solo lo repitió
+                        logger.warning(f"El texto generado es muy similar al prompt, puede que solo lo haya repetido")
+                        generated_text = generated_text.strip()
                 
                 # Validar que el texto generado no esté vacío
                 if not generated_text or len(generated_text.strip()) == 0:
@@ -289,12 +310,13 @@ class AIModel:
                         
                         results = self.generator(
                             simple_prompt,
-                            max_new_tokens=120,
-                            temperature=min(0.9, temperature + 0.2),
+                            max_new_tokens=150,
+                            temperature=min(0.95, temperature + 0.3),
                             num_return_sequences=1,
                             do_sample=True,
                             pad_token_id=self.tokenizer.eos_token_id,
-                            truncation=True
+                            truncation=True,
+                            repetition_penalty=1.2  # Evitar repeticiones
                         )
                         if results and len(results) > 0:
                             generated_text = results[0]['generated_text']

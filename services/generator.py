@@ -81,6 +81,14 @@ class ContentGenerator:
             # Paso 4: Post-procesar la salida
             final_output = self._post_process(generated, processed_input)
             
+            # Paso 5: Si la respuesta no es válida pero hay contexto, usar fallback
+            if not self._is_valid_response(final_output) and context:
+                logger.warning("Respuesta generada no válida, usando fallback basado en contexto")
+                fallback_response = self._create_fallback_from_context(context, processed_input)
+                if fallback_response:
+                    logger.info(f"Usando respuesta de fallback: {len(fallback_response)} caracteres")
+                    return fallback_response
+            
             logger.info(f"Contenido generado: {len(final_output)} caracteres")
             
             return final_output
@@ -145,22 +153,30 @@ Asistente:"""
         Returns:
             Prompt formateado
         """
-        # Para DialoGPT, usar formato conversacional
-        # Limitar el contexto a los primeros 400 caracteres para evitar prompts muy largos
-        # Y limpiar el contexto de caracteres especiales que puedan confundir al modelo
-        context_limited = context[:400] + "..." if len(context) > 400 else context
-        # Remover saltos de línea múltiples y espacios excesivos
+        # Limpiar y preparar el contexto de manera profesional
         import re
-        context_limited = re.sub(r'\n+', ' ', context_limited)
-        context_limited = re.sub(r' +', ' ', context_limited).strip()
-        # Remover etiquetas de fuente que pueden confundir
-        context_limited = re.sub(r'\[Fuente:.*?\]', '', context_limited)
-        context_limited = re.sub(r'---.*?---', '', context_limited)
-        context_limited = context_limited.strip()
         
-        # Formato conversacional para DialoGPT - como si fuera una conversación
-        # DialoGPT funciona mejor con formato de diálogo
-        prompt = f"""Información del manual: {context_limited}
+        # Limpiar contexto: remover etiquetas, separadores y normalizar
+        context_clean = re.sub(r'\[Fuente:.*?\]', '', context)
+        context_clean = re.sub(r'---+', ' ', context_clean)
+        context_clean = re.sub(r'\n+', ' ', context_clean)
+        context_clean = re.sub(r' +', ' ', context_clean).strip()
+        
+        # Limitar contexto a 300 caracteres para evitar prompts muy largos
+        # DialoGPT funciona mejor con contexto conciso
+        if len(context_clean) > 300:
+            # Truncar en un punto completo si es posible
+            truncated = context_clean[:300]
+            last_period = truncated.rfind('.')
+            if last_period > 200:  # Si hay un punto razonablemente cerca
+                context_clean = truncated[:last_period + 1]
+            else:
+                context_clean = truncated + "..."
+        
+        # Formato profesional para DialoGPT con contexto
+        # DialoGPT fue entrenado con formato de diálogo, pero necesita contexto claro
+        # Usar un formato que combine contexto y pregunta de manera natural
+        prompt = f"""Contexto: {context_clean}
 
 Usuario: {query}
 Asistente:"""
@@ -257,6 +273,67 @@ Asistente:"""
                 repeat_count = 1
         
         return ' '.join(cleaned_words)
+    
+    def _create_fallback_from_context(self, context: str, query: str) -> Optional[str]:
+        """
+        Crear respuesta de fallback basada en el contexto cuando el modelo falla
+        
+        Args:
+            context: Contexto relevante de documentos
+            query: Pregunta del usuario
+        
+        Returns:
+            Respuesta basada en contexto o None
+        """
+        try:
+            # Limpiar contexto
+            import re
+            context_clean = re.sub(r'\[Fuente:.*?\]', '', context)
+            context_clean = re.sub(r'---+', ' ', context_clean)
+            context_clean = re.sub(r'\n+', ' ', context_clean)
+            context_clean = re.sub(r' +', ' ', context_clean).strip()
+            
+            # Si el contexto es muy corto, no usar fallback
+            if len(context_clean) < 50:
+                return None
+            
+            # Crear respuesta simple basada en el contexto
+            # Tomar las primeras 2-3 oraciones del contexto más relevante
+            sentences = context_clean.split('.')
+            relevant_sentences = []
+            query_words = set(query.lower().split())
+            
+            # Buscar oraciones que contengan palabras de la pregunta
+            for sentence in sentences:
+                sentence_lower = sentence.lower()
+                # Contar cuántas palabras de la pregunta están en la oración
+                matches = sum(1 for word in query_words if word in sentence_lower and len(word) > 3)
+                if matches > 0:
+                    relevant_sentences.append(sentence.strip())
+                    if len(relevant_sentences) >= 3:
+                        break
+            
+            # Si no encontramos oraciones relevantes, usar las primeras 2
+            if not relevant_sentences:
+                relevant_sentences = [s.strip() for s in sentences[:2] if s.strip()]
+            
+            if relevant_sentences:
+                # Construir respuesta
+                response = ". ".join(relevant_sentences[:2])
+                if not response.endswith('.'):
+                    response += "."
+                
+                # Agregar prefijo para que suene más natural
+                response = f"Según el manual de convivencia: {response}"
+                
+                if len(response) > 20:  # Validar que tenga sentido
+                    return response
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error creando fallback: {str(e)}")
+            return None
     
     def generate_with_context(self, input_text: str, context: Optional[str] = None,
                             max_tokens: int = 150, temperature: float = 0.7) -> Dict:
