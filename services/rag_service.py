@@ -51,11 +51,10 @@ class RAGService:
             import time
             start_time = time.time()
             
-            # Cargar con optimizaciones de memoria
+            # Cargar modelo de embeddings (sentence-transformers no acepta model_kwargs)
             self.embeddings_model = SentenceTransformer(
                 self.embeddings_model_name,
-                device='cpu',
-                model_kwargs={'low_cpu_mem_usage': True}
+                device='cpu'
             )
             
             # Limpiar memoria después de cargar

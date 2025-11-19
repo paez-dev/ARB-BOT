@@ -227,6 +227,7 @@ def generate_content():
         
         # Paso 2: Buscar contexto relevante en documentos (RAG)
         context = ""
+        rag = None
         try:
             rag = get_rag_service()
             if rag and rag.get_stats()['total_documents'] > 0:
@@ -237,6 +238,7 @@ def generate_content():
         except Exception as e:
             logger.warning(f"Error obteniendo contexto RAG (continuando sin contexto): {str(e)}")
             context = ""
+            rag = None
         
         # Paso 3: Generar contenido usando IA con contexto
         ai_model_instance, generator = get_ai_model()
