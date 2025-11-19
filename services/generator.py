@@ -176,6 +176,12 @@ Responde en español basándote en el contexto:"""
         # Limpiar el texto generado
         cleaned = generated_text.strip()
         
+        # Validar que la respuesta tenga sentido
+        if not self._is_valid_response(cleaned):
+            logger.warning(f"Respuesta generada no válida (muy corta o sin sentido): '{cleaned}'")
+            # Retornar mensaje de error en lugar de respuesta sin sentido
+            return "Lo siento, no pude generar una respuesta coherente. Por favor, intenta reformular tu pregunta de manera más específica."
+        
         # Remover repeticiones excesivas
         cleaned = self._remove_repetitions(cleaned)
         
@@ -184,6 +190,37 @@ Responde en español basándote en el contexto:"""
             cleaned += '.'
         
         return cleaned
+    
+    def _is_valid_response(self, text: str) -> bool:
+        """
+        Validar si una respuesta generada es válida
+        
+        Args:
+            text: Texto a validar
+        
+        Returns:
+            True si la respuesta es válida, False en caso contrario
+        """
+        if not text or len(text.strip()) < 10:
+            # Respuestas muy cortas (menos de 10 caracteres) no son válidas
+            return False
+        
+        # Verificar si la respuesta es solo caracteres especiales o sin sentido
+        # Contar palabras (debe tener al menos 3 palabras para ser válida)
+        words = text.split()
+        if len(words) < 3:
+            return False
+        
+        # Verificar si la respuesta tiene demasiados caracteres repetidos (ej: "PPPP" o "aaaa")
+        if len(set(text)) < 3 and len(text) > 5:
+            return False
+        
+        # Verificar si la respuesta es solo puntuación o espacios
+        text_without_punct = re.sub(r'[^\w\s]', '', text)
+        if len(text_without_punct.strip()) < 5:
+            return False
+        
+        return True
     
     def _remove_repetitions(self, text: str, max_repeat: int = 3) -> str:
         """

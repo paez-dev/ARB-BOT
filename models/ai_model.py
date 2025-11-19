@@ -290,12 +290,19 @@ class AIModel:
                                 logger.info(f"Extrayendo respuesta de texto generado: {potential_response[:100]}")
                                 generated_text = potential_response.strip()
                 
-                # Si aún está vacío, retornar mensaje de error
-                if not generated_text or len(generated_text.strip()) == 0:
-                    logger.error(f"No se pudo generar contenido después de múltiples intentos. Modelo: {self.model_name}")
+                # Validar que la respuesta tenga sentido (mínimo 10 caracteres y al menos 3 palabras)
+                if not generated_text or len(generated_text.strip()) < 10:
+                    logger.error(f"Respuesta generada muy corta o vacía. Modelo: {self.model_name}")
+                    logger.error(f"Texto generado: '{generated_text}'")
                     logger.error(f"Prompt usado (últimos 300 chars): ...{prompt[-300:]}")
                     logger.error(f"Texto original generado (primeros 200 chars): {original_generated[:200]}")
-                    return "Lo siento, no pude generar una respuesta con el modelo actual. Por favor, intenta reformular tu pregunta de manera más específica."
+                    return "Lo siento, no pude generar una respuesta coherente. Por favor, intenta reformular tu pregunta de manera más específica o verifica que hay documentos cargados en el sistema."
+                
+                # Validar que tenga al menos 3 palabras
+                words = generated_text.split()
+                if len(words) < 3:
+                    logger.warning(f"Respuesta generada tiene muy pocas palabras ({len(words)}): '{generated_text}'")
+                    return "Lo siento, la respuesta generada no es suficientemente completa. Por favor, intenta hacer una pregunta más específica."
                 
                 logger.info(f"Texto final generado: {len(generated_text)} caracteres - '{generated_text[:100]}...'")
                 return generated_text
