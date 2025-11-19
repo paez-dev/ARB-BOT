@@ -19,10 +19,10 @@ class DocumentProcessor:
     def __init__(self):
         """Inicializar procesador de documentos"""
         self.supported_formats = ['.pdf', '.docx', '.txt']
-        self.chunk_size = 500  # Tamaño de chunks para embeddings
-        self.chunk_overlap = 50  # Solapamiento entre chunks
+        self.chunk_size = 300  # Tamaño de chunks más pequeño para evitar problemas de memoria
+        self.chunk_overlap = 30  # Solapamiento entre chunks
     
-    def process_document(self, file_path: str, max_pages: int = 100) -> List[Dict]:
+    def process_document(self, file_path: str, max_pages: int = 50) -> List[Dict]:
         """
         Procesar un documento y extraer texto
         
@@ -63,7 +63,7 @@ class DocumentProcessor:
             logger.error(f"Error procesando documento {file_path}: {str(e)}")
             raise
     
-    def _extract_from_pdf(self, file_path: str, max_pages: int = 100) -> str:
+    def _extract_from_pdf(self, file_path: str, max_pages: int = 50) -> str:
         """
         Extraer texto de PDF con límite de páginas para evitar timeouts
         
@@ -85,12 +85,20 @@ class DocumentProcessor:
                 if total_pages > max_pages:
                     logger.warning(f"PDF tiene {total_pages} páginas. Procesando solo las primeras {max_pages} páginas.")
                 
+                # Procesar páginas en lotes para evitar timeouts
                 for page_num in range(pages_to_process):
                     try:
                         page = pdf_reader.pages[page_num]
                         page_text = page.extract_text()
                         if page_text.strip():
+                            # Limitar tamaño de texto por página para evitar problemas
+                            if len(page_text) > 5000:
+                                page_text = page_text[:5000] + "... [texto truncado]"
                             text += f"\n--- Página {page_num + 1} ---\n{page_text}\n"
+                        
+                        # Log cada 10 páginas para monitorear progreso
+                        if (page_num + 1) % 10 == 0:
+                            logger.info(f"Procesadas {page_num + 1}/{pages_to_process} páginas...")
                     except Exception as page_error:
                         logger.warning(f"Error extrayendo página {page_num + 1}: {str(page_error)}")
                         continue
@@ -119,7 +127,14 @@ class DocumentProcessor:
                             page = pdf_reader.pages[page_num]
                             page_text = page.extract_text()
                             if page_text.strip():
+                                # Limitar tamaño de texto por página
+                                if len(page_text) > 5000:
+                                    page_text = page_text[:5000] + "... [texto truncado]"
                                 text += page_text + "\n"
+                            
+                            # Log cada 10 páginas
+                            if (page_num + 1) % 10 == 0:
+                                logger.info(f"Procesadas {page_num + 1}/{pages_to_process} páginas...")
                         except Exception:
                             continue
                     

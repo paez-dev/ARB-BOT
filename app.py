@@ -444,9 +444,10 @@ def upload_document():
             if file_size_mb > 10:
                 logger.warning(f"Archivo grande detectado: {file_size_mb:.2f} MB. El procesamiento puede tardar varios minutos.")
             
-            # Procesar documento (limitar a 100 páginas para PDFs grandes)
+            # Procesar documento (limitar a 50 páginas para PDFs grandes en free tier)
+            # Para documentos más grandes, dividir en partes más pequeñas
             try:
-                chunks = document_processor.process_document(filepath, max_pages=100)
+                chunks = document_processor.process_document(filepath, max_pages=50)
             except Exception as e:
                 logger.error(f"Error procesando documento: {str(e)}")
                 # Limpiar archivo si hay error
@@ -469,14 +470,22 @@ def upload_document():
             
             logger.info(f"Agregando {len(chunks)} chunks al sistema RAG...")
             
-            # Agregar al sistema RAG en lotes para evitar problemas de memoria
+            # Agregar al sistema RAG en lotes más pequeños para evitar problemas de memoria
             rag = get_rag_service()
-            batch_size = 50  # Procesar en lotes de 50 chunks
+            batch_size = 25  # Procesar en lotes más pequeños (25 chunks)
+            
+            total_batches = (len(chunks) - 1) // batch_size + 1
+            logger.info(f"Procesando {len(chunks)} chunks en {total_batches} lotes...")
             
             for i in range(0, len(chunks), batch_size):
                 batch = chunks[i:i + batch_size]
-                rag.add_documents(batch)
-                logger.info(f"Procesado lote {i//batch_size + 1}/{(len(chunks)-1)//batch_size + 1}")
+                try:
+                    rag.add_documents(batch)
+                    logger.info(f"Procesado lote {i//batch_size + 1}/{total_batches} ({len(batch)} chunks)")
+                except Exception as batch_error:
+                    logger.error(f"Error procesando lote {i//batch_size + 1}: {str(batch_error)}")
+                    # Continuar con el siguiente lote
+                    continue
             
             # Guardar índice
             logger.info("Guardando índice...")
