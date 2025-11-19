@@ -11,7 +11,8 @@ class ARBBot {
         this.setupEventListeners();
         this.loadHistory();
         this.loadStats();
-        this.loadRAGStats();
+        // No cargar RAG stats al inicio - solo cuando se necesite (evita timeouts)
+        // this.loadRAGStats();
         this.checkSystemHealth();
         this.autoWarmup(); // Pre-cargar modelos automáticamente
     }
