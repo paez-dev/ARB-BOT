@@ -7,6 +7,7 @@ from flask import Flask, render_template, request, jsonify, session
 from datetime import datetime
 import os
 import logging
+import threading
 
 from config import config
 from models.ai_model import AIModel
@@ -43,6 +44,48 @@ document_processor = DocumentProcessor()
 ai_model = None
 content_generator = None
 rag_service = None
+
+def _load_services(load_rag: bool = False):
+    """
+    Cargar modelos principales (IA + RAG opcional)
+
+    Args:
+        load_rag: Si es True, intenta precargar RAG e índice
+
+    Returns:
+        Tupla (rag_cargado: bool, mensaje: str)
+    """
+    rag_loaded = False
+    rag_message = "Servicio RAG se cargará automáticamente cuando se necesite."
+
+    # Cargar modelo de IA
+    get_ai_model()
+    logger.info("Modelo de IA disponible.")
+
+    if load_rag and os.path.exists(INDEX_FILE):
+        try:
+            get_rag_service()
+            rag_loaded = True
+            rag_message = "Servicio RAG pre-cargado correctamente."
+            logger.info("Servicio RAG disponible.")
+        except Exception as rag_error:
+            rag_message = f"No se pudo cargar RAG durante la precarga: {rag_error}"
+            logger.warning(rag_message)
+
+    return rag_loaded, rag_message
+
+def _preload_services_async(load_rag: bool = False):
+    """Iniciar precarga en segundo plano para no bloquear el arranque"""
+    def _run():
+        try:
+            logger.info("Iniciando precarga de modelos en segundo plano...")
+            rag_loaded, _ = _load_services(load_rag)
+            logger.info("Precarga finalizada (RAG cargado: %s)", rag_loaded)
+        except Exception as preload_error:
+            logger.error(f"Error precargando servicios: {preload_error}")
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
 
 def get_ai_model():
     """Obtener modelo de IA (carga bajo demanda)"""
@@ -81,11 +124,11 @@ def get_rag_service():
     return rag_service
 
 # Directorio para documentos
-# Usar disco persistente si está disponible (Render), sino usar directorio local
+# Usar disco persistente si está disponible, sino usar directorio local
 if os.path.exists('/persistent'):
     UPLOAD_FOLDER = '/persistent/documents'
     INDEX_FILE = '/persistent/rag_index.json'
-    logger.info("Usando disco persistente de Render para almacenamiento")
+    logger.info("Usando disco persistente para almacenamiento")
 else:
     UPLOAD_FOLDER = 'documents'
     INDEX_FILE = 'rag_index.json'
@@ -95,6 +138,13 @@ ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
 
 # Crear directorio si no existe
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Configuración de precarga (controlable por variables de entorno)
+PRELOAD_MODELS_ON_STARTUP = os.getenv('PRELOAD_MODELS_ON_STARTUP', 'true').lower() == 'true'
+PRELOAD_RAG_ON_STARTUP = os.getenv('PRELOAD_RAG_ON_STARTUP', 'true').lower() == 'true'
+
+if PRELOAD_MODELS_ON_STARTUP:
+    _preload_services_async(load_rag=PRELOAD_RAG_ON_STARTUP)
 
 def allowed_file(filename):
     """Verificar si el archivo tiene extensión permitida"""
@@ -119,28 +169,13 @@ def health_check():
 
 @app.route('/api/warmup', methods=['POST'])
 def warmup():
-    """Pre-cargar modelos manualmente (útil para Render)"""
+    """Pre-cargar modelos manualmente (útil para optimizar primera carga)"""
     try:
         load_rag = request.args.get('load_rag', 'false').lower() == 'true'
         logger.info("Iniciando warmup de modelos...")
-        
-        # Cargar modelo de IA
-        get_ai_model()
-        logger.info("Modelo de IA cargado")
-        
-        rag_loaded = False
-        rag_message = "Servicio RAG se cargará automáticamente cuando se necesite."
-        
-        # Cargar RAG opcionalmente (costoso en Render Free)
-        if load_rag and os.path.exists(INDEX_FILE):
-            try:
-                get_rag_service()
-                rag_loaded = True
-                rag_message = "Servicio RAG pre-cargado correctamente."
-                logger.info("Servicio RAG cargado durante warmup")
-            except Exception as rag_error:
-                logger.warning(f"No se pudo cargar RAG durante warmup: {rag_error}")
-        
+
+        rag_loaded, rag_message = _load_services(load_rag)
+
         return jsonify({
             'status': 'success',
             'message': 'Modelos base pre-cargados exitosamente',
@@ -500,7 +535,7 @@ def upload_document():
                 logger.warning(f"Archivo grande detectado: {file_size_mb:.2f} MB. El procesamiento puede tardar varios minutos.")
             
             # Procesar documento completo
-            # Limitar páginas para evitar problemas de memoria en Render (512MB límite)
+            # Limitar páginas para evitar problemas de memoria (optimizado para Railway)
             try:
                 # Determinar límite de páginas basado en el tamaño del archivo
                 # Para evitar OOM, limitamos a 50 páginas por defecto en archivos > 1MB

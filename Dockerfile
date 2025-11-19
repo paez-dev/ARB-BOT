@@ -1,4 +1,4 @@
-# ARB-BOT - Dockerfile para Railway/DigitalOcean
+# ARB-BOT - Dockerfile para Railway
 FROM python:3.11-slim
 
 # Variables de entorno
@@ -24,10 +24,10 @@ COPY . .
 # Crear directorios necesarios
 RUN mkdir -p documents
 
-# Exponer puerto (Railway usa $PORT, DigitalOcean puede usar 8080)
-EXPOSE ${PORT:-8080}
+# Exponer puerto (Railway usará la variable PORT)
+ENV PORT=8080
+EXPOSE 8080
 
-# Comando para ejecutar la aplicación
-# Railway inyecta $PORT automáticamente
-CMD gunicorn app:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 1 --timeout 600 --graceful-timeout 600
+# Comando para ejecutar la aplicación (usa shell para expandir $PORT)
+CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:${PORT} --workers 1 --threads 1 --timeout 600 --graceful-timeout 600"]
 

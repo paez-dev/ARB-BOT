@@ -1,24 +1,13 @@
-# 💾 Persistencia de Documentos en Render
+# 💾 Persistencia de Documentos en Railway
 
-## ⚠️ Problema: Almacenamiento Efímero en Render Free Tier
+## ⚠️ Problema: Almacenamiento Efímero en Railway
 
-En Render (plan gratuito), el sistema de archivos es **efímero**, lo que significa:
+En Railway (plan gratuito), el sistema de archivos es **efímero**, lo que significa:
 - ✅ Los documentos se guardan mientras el servicio está activo
-- ❌ Si el servicio se reinicia o "duerme" (15 min sin uso), los archivos pueden perderse
+- ❌ Si el servicio se reinicia, los archivos pueden perderse
 - ❌ No hay garantía de persistencia a largo plazo
 
 ## ✅ Soluciones Disponibles
-
-### Opción 1: Render Disk (Solo Planes de Pago) ❌
-
-**⚠️ Render Disk NO está disponible en el plan gratuito.** Solo está disponible en planes de pago.
-
-Si actualizas a un plan de pago:
-- Los archivos se guardarán en `/persistent` automáticamente
-- El código ya está preparado para detectarlo
-- Persistencia garantizada
-
-**Costo:** Desde $7/mes aproximadamente
 
 ### Opción 2: Supabase Storage (GRATIS - Recomendado) ✅
 
@@ -60,9 +49,9 @@ Si actualizas a un plan de pago:
 - **Solución:** Subir documentos nuevamente cuando sea necesario
 - **Ventaja:** No requiere configuración adicional
 
-## 🔧 Implementación Rápida: Render Disk
+## 🔧 Implementación Rápida: Supabase Storage
 
-Si quieres que implemente la opción de Render Disk, puedo:
+Si quieres que implemente la opción de Supabase Storage, puedo:
 1. Modificar el código para usar `/persistent` cuando esté disponible
 2. Mantener compatibilidad con `./documents` para desarrollo local
 3. Agregar detección automática del disco persistente
@@ -73,13 +62,13 @@ Si quieres que implemente la opción de Render Disk, puedo:
 - ✅ Los documentos se guardan en `documents/`
 - ✅ El índice se guarda en `rag_index.json`
 - ✅ Se cargan automáticamente al iniciar
-- ⚠️ **PERO** pueden perderse si Render reinicia el servicio
+- ⚠️ **PERO** pueden perderse si Railway reinicia el servicio
 
 **Recomendación:**
 - Para desarrollo/testing: Funciona bien
-- Para producción: Activar Render Disk o usar almacenamiento externo
+- Para producción: Usar Supabase Storage (recomendado) o almacenamiento externo
 
-## ❓ ¿Quieres que implemente Render Disk?
+## ❓ ¿Quieres que implemente Supabase Storage?
 
-Puedo modificar el código para usar disco persistente automáticamente cuando esté disponible en Render.
+Puedo modificar el código para usar Supabase Storage automáticamente. Ver guía: [CONFIGURAR_SUPABASE.md](CONFIGURAR_SUPABASE.md)
 

@@ -37,9 +37,9 @@
    - **anon public key:** `eyJhbGc...` ← Este es `SUPABASE_KEY`
 3. **Copia ambos valores**
 
-### Paso 5: Configurar en Render
+### Paso 5: Configurar en Railway
 
-1. Ve a tu servicio en Render → **Settings** → **Environment Variables**
+1. Ve a tu proyecto en Railway → **Settings** → **Variables**
 2. Agrega estas variables:
 
 ```
@@ -52,12 +52,12 @@ SUPABASE_KEY=tu-anon-key-aqui
 
 ```
 
-3. Haz clic en **"Save Changes"**
-4. Render reiniciará el servicio automáticamente
+3. Haz clic en **"Add"** para cada variable
+4. Railway desplegará automáticamente con las nuevas variables
 
 ### Paso 6: Verificar
 
-1. Una vez que Render reinicie, sube un documento
+1. Una vez que Railway despliegue, sube un documento
 2. Ve a Supabase → Storage → `documents`
 3. Deberías ver tu archivo ahí
 4. ✅ **¡Listo!** Los documentos ahora son persistentes
@@ -100,5 +100,5 @@ SUPABASE_KEY=tu-anon-key-aqui
 
 ## 🎯 ¿Listo?
 
-Una vez configurado, los documentos se guardarán automáticamente en Supabase y **nunca se perderán**, incluso si Render reinicia el servicio.
+Una vez configurado, los documentos se guardarán automáticamente en Supabase y **nunca se perderán**, incluso si Railway reinicia el servicio.
 

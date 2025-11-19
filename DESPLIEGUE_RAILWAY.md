@@ -2,7 +2,7 @@
 
 ## 📋 Información sobre Railway
 
-**Railway** es una plataforma de hosting muy fácil de usar, similar a Render pero con mejor experiencia.
+**Railway** es una plataforma de hosting muy fácil de usar, ideal para desplegar aplicaciones Python/Flask.
 
 ### 💰 Planes y Precios (2025)
 
@@ -10,7 +10,7 @@
   - $5 crédito gratis los primeros 30 días
   - Luego $1/mes crédito no acumulable (suficiente para apps pequeñas)
   - 0.5GB RAM por servicio
-  - **No se suspende por inactividad** ✅ (a diferencia de Render)
+  - **No se suspende por inactividad** ✅
   
 - **Plan Hobby:** $5/mes
   - Hasta 8GB RAM por servicio
@@ -72,6 +72,10 @@ FLASK_ENV=production
 SECRET_KEY=tu-secret-key-muy-segura-aqui-genera-una-nueva
 DATABASE_URL=sqlite:///arbot.db
 
+# Precarga de modelos
+PRELOAD_MODELS_ON_STARTUP=true
+PRELOAD_RAG_ON_STARTUP=true
+
 # Supabase (si lo usas)
 SUPABASE_URL=https://tu-proyecto.supabase.co
 SUPABASE_KEY=tu-anon-key-aqui
@@ -101,7 +105,7 @@ Si prefieres que Railway construya sin Docker:
    - Plan Gratuito: Máximo 0.5GB (puede ser insuficiente)
    - Plan Hobby ($5/mes): Hasta 2GB (recomendado para tu app)
 
-**Nota:** Con 0.5GB puede tener problemas de memoria. Si es para demo, considera el plan Hobby ($5/mes) o usa DigitalOcean.
+**Nota:** Con 0.5GB puede tener problemas de memoria. Si es para demo, considera el plan Hobby ($5/mes) que incluye hasta 2GB RAM.
 
 ---
 
@@ -194,22 +198,6 @@ git push
 Railway detectará el cambio y desplegará automáticamente.
 
 ---
-
-## 📝 Comparación: Railway vs DigitalOcean
-
-| Característica | Railway | DigitalOcean |
-|---------------|---------|--------------|
-| **Facilidad** | ⭐⭐⭐⭐⭐ Muy fácil | ⭐⭐⭐ Requiere configuración |
-| **Auto-deploy** | ✅ Sí | ❌ Manual |
-| **HTTPS** | ✅ Automático | ⚙️ Requiere configuración |
-| **Costo gratis** | $5 crédito (30 días) | $200 crédito (60 días) |
-| **RAM gratis** | 0.5GB (limitado) | 1GB ($6/mes con crédito) |
-| **RAM recomendada** | 2GB ($5/mes) | 1GB ($6/mes) |
-| **Control** | ⚙️ Limitado | ⭐⭐⭐⭐⭐ Total |
-
-**Recomendación:**
-- **Railway:** Si quieres simplicidad y $5/mes no es problema
-- **DigitalOcean:** Si quieres máximo tiempo gratis y control total
 
 ---
 

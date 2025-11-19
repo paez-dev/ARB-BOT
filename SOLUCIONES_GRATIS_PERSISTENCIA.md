@@ -2,7 +2,7 @@
 
 ## ⚠️ Realidad: Almacenamiento en Servidores Cloud
 
-**Los servidores cloud gratuitos (Railway, Render, etc.) NO tienen almacenamiento persistente en el plan gratuito.** Los archivos se pierden al reiniciar.
+**Los servidores cloud gratuitos (Railway, etc.) NO tienen almacenamiento persistente en el plan gratuito.** Los archivos se pierden al reiniciar.
 
 ## ✅ Soluciones 100% Gratuitas
 
@@ -32,10 +32,10 @@
 
 ### Opción 2: Usar Otra Plataforma Gratuita
 
-**Railway** (Alternativa a Render):
+**Railway:**
 - ✅ $5 de crédito gratis/mes
 - ✅ Almacenamiento persistente incluido
-- ✅ Similar a Render
+- ✅ Muy fácil de usar
 
 **PythonAnywhere**:
 - ✅ Plan gratuito disponible
@@ -63,8 +63,7 @@
 
 **Para producción real:**
 1. **Supabase Storage** (gratis, mejor opción)
-2. **Railway** (alternativa a Render con persistencia)
-3. **Render con plan de pago** (si puedes pagar $7/mes)
+2. **Railway** con Supabase Storage (recomendado)
 
 **Para desarrollo/testing:**
 - Aceptar la limitación del free tier

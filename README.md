@@ -46,8 +46,7 @@ El sistema utiliza **RAG (Retrieval Augmented Generation)** para buscar informac
 - **File System** - Almacenamiento de documentos cargados
 
 ### Deployment
-- **DigitalOcean** - $200 crédito gratis (60 días) - Ver `DESPLIEGUE_DIGITALOCEAN.md`
-- **Railway** - $5 crédito gratis (30 días) - Ver `DESPLIEGUE_RAILWAY.md` - Más fácil
+- **Railway** - $5 crédito gratis (30 días) + $1/mes crédito después - Ver `DESPLIEGUE_RAILWAY.md`
 - **Docker** - Containerización para fácil despliegue
 - **GitHub** - Control de versiones gratuito
 
@@ -130,24 +129,19 @@ ARB-BOT/
 
 ¿Quieres que tu chatbot esté disponible en internet? 
 
-### 🏆 Recomendado: Railway (Más fácil y mejor que Render)
+### 🚂 Desplegar en Railway (Recomendado)
 - ✅ $5 crédito gratis (30 días) + $1/mes crédito después
-- ✅ No se suspende por inactividad (a diferencia de Render)
+- ✅ No se suspende por inactividad
 - ✅ Auto-deploy desde GitHub
 - ✅ HTTPS automático
-- 📖 Ver guía: **[DESPLIEGUE_RAILWAY.md](DESPLIEGUE_RAILWAY.md)**
+- ✅ Muy fácil de configurar
+- 📖 Ver guía completa: **[DESPLIEGUE_RAILWAY.md](DESPLIEGUE_RAILWAY.md)**
 
-### 🐳 Alternativa: DigitalOcean (Más tiempo gratis)
-- ✅ $200 crédito gratis (60 días)
-- ✅ Control total del servidor
-- ✅ 1GB RAM ($6/mes con crédito)
-- 📖 Ver guía: **[DESPLIEGUE_DIGITALOCEAN.md](DESPLIEGUE_DIGITALOCEAN.md)**
-
-**📊 ¿No sabes cuál elegir?** Ver comparación completa: **[COMPARACION_HOSTING.md](COMPARACION_HOSTING.md)**
-
-**Recomendación para demo universidad:**
-- **Railway** ⭐ - Más fácil, no se suspende, casi gratis ($1/mes crédito)
-- **DigitalOcean** - Si quieres máximo tiempo gratis con el crédito
+**Pasos rápidos:**
+1. Crea cuenta en Railway con crédito gratis
+2. Conecta tu repositorio de GitHub
+3. Configura variables de entorno
+4. ¡Listo! Railway desplegará automáticamente
 
 ## 🔧 Configuración
 
@@ -164,6 +158,15 @@ OPENAI_API_KEY=tu_api_key_aqui
 FLASK_ENV=development
 FLASK_DEBUG=True
 SECRET_KEY=tu_secret_key_aqui
+
+# Precarga de modelos (ajusta según tu plan en Railway)
+PRELOAD_MODELS_ON_STARTUP=true
+PRELOAD_RAG_ON_STARTUP=true
+
+# Supabase Storage (persistencia opcional)
+SUPABASE_URL=https://tu-proyecto.supabase.co
+SUPABASE_KEY=tu-anon-key-aqui
+SUPABASE_BUCKET=documents
 ```
 
 ## 📊 Funcionalidades Completas
