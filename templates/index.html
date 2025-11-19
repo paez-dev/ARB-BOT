@@ -71,10 +71,15 @@
                             <h5 class="mb-0">📚 Subir Documentos Institucionales</h5>
                         </div>
                         <div class="card-body">
-                            <p class="text-muted small">
-                                Sube documentos como el manual de convivencia, reglamentos, etc. 
-                                El sistema los procesará para responder preguntas basándose en ellos.
-                            </p>
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <p class="text-muted small mb-0">
+                                    Sube documentos como el manual de convivencia, reglamentos, etc. 
+                                    El sistema los procesará para responder preguntas basándose en ellos.
+                                </p>
+                                <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="window.arbBot?.adminLogout()">
+                                    <i class="bi bi-box-arrow-right"></i> Salir
+                                </button>
+                            </div>
                             <form id="uploadForm" enctype="multipart/form-data">
                                 <div class="mb-3">
                                     <label for="documentFile" class="form-label">Seleccionar documento:</label>
