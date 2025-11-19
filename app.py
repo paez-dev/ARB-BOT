@@ -181,9 +181,17 @@ def generate_content():
         logger.info("Texto procesado exitosamente")
         
         # Paso 2: Buscar contexto relevante en documentos (RAG)
-        rag = get_rag_service()
-        context = rag.get_context_for_query(processed_input, top_k=3)
-        logger.info(f"Contexto encontrado: {len(context)} caracteres")
+        context = ""
+        try:
+            rag = get_rag_service()
+            if rag and rag.get_stats()['total_documents'] > 0:
+                context = rag.get_context_for_query(processed_input, top_k=3)
+                logger.info(f"Contexto encontrado: {len(context)} caracteres")
+            else:
+                logger.info("No hay documentos cargados en RAG - generando sin contexto")
+        except Exception as e:
+            logger.warning(f"Error obteniendo contexto RAG (continuando sin contexto): {str(e)}")
+            context = ""
         
         # Paso 3: Generar contenido usando IA con contexto
         ai_model_instance, generator = get_ai_model()
