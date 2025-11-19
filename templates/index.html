@@ -35,6 +35,32 @@
         </div>
     </header>
 
+    <!-- Modal de Login Admin -->
+    <div class="modal fade" id="adminLoginModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🔒 Acceso de Administración</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="adminLoginForm">
+                        <div class="mb-3">
+                            <label for="adminPassword" class="form-label">Contraseña:</label>
+                            <input type="password" class="form-control" id="adminPassword" required>
+                            <small class="form-text text-muted">Ingresa la contraseña de administración</small>
+                        </div>
+                        <div id="loginError" class="alert alert-danger" style="display: none;"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="adminLoginBtn">Ingresar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Panel de Administración (Oculto por defecto) -->
     <div class="admin-panel" id="adminPanel" style="display: none;">
         <div class="container-fluid py-3">
@@ -210,13 +236,22 @@
         });
 
         // Toggle panel de administración
-        document.getElementById('adminToggle')?.addEventListener('click', function() {
+        document.getElementById('adminToggle')?.addEventListener('click', async function() {
             const panel = document.getElementById('adminPanel');
             const historyPanel = document.getElementById('historyPanel');
             
             if (panel.style.display === 'none') {
-                panel.style.display = 'block';
-                historyPanel.style.display = 'none';
+                // Verificar autenticación antes de abrir
+                const isAuthenticated = await window.arbBot?.checkAdminAuth();
+                
+                if (isAuthenticated) {
+                    panel.style.display = 'block';
+                    historyPanel.style.display = 'none';
+                } else {
+                    // Mostrar modal de login
+                    const loginModal = new bootstrap.Modal(document.getElementById('adminLoginModal'));
+                    loginModal.show();
+                }
             } else {
                 panel.style.display = 'none';
             }
