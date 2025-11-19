@@ -59,6 +59,9 @@ class Config:
     UPLOAD_FOLDER = 'uploads'
     MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB
     
+    # Configuración de Autenticación Admin
+    ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')  # Cambiar en producción
+    
     # Configuración de Logging
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FILE = 'arbot.log'

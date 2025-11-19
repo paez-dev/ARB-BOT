@@ -298,6 +298,11 @@ def get_history():
 @app.route('/api/change-model', methods=['POST'])
 def change_model():
     """Cambiar el modelo de IA activo"""
+    # Verificar autenticación
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+    
     try:
         data = request.get_json()
         
@@ -354,9 +359,64 @@ def not_found(error):
         'status': 'error'
     }), 404
 
+def require_admin():
+    """Verificar que el usuario esté autenticado como admin"""
+    if not session.get('admin_authenticated', False):
+        return jsonify({
+            'error': 'Autenticación requerida',
+            'status': 'auth_required'
+        }), 401
+    return None
+
+@app.route('/api/admin/login', methods=['POST'])
+def admin_login():
+    """Login para panel de administración"""
+    try:
+        data = request.get_json()
+        password = data.get('password', '')
+        
+        if password == app.config['ADMIN_PASSWORD']:
+            session['admin_authenticated'] = True
+            return jsonify({
+                'status': 'success',
+                'message': 'Autenticación exitosa'
+            })
+        else:
+            return jsonify({
+                'error': 'Contraseña incorrecta',
+                'status': 'error'
+            }), 401
+    except Exception as e:
+        logger.error(f"Error en login: {str(e)}")
+        return jsonify({
+            'error': 'Error en autenticación',
+            'status': 'error'
+        }), 500
+
+@app.route('/api/admin/logout', methods=['POST'])
+def admin_logout():
+    """Logout del panel de administración"""
+    session.pop('admin_authenticated', None)
+    return jsonify({
+        'status': 'success',
+        'message': 'Sesión cerrada'
+    })
+
+@app.route('/api/admin/check-auth', methods=['GET'])
+def check_admin_auth():
+    """Verificar si el usuario está autenticado"""
+    return jsonify({
+        'authenticated': session.get('admin_authenticated', False)
+    })
+
 @app.route('/api/upload-document', methods=['POST'])
 def upload_document():
     """Subir y procesar documento institucional"""
+    # Verificar autenticación
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+    
     try:
         if 'file' not in request.files:
             return jsonify({

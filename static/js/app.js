@@ -43,6 +43,18 @@ class ARBBot {
             e.preventDefault();
             this.uploadDocument();
         });
+
+        // Login admin
+        document.getElementById('adminLoginBtn')?.addEventListener('click', () => {
+            this.adminLogin();
+        });
+
+        // Enter en password field
+        document.getElementById('adminPassword')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.adminLogin();
+            }
+        });
     }
 
     async generateContent() {
@@ -393,6 +405,68 @@ class ARBBot {
         const historySection = document.getElementById('historySection');
         if (historySection) {
             historySection.style.display = historySection.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+
+    async checkAdminAuth() {
+        try {
+            const response = await fetch('/api/admin/check-auth');
+            const data = await response.json();
+            return data.authenticated;
+        } catch (error) {
+            console.error('Error verificando autenticación:', error);
+            return false;
+        }
+    }
+
+    async adminLogin() {
+        const password = document.getElementById('adminPassword').value;
+        const errorDiv = document.getElementById('loginError');
+        
+        if (!password) {
+            errorDiv.textContent = 'Por favor ingresa la contraseña';
+            errorDiv.style.display = 'block';
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ password })
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                // Cerrar modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('adminLoginModal'));
+                if (modal) modal.hide();
+                
+                // Abrir panel admin
+                document.getElementById('adminPanel').style.display = 'block';
+                document.getElementById('adminPassword').value = '';
+                errorDiv.style.display = 'none';
+            } else {
+                errorDiv.textContent = data.error || 'Contraseña incorrecta';
+                errorDiv.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error en login:', error);
+            errorDiv.textContent = 'Error al autenticar. Intenta de nuevo.';
+            errorDiv.style.display = 'block';
+        }
+    }
+
+    async adminLogout() {
+        try {
+            await fetch('/api/admin/logout', { method: 'POST' });
+            document.getElementById('adminPanel').style.display = 'none';
+            sessionStorage.removeItem('admin_authenticated');
+        } catch (error) {
+            console.error('Error en logout:', error);
         }
     }
 
