@@ -90,21 +90,32 @@ class DocumentProcessor:
                     if total_pages > max_pages:
                         logger.warning(f"PDF tiene {total_pages} páginas. Procesando solo las primeras {max_pages} páginas.")
                 
-                # Procesar páginas con logging de progreso
+                # Procesar páginas con logging de progreso y límite de tiempo
+                import time
+                start_time = time.time()
+                max_processing_time = 240  # 4 minutos máximo para extracción
+                
                 for page_num in range(pages_to_process):
+                    # Verificar tiempo transcurrido
+                    elapsed = time.time() - start_time
+                    if elapsed > max_processing_time:
+                        logger.warning(f"Tiempo de procesamiento excedido ({elapsed:.1f}s). Procesadas {page_num}/{pages_to_process} páginas.")
+                        text += f"\n\n[Nota: Procesamiento interrumpido por tiempo. Se procesaron {page_num} de {total_pages} páginas.]"
+                        break
+                    
                     try:
                         page = pdf_reader.pages[page_num]
                         page_text = page.extract_text()
                         if page_text.strip():
                             # Limitar tamaño de texto por página para evitar problemas de memoria
-                            if len(page_text) > 10000:  # Aumentado a 10000 para páginas grandes
-                                page_text = page_text[:10000] + "... [texto truncado por tamaño]"
+                            if len(page_text) > 8000:  # Reducido para evitar problemas
+                                page_text = page_text[:8000] + "... [texto truncado por tamaño]"
                             text += f"\n--- Página {page_num + 1} ---\n{page_text}\n"
                         
-                        # Log cada 20 páginas para documentos grandes, cada 10 para pequeños
-                        log_interval = 20 if pages_to_process > 50 else 10
-                        if (page_num + 1) % log_interval == 0:
-                            logger.info(f"Procesadas {page_num + 1}/{pages_to_process} páginas... ({((page_num + 1) / pages_to_process * 100):.1f}%)")
+                        # Log cada 10 páginas para monitorear progreso
+                        if (page_num + 1) % 10 == 0:
+                            elapsed = time.time() - start_time
+                            logger.info(f"Procesadas {page_num + 1}/{pages_to_process} páginas... ({((page_num + 1) / pages_to_process * 100):.1f}%) - Tiempo: {elapsed:.1f}s")
                     except Exception as page_error:
                         logger.warning(f"Error extrayendo página {page_num + 1}: {str(page_error)}")
                         continue
@@ -134,20 +145,28 @@ class DocumentProcessor:
                         if total_pages > max_pages:
                             logger.warning(f"PDF tiene {total_pages} páginas. Procesando solo las primeras {max_pages} páginas.")
                     
+                    import time
+                    start_time = time.time()
+                    max_processing_time = 240  # 4 minutos máximo
+                    
                     for page_num in range(pages_to_process):
+                        elapsed = time.time() - start_time
+                        if elapsed > max_processing_time:
+                            logger.warning(f"Tiempo excedido. Procesadas {page_num}/{pages_to_process} páginas.")
+                            text += f"\n\n[Nota: Procesamiento interrumpido. Se procesaron {page_num} de {total_pages} páginas.]"
+                            break
+                        
                         try:
                             page = pdf_reader.pages[page_num]
                             page_text = page.extract_text()
                             if page_text.strip():
-                                # Limitar tamaño de texto por página
-                                if len(page_text) > 10000:
-                                    page_text = page_text[:10000] + "... [texto truncado por tamaño]"
+                                if len(page_text) > 8000:
+                                    page_text = page_text[:8000] + "... [texto truncado]"
                                 text += page_text + "\n"
                             
-                            # Log cada 20 páginas para documentos grandes
-                            log_interval = 20 if pages_to_process > 50 else 10
-                            if (page_num + 1) % log_interval == 0:
-                                logger.info(f"Procesadas {page_num + 1}/{pages_to_process} páginas... ({((page_num + 1) / pages_to_process * 100):.1f}%)")
+                            if (page_num + 1) % 10 == 0:
+                                elapsed = time.time() - start_time
+                                logger.info(f"Procesadas {page_num + 1}/{pages_to_process} páginas... ({((page_num + 1) / pages_to_process * 100):.1f}%) - Tiempo: {elapsed:.1f}s")
                         except Exception:
                             continue
                     

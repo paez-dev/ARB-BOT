@@ -44,12 +44,21 @@ class AIModel:
             )
             
             # Cargar modelo con optimizaciones de memoria
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                torch_dtype=torch.float32,  # Usar float32 en lugar de float16 para CPU
-                low_cpu_mem_usage=True,  # Optimización de memoria
-                device_map="cpu"  # Forzar CPU
-            )
+            # Intentar con accelerate, si falla usar método simple
+            try:
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name,
+                    torch_dtype=torch.float32,
+                    low_cpu_mem_usage=True,
+                    device_map="cpu"
+                )
+            except Exception as e:
+                # Fallback: cargar sin optimizaciones avanzadas
+                logger.warning(f"No se pudo cargar con optimizaciones: {e}. Usando método simple...")
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name,
+                    torch_dtype=torch.float32
+                )
             
             # Configurar padding token si no existe
             if self.tokenizer.pad_token is None:
@@ -86,12 +95,20 @@ class AIModel:
                 'distilgpt2',
                 use_fast=True
             )
-            self.model = AutoModelForCausalLM.from_pretrained(
-                'distilgpt2',
-                torch_dtype=torch.float32,
-                low_cpu_mem_usage=True,
-                device_map="cpu"
-            )
+            # Cargar modelo de respaldo sin optimizaciones avanzadas
+            try:
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    'distilgpt2',
+                    torch_dtype=torch.float32,
+                    low_cpu_mem_usage=True,
+                    device_map="cpu"
+                )
+            except Exception:
+                # Fallback final: sin optimizaciones
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    'distilgpt2',
+                    torch_dtype=torch.float32
+                )
             
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token

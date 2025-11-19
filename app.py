@@ -489,16 +489,20 @@ def upload_document():
             
             # Agregar al sistema RAG en lotes más pequeños para evitar problemas de memoria
             rag = get_rag_service()
-            batch_size = 25  # Procesar en lotes más pequeños (25 chunks)
+            batch_size = 20  # Procesar en lotes más pequeños (20 chunks)
             
             total_batches = (len(chunks) - 1) // batch_size + 1
-            logger.info(f"Procesando {len(chunks)} chunks en {total_batches} lotes...")
+            logger.info(f"Procesando {len(chunks)} chunks en {total_batches} lotes de {batch_size}...")
+            
+            import time
+            start_time = time.time()
             
             for i in range(0, len(chunks), batch_size):
                 batch = chunks[i:i + batch_size]
                 try:
                     rag.add_documents(batch)
-                    logger.info(f"Procesado lote {i//batch_size + 1}/{total_batches} ({len(batch)} chunks)")
+                    elapsed = time.time() - start_time
+                    logger.info(f"Procesado lote {i//batch_size + 1}/{total_batches} ({len(batch)} chunks) - Tiempo: {elapsed:.1f}s")
                 except Exception as batch_error:
                     logger.error(f"Error procesando lote {i//batch_size + 1}: {str(batch_error)}")
                     # Continuar con el siguiente lote
