@@ -723,7 +723,7 @@ class ARBBot {
             progressBar.style.width = '100%';
             progressBar.classList.remove('progress-bar-animated');
             progressBar.classList.add('bg-success');
-            statusText.textContent = '✅ Modelos listos';
+            statusText.textContent = data.rag_message || '✅ Modelos listos';
             
             if (data.status === 'success') {
                 console.log('✅ Modelos pre-cargados exitosamente');
@@ -732,7 +732,7 @@ class ARBBot {
                 // Ocultar progreso después de 2 segundos
                 setTimeout(() => {
                     this.hideWarmupProgress();
-                    this.showWarmupSuccess();
+                    this.showWarmupSuccess(data);
                 }, 2000);
             } else {
                 statusText.textContent = '⚠️ Carga parcial (se cargarán bajo demanda)';
@@ -769,14 +769,25 @@ class ARBBot {
         }
     }
 
-    showWarmupSuccess() {
+    showWarmupSuccess(warmupData = null) {
         // Mostrar notificación discreta de que los modelos están listos
         const notification = document.createElement('div');
         notification.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 end-0 m-3';
         notification.style.zIndex = '9999';
         notification.style.maxWidth = '300px';
+        
+        let ragNote = '';
+        if (warmupData) {
+            if (warmupData.rag_loaded) {
+                ragNote = '<br><small class="text-muted">Documentos institucionales cargados.</small>';
+            } else if (warmupData.rag_message) {
+                ragNote = `<br><small class="text-muted">${warmupData.rag_message}</small>`;
+            }
+        }
+        
         notification.innerHTML = `
             <small>✅ Modelos de IA listos</small>
+            ${ragNote}
             <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
         `;
         document.body.appendChild(notification);

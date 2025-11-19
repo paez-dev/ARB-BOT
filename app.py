@@ -121,22 +121,32 @@ def health_check():
 def warmup():
     """Pre-cargar modelos manualmente (útil para Render)"""
     try:
+        load_rag = request.args.get('load_rag', 'false').lower() == 'true'
         logger.info("Iniciando warmup de modelos...")
         
         # Cargar modelo de IA
         get_ai_model()
         logger.info("Modelo de IA cargado")
         
-        # Cargar RAG si hay documentos
-        if os.path.exists(INDEX_FILE):
-            get_rag_service()
-            logger.info("Servicio RAG cargado")
+        rag_loaded = False
+        rag_message = "Servicio RAG se cargará automáticamente cuando se necesite."
+        
+        # Cargar RAG opcionalmente (costoso en Render Free)
+        if load_rag and os.path.exists(INDEX_FILE):
+            try:
+                get_rag_service()
+                rag_loaded = True
+                rag_message = "Servicio RAG pre-cargado correctamente."
+                logger.info("Servicio RAG cargado durante warmup")
+            except Exception as rag_error:
+                logger.warning(f"No se pudo cargar RAG durante warmup: {rag_error}")
         
         return jsonify({
             'status': 'success',
-            'message': 'Modelos pre-cargados exitosamente',
+            'message': 'Modelos base pre-cargados exitosamente',
             'ai_model_loaded': ai_model is not None,
-            'rag_loaded': rag_service is not None
+            'rag_loaded': rag_loaded,
+            'rag_message': rag_message
         })
     except Exception as e:
         logger.error(f"Error en warmup: {str(e)}")
