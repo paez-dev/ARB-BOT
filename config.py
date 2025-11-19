@@ -25,7 +25,7 @@ class Config:
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
     
     # Configuración de Modelos de IA
-    DEFAULT_MODEL = os.getenv('DEFAULT_MODEL', 'distilgpt2')  # Modelo gratuito de Hugging Face
+    DEFAULT_MODEL = os.getenv('DEFAULT_MODEL', 'PlanTL-GOB-ES/gpt2-base-bne')  # Modelo en español por defecto
     MAX_TOKENS = int(os.getenv('MAX_TOKENS', '150'))
     TEMPERATURE = float(os.getenv('TEMPERATURE', '0.7'))
     

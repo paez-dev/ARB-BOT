@@ -72,18 +72,20 @@ DEFAULT_MODEL=microsoft/DialoGPT-medium
 
 ---
 
-## 🎯 Recomendación Final
+## 🎯 Recomendación Final para Usuarios que Solo Hablan Español
 
-Para tu demo universitaria en español:
+**Para usuarios que SOLO hablan español, usa: `PlanTL-GOB-ES/gpt2-base-bne`** ⭐⭐⭐⭐
 
-**Usa: `microsoft/DialoGPT-medium`**
+**Razones:**
+- ✅ **Entrenado específicamente en español** - No responderá en inglés
+- ✅ **Funciona bien con RAG** - Usa el contexto proporcionado
+- ✅ **Mejor comprensión de español** - Entiende mejor las preguntas en español
+- ✅ **Respuestas en español** - Garantiza que siempre responda en español
+- ⚠️ No está optimizado para conversaciones (pero con RAG funciona bien)
 
-- Mejor calidad de respuestas
-- Entrenado para conversaciones
-- Funciona bien con RAG
-- Aceptable en español (aunque no esté entrenado específicamente en español)
-
-Si necesitas mejor español, usa: `PlanTL-GOB-ES/gpt2-base-bne`
+**Alternativa si necesitas mejor calidad conversacional:**
+- `microsoft/DialoGPT-medium` + Prompt en español (el código ya fuerza español)
+- Mejor para conversaciones pero puede mezclar idiomas ocasionalmente
 
 ---
 

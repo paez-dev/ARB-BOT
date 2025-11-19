@@ -50,7 +50,8 @@ class ContentGenerator:
             if context:
                 prompt = self._build_prompt_with_context(processed_input, context)
             else:
-                prompt = processed_input
+                # Si no hay contexto, agregar instrucción para responder en español
+                prompt = f"Responde en español de manera clara y profesional: {processed_input}"
             
             # Paso 3: Generar usando el modelo de IA
             generated = self.ai_model.generate(
@@ -82,7 +83,7 @@ class ContentGenerator:
         Returns:
             Prompt formateado
         """
-        prompt = f"""Basándote en la siguiente información institucional, responde la pregunta del usuario de manera clara y precisa.
+        prompt = f"""Eres un asistente virtual de una institución educativa. Responde SIEMPRE en español, de manera clara, profesional y basándote únicamente en la información proporcionada.
 
 INFORMACIÓN INSTITUCIONAL:
 {context}
@@ -90,7 +91,9 @@ INFORMACIÓN INSTITUCIONAL:
 PREGUNTA DEL USUARIO:
 {query}
 
-RESPUESTA (basada únicamente en la información proporcionada):"""
+IMPORTANTE: Responde SOLO en español. Usa únicamente la información del contexto proporcionado.
+
+RESPUESTA:"""
         
         return prompt
     
