@@ -26,7 +26,7 @@
    - **Name:** `documents`
    - **Public bucket:** ✅ **SÍ** (marcar como público)
    - **File size limit:** 50 MB (o el que prefieras)
-   - **Allowed MIME types:** `application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain`
+   - **Allowed MIME types:** `application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/json,application/octet-stream`
 4. Haz clic en **"Create bucket"**
 
 ### Paso 4: Obtener API Keys

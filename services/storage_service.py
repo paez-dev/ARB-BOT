@@ -132,32 +132,42 @@ class StorageService:
             import json
             
             if self.use_supabase:
-                # Guardar índice JSON
-                index_json = json.dumps(index_data, ensure_ascii=False).encode('utf-8')
-                self._upload_to_supabase(
-                    file_path,
-                    index_json,
-                    'application/json'
-                )
-                
-                # Guardar embeddings
-                embeddings_path = file_path.replace('.json', '_embeddings.npy')
-                self._upload_to_supabase(
-                    embeddings_path,
-                    embeddings_data,
-                    'application/octet-stream'
-                )
-                logger.info("Índice guardado en Supabase")
+                # Intentar guardar índice JSON en Supabase
+                try:
+                    index_json = json.dumps(index_data, ensure_ascii=False).encode('utf-8')
+                    self._upload_to_supabase(
+                        file_path,
+                        index_json,
+                        'application/json'
+                    )
+                    
+                    # Guardar embeddings
+                    embeddings_path = file_path.replace('.json', '_embeddings.npy')
+                    self._upload_to_supabase(
+                        embeddings_path,
+                        embeddings_data,
+                        'application/octet-stream'
+                    )
+                    logger.info("Índice guardado en Supabase")
+                except Exception as supabase_error:
+                    # Si falla (por ejemplo, tipos MIME no permitidos), guardar localmente
+                    logger.warning(f"No se pudo guardar índice en Supabase: {supabase_error}. Guardando localmente...")
+                    self._save_index_local(index_data, embeddings_data, file_path)
             else:
                 # Guardar localmente
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    json.dump(index_data, f, ensure_ascii=False, indent=2)
-                
-                embeddings_path = file_path.replace('.json', '_embeddings.npy')
-                with open(embeddings_path, 'wb') as f:
-                    f.write(embeddings_data)
-                logger.info("Índice guardado localmente")
+                self._save_index_local(index_data, embeddings_data, file_path)
+    
+    def _save_index_local(self, index_data: dict, embeddings_data: bytes, file_path: str):
+        """Guardar índice localmente (método auxiliar)"""
+        import json
+        os.makedirs(os.path.dirname(file_path) if os.path.dirname(file_path) else '.', exist_ok=True)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(index_data, f, ensure_ascii=False, indent=2)
+        
+        embeddings_path = file_path.replace('.json', '_embeddings.npy')
+        with open(embeddings_path, 'wb') as f:
+            f.write(embeddings_data)
+        logger.info("Índice guardado localmente")
                 
         except Exception as e:
             logger.error(f"Error guardando índice: {str(e)}")
