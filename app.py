@@ -573,19 +573,44 @@ def upload_document():
 
 @app.route('/api/rag-stats', methods=['GET'])
 def get_rag_stats():
-    """Obtener estadísticas del sistema RAG"""
+    """Obtener estadísticas del sistema RAG (sin cargar el servicio si no está cargado)"""
     try:
-        rag = get_rag_service()
-        stats = rag.get_stats()
-        return jsonify({
-            'status': 'success',
-            'stats': stats
-        })
+        # Solo obtener stats si el servicio ya está cargado
+        # No forzar la carga del RAG aquí para evitar timeouts
+        if rag_service is not None:
+            stats = rag_service.get_stats()
+            return jsonify({
+                'status': 'success',
+                'stats': stats
+            })
+        else:
+            # Retornar stats vacías si el servicio no está cargado
+            # Esto evita cargar el RAG solo para ver stats
+            # Verificar si hay índice sin cargar el servicio completo
+            has_index = os.path.exists(INDEX_FILE)
+            return jsonify({
+                'status': 'success',
+                'stats': {
+                    'total_documents': 0,
+                    'embeddings_model': 'N/A',
+                    'has_index': has_index,
+                    'sources': [],
+                    'service_loaded': False,
+                    'message': 'Servicio RAG no cargado. Se cargará cuando sea necesario.'
+                }
+            })
     except Exception as e:
         logger.error(f"Error obteniendo stats RAG: {str(e)}")
         return jsonify({
             'status': 'error',
-            'error': str(e)
+            'error': str(e),
+            'stats': {
+                'total_documents': 0,
+                'embeddings_model': 'N/A',
+                'has_index': False,
+                'sources': [],
+                'service_loaded': False
+            }
         }), 500
 
 @app.route('/api/search-documents', methods=['POST'])

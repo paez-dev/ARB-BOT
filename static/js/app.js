@@ -472,6 +472,9 @@ class ARBBot {
                 document.getElementById('adminPanel').style.display = 'block';
                 document.getElementById('adminPassword').value = '';
                 errorDiv.style.display = 'none';
+                
+                // Cargar stats RAG solo cuando se abre el admin (no al inicio)
+                this.loadRAGStats();
             } else {
                 errorDiv.textContent = data.error || 'Contraseña incorrecta';
                 errorDiv.style.display = 'block';
