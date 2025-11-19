@@ -44,32 +44,29 @@ class AIModel:
             )
             
             # Cargar modelo con optimizaciones de memoria
-            # Intentar con accelerate, si falla usar método simple
-            try:
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    self.model_name,
-                    torch_dtype=torch.float32,
-                    low_cpu_mem_usage=True,
-                    device_map="cpu"
-                )
-            except Exception as e:
-                # Fallback: cargar sin optimizaciones avanzadas
-                logger.warning(f"No se pudo cargar con optimizaciones: {e}. Usando método simple...")
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    self.model_name,
-                    torch_dtype=torch.float32
-                )
+            # No usar device_map para evitar conflictos con accelerate
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_name,
+                torch_dtype=torch.float32,
+                low_cpu_mem_usage=True
+            )
+            
+            # Mover modelo a CPU explícitamente (si no está ya)
+            if torch.cuda.is_available():
+                self.model = self.model.to('cpu')
+            else:
+                self.model = self.model.to('cpu')
             
             # Configurar padding token si no existe
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             
-            # Crear pipeline de generación con opciones optimizadas
+            # Crear pipeline de generación sin especificar device
+            # El modelo ya está en CPU, no necesitamos especificarlo
             self.generator = pipeline(
                 'text-generation',
                 model=self.model,
                 tokenizer=self.tokenizer,
-                device=-1,  # CPU
                 model_kwargs={
                     'low_cpu_mem_usage': True,
                     'torch_dtype': torch.float32
@@ -95,29 +92,24 @@ class AIModel:
                 'distilgpt2',
                 use_fast=True
             )
-            # Cargar modelo de respaldo sin optimizaciones avanzadas
-            try:
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    'distilgpt2',
-                    torch_dtype=torch.float32,
-                    low_cpu_mem_usage=True,
-                    device_map="cpu"
-                )
-            except Exception:
-                # Fallback final: sin optimizaciones
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    'distilgpt2',
-                    torch_dtype=torch.float32
-                )
+            # Cargar modelo de respaldo sin device_map
+            self.model = AutoModelForCausalLM.from_pretrained(
+                'distilgpt2',
+                torch_dtype=torch.float32,
+                low_cpu_mem_usage=True
+            )
+            
+            # Mover modelo a CPU
+            self.model = self.model.to('cpu')
             
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             
+            # Crear pipeline sin especificar device
             self.generator = pipeline(
                 'text-generation',
                 model=self.model,
                 tokenizer=self.tokenizer,
-                device=-1,
                 model_kwargs={
                     'low_cpu_mem_usage': True,
                     'torch_dtype': torch.float32
