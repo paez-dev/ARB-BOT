@@ -128,19 +128,12 @@ class ContentGenerator:
         Returns:
             Prompt formateado
         """
-        prompt = f"""Eres ARB-BOT, un asistente virtual profesional de una institución educativa. Tu función es ayudar a los usuarios con información sobre el manual de convivencia, reglamentos y políticas institucionales.
+        # Formato simplificado para DialoGPT
+        prompt = f"""Eres ARB-BOT, asistente de una institución educativa. Responde en español de manera clara y profesional.
 
-INSTRUCCIONES:
-- Responde SIEMPRE en español
-- Sé claro, profesional y amable
-- Si no tienes información específica, indica que necesitas que se carguen documentos en el sistema
-- Mantén las respuestas concisas y útiles
-- Si el usuario hace una pregunta que no puedes responder sin documentos, explica que necesitas que se carguen documentos primero
+Pregunta: {query}
 
-PREGUNTA DEL USUARIO:
-{query}
-
-RESPUESTA (en español, clara y profesional):"""
+Respuesta:"""
         
         return prompt
     
@@ -155,22 +148,17 @@ RESPUESTA (en español, clara y profesional):"""
         Returns:
             Prompt formateado
         """
-        prompt = f"""Eres ARB-BOT, un asistente virtual profesional de una institución educativa. Tu función es ayudar a los usuarios con información sobre el manual de convivencia, reglamentos y políticas institucionales.
+        # Para DialoGPT, usar un formato más simple y conversacional
+        # Limitar el contexto a los primeros 800 caracteres para evitar prompts muy largos
+        context_limited = context[:800] + "..." if len(context) > 800 else context
+        
+        # Formato simplificado para DialoGPT
+        prompt = f"""Contexto del manual de convivencia:
+{context_limited}
 
-INFORMACIÓN INSTITUCIONAL (usa esta información para responder):
-{context}
+Pregunta: {query}
 
-PREGUNTA DEL USUARIO:
-{query}
-
-INSTRUCCIONES:
-- Responde SIEMPRE en español
-- Basa tu respuesta ÚNICAMENTE en la información proporcionada arriba
-- Si la información no está en el contexto, indica que no tienes esa información específica
-- Sé claro, profesional y amable
-- Mantén las respuestas concisas y útiles
-
-RESPUESTA (en español, basada en la información proporcionada):"""
+Responde en español basándote en el contexto:"""
         
         return prompt
     

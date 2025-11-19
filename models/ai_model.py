@@ -188,14 +188,14 @@ class AIModel:
             
             # Usar max_new_tokens para evitar el error cuando el prompt es largo
             # max_new_tokens especifica cuántos tokens nuevos generar, no el total
-            # Asegurar un mínimo razonable de tokens a generar
+            # Para DialoGPT, dar más espacio para generar respuestas completas
             if prompt_tokens >= max_length:
-                # Si el prompt ya es muy largo, generar al menos 80 tokens nuevos
-                max_new_tokens = 80
+                # Si el prompt ya es muy largo, generar al menos 100 tokens nuevos
+                max_new_tokens = 100
             else:
                 # Generar tokens nuevos hasta alcanzar max_length total
-                # Asegurar mínimo de 80 tokens para respuestas útiles
-                max_new_tokens = max(80, max_length - prompt_tokens)
+                # Asegurar mínimo de 100 tokens para respuestas útiles (aumentado para DialoGPT)
+                max_new_tokens = max(100, min(150, max_length - prompt_tokens + 50))
             
             logger.debug(f"Prompt tokens: {prompt_tokens}, max_new_tokens: {max_new_tokens}")
             
