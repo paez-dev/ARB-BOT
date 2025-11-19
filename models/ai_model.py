@@ -188,12 +188,16 @@ class AIModel:
             
             # Usar max_new_tokens para evitar el error cuando el prompt es largo
             # max_new_tokens especifica cuántos tokens nuevos generar, no el total
+            # Asegurar un mínimo razonable de tokens a generar
             if prompt_tokens >= max_length:
-                # Si el prompt ya es muy largo, generar solo 50 tokens nuevos
-                max_new_tokens = 50
+                # Si el prompt ya es muy largo, generar al menos 80 tokens nuevos
+                max_new_tokens = 80
             else:
                 # Generar tokens nuevos hasta alcanzar max_length total
-                max_new_tokens = max(50, max_length - prompt_tokens)
+                # Asegurar mínimo de 80 tokens para respuestas útiles
+                max_new_tokens = max(80, max_length - prompt_tokens)
+            
+            logger.debug(f"Prompt tokens: {prompt_tokens}, max_new_tokens: {max_new_tokens}")
             
             # Generar texto usando max_new_tokens en lugar de max_length
             results = self.generator(
@@ -209,11 +213,48 @@ class AIModel:
             # Extraer texto generado
             if results and len(results) > 0:
                 generated_text = results[0]['generated_text']
+                logger.debug(f"Texto generado completo: {generated_text[:200]}...")
+                
                 # Remover el prompt original de la salida
                 if generated_text.startswith(prompt):
                     generated_text = generated_text[len(prompt):].strip()
+                else:
+                    # Si no empieza con el prompt, puede que el modelo haya generado algo diferente
+                    # Intentar encontrar el prompt en el texto
+                    prompt_index = generated_text.find(prompt)
+                    if prompt_index >= 0:
+                        generated_text = generated_text[prompt_index + len(prompt):].strip()
+                    # Si no se encuentra, usar todo el texto generado
+                    generated_text = generated_text.strip()
+                
+                # Validar que el texto generado no esté vacío
+                if not generated_text or len(generated_text.strip()) == 0:
+                    logger.warning("El modelo generó texto vacío, intentando con parámetros diferentes...")
+                    # Intentar de nuevo con más tokens y temperatura más alta
+                    results = self.generator(
+                        prompt,
+                        max_new_tokens=100,
+                        temperature=min(0.9, temperature + 0.1),
+                        num_return_sequences=1,
+                        do_sample=True,
+                        pad_token_id=self.tokenizer.eos_token_id,
+                        truncation=True
+                    )
+                    if results and len(results) > 0:
+                        generated_text = results[0]['generated_text']
+                        if generated_text.startswith(prompt):
+                            generated_text = generated_text[len(prompt):].strip()
+                        else:
+                            generated_text = generated_text.strip()
+                
+                # Si aún está vacío, retornar mensaje de error
+                if not generated_text or len(generated_text.strip()) == 0:
+                    logger.error("No se pudo generar contenido después de múltiples intentos")
+                    return "Lo siento, no pude generar una respuesta. Por favor, intenta reformular tu pregunta o verifica que hay documentos cargados en el sistema."
+                
                 return generated_text
             else:
+                logger.error("El modelo no retornó resultados")
                 return "No se pudo generar contenido."
                 
         except Exception as e:

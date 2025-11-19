@@ -258,13 +258,14 @@ class RAGService:
             logger.error(f"Error en búsqueda: {str(e)}")
             return []
     
-    def get_context_for_query(self, query: str, top_k: int = 3) -> str:
+    def get_context_for_query(self, query: str, top_k: int = 3, max_context_length: int = 1500) -> str:
         """
         Obtener contexto relevante para una consulta
         
         Args:
             query: Pregunta del usuario
             top_k: Número de chunks a incluir
+            max_context_length: Longitud máxima del contexto en caracteres (por defecto 1500)
         
         Returns:
             Texto de contexto formateado
@@ -275,11 +276,30 @@ class RAGService:
             return ""
         
         context_parts = []
+        total_length = 0
+        
         for result in results:
-            context_parts.append(
-                f"[Fuente: {os.path.basename(result.get('source', 'Desconocido'))}]\n"
-                f"{result['text']}\n"
-            )
+            # Limitar el texto de cada chunk si es muy largo
+            chunk_text = result['text']
+            if len(chunk_text) > 500:  # Limitar cada chunk a 500 caracteres
+                chunk_text = chunk_text[:500] + "..."
+            
+            context_part = f"[Fuente: {os.path.basename(result.get('source', 'Desconocido'))}]\n{chunk_text}\n"
+            
+            # Verificar si agregar este chunk excedería el límite
+            if total_length + len(context_part) > max_context_length:
+                # Si ya tenemos al menos un chunk, parar aquí
+                if context_parts:
+                    break
+                # Si es el primer chunk y es muy largo, truncarlo
+                remaining = max_context_length - total_length
+                if remaining > 100:  # Solo si queda espacio razonable
+                    context_part = context_part[:remaining] + "..."
+                    context_parts.append(context_part)
+                break
+            
+            context_parts.append(context_part)
+            total_length += len(context_part)
         
         return "\n---\n".join(context_parts)
     
