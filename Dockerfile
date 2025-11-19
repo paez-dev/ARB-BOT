@@ -24,10 +24,10 @@ COPY . .
 # Crear directorios necesarios
 RUN mkdir -p documents
 
-# Exponer puerto (Railway usará la variable PORT)
-ENV PORT=8080
+# Exponer puerto (Railway asigna PORT automáticamente)
 EXPOSE 8080
 
-# Comando para ejecutar la aplicación (usa shell para expandir $PORT)
-CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:${PORT} --workers 1 --threads 1 --timeout 600 --graceful-timeout 600"]
+# Comando para ejecutar la aplicación
+# Usar forma shell de CMD para que Railway pueda expandir $PORT
+CMD gunicorn app:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 1 --timeout 600 --graceful-timeout 600
 
