@@ -601,6 +601,14 @@ class ARBBot {
                             </small>
                         </div>
                     `;
+                } else if (stats.service_loaded === false) {
+                    // Servicio no cargado - mostrar mensaje informativo
+                    ragStatsDiv.innerHTML = `
+                        <div class="alert alert-info mt-2">
+                            <small>ℹ️ El servicio RAG se cargará automáticamente cuando sea necesario (al hacer una pregunta o subir un documento).</small>
+                            ${stats.has_index ? '<br><small class="text-muted">Hay un índice guardado que se cargará cuando el servicio se active.</small>' : ''}
+                        </div>
+                    `;
                 } else {
                     ragStatsDiv.innerHTML = `
                         <div class="alert alert-warning mt-2">
@@ -611,6 +619,14 @@ class ARBBot {
             }
         } catch (error) {
             console.error('Error cargando stats RAG:', error);
+            const ragStatsDiv = document.getElementById('ragStats');
+            if (ragStatsDiv) {
+                ragStatsDiv.innerHTML = `
+                    <div class="alert alert-danger mt-2">
+                        <small>❌ Error cargando estadísticas RAG</small>
+                    </div>
+                `;
+            }
         }
     }
 
