@@ -13,6 +13,12 @@
     
     <!-- Estilos personalizados -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <script>
+        window.ARB_CONFIG = {
+            AUTO_WARMUP_ENABLED: {{ 'true' if config.AUTO_WARMUP_ENABLED else 'false' }}
+        };
+    </script>
 </head>
 <body>
     <!-- Header fijo -->

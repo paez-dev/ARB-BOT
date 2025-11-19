@@ -14,7 +14,13 @@ class ARBBot {
         // No cargar RAG stats al inicio - solo cuando se necesite (evita timeouts)
         // this.loadRAGStats();
         this.checkSystemHealth();
-        this.autoWarmup(); // Pre-cargar modelos automáticamente
+        
+        const autoWarmupEnabled = window?.ARB_CONFIG?.AUTO_WARMUP_ENABLED;
+        if (autoWarmupEnabled === true || autoWarmupEnabled === 'true') {
+            this.autoWarmup(); // Pre-cargar modelos automáticamente (opcional)
+        } else {
+            console.log('Auto warmup deshabilitado (se cargará bajo demanda)');
+        }
     }
 
     setupEventListeners() {

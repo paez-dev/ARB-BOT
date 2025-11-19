@@ -32,6 +32,7 @@ class Config:
     # Configuración de Procesamiento
     MAX_INPUT_LENGTH = 500
     MIN_INPUT_LENGTH = 3
+    AUTO_WARMUP_ENABLED = os.getenv('AUTO_WARMUP_ENABLED', 'false').lower() == 'true'
     
     # Modelos disponibles (todos gratuitos)
     AVAILABLE_MODELS = {
