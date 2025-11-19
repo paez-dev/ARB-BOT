@@ -537,18 +537,10 @@ def upload_document():
                 logger.warning(f"Archivo grande detectado: {file_size_mb:.2f} MB. El procesamiento puede tardar varios minutos.")
             
             # Procesar documento completo
-            # Limitar páginas para evitar problemas de memoria (optimizado para Railway)
+            # Procesar todas las páginas del documento (sin límite)
             try:
-                # Determinar límite de páginas basado en el tamaño del archivo
-                # Para evitar OOM, limitamos a 50 páginas por defecto en archivos > 1MB
-                if file_size_mb > 1:
-                    # Archivos medianos/grandes: procesar máximo 50 páginas para evitar OOM
-                    max_pages = 50
-                    logger.info(f"Archivo detectado ({file_size_mb:.2f} MB). Procesando hasta {max_pages} páginas para evitar problemas de memoria.")
-                else:
-                    # Archivos pequeños: procesar todo
-                    max_pages = None  # Sin límite
-                    logger.info(f"Procesando documento completo ({file_size_mb:.2f} MB)")
+                max_pages = None  # Sin límite - procesar todo el documento
+                logger.info(f"Procesando documento completo ({file_size_mb:.2f} MB) - todas las páginas")
                 
                 chunks = document_processor.process_document(filepath, max_pages=max_pages)
             except Exception as e:
@@ -584,12 +576,13 @@ def upload_document():
                     'hint': 'El sistema puede estar sin memoria. Intenta más tarde o con un documento más pequeño.'
                 }), 500
             
-            batch_size = 10  # Procesar en lotes más pequeños (10 chunks) para ahorrar memoria
-            
+            # Procesar en lotes pequeños para ahorrar memoria y permitir procesamiento de documentos grandes
+            batch_size = 10  # 10 chunks por lote para optimizar memoria
             total_batches = (len(chunks) - 1) // batch_size + 1
             logger.info(f"Procesando {len(chunks)} chunks en {total_batches} lotes de {batch_size}...")
             
             import time
+            import gc
             start_time = time.time()
             
             for i in range(0, len(chunks), batch_size):
@@ -598,6 +591,10 @@ def upload_document():
                     rag.add_documents(batch)
                     elapsed = time.time() - start_time
                     logger.info(f"Procesado lote {i//batch_size + 1}/{total_batches} ({len(batch)} chunks) - Tiempo: {elapsed:.1f}s")
+                    
+                    # Limpiar memoria después de cada lote para documentos grandes
+                    if total_batches > 20:  # Solo para documentos con muchos lotes
+                        gc.collect()
                 except Exception as batch_error:
                     logger.error(f"Error procesando lote {i//batch_size + 1}: {str(batch_error)}")
                     # Continuar con el siguiente lote
@@ -607,17 +604,15 @@ def upload_document():
             logger.info("Guardando índice...")
             rag.save_index(INDEX_FILE)
             
-            # Mensaje informativo sobre páginas procesadas
-            message = f'Documento {filename} procesado exitosamente'
-            if max_pages and max_pages == 50:
-                message += f' (procesadas {max_pages} páginas para optimizar memoria)'
+            # Mensaje informativo
+            message = f'Documento {filename} procesado exitosamente (todas las páginas)'
             
             return jsonify({
                 'status': 'success',
                 'message': message,
                 'chunks_added': len(chunks),
                 'total_documents': rag.get_stats()['total_documents'],
-                'pages_processed': max_pages if max_pages else 'todas'
+                'pages_processed': 'todas'
             })
         else:
             return jsonify({

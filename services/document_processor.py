@@ -93,7 +93,7 @@ class DocumentProcessor:
                 # Procesar páginas con logging de progreso y límite de tiempo
                 import time
                 start_time = time.time()
-                max_processing_time = 240  # 4 minutos máximo para extracción
+                max_processing_time = 600  # 10 minutos máximo para extracción (aumentado para documentos grandes)
                 
                 for page_num in range(pages_to_process):
                     # Verificar tiempo transcurrido
@@ -147,7 +147,7 @@ class DocumentProcessor:
                     
                     import time
                     start_time = time.time()
-                    max_processing_time = 240  # 4 minutos máximo
+                    max_processing_time = 600  # 10 minutos máximo (aumentado para documentos grandes)
                     
                     for page_num in range(pages_to_process):
                         elapsed = time.time() - start_time
