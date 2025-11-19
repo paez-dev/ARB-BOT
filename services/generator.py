@@ -4,6 +4,7 @@ Orquesta la generación de contenido usando el modelo de IA
 """
 
 import logging
+import re
 from typing import Dict, Optional, List
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,16 @@ class ContentGenerator:
         """
         self.ai_model = ai_model
         self.text_processor = text_processor
+        
+        # Respuestas predefinidas para saludos comunes
+        self.greeting_responses = {
+            'hola': '¡Hola! 👋 Soy ARB-BOT, tu asistente institucional. Puedo responder preguntas sobre el manual de convivencia, reglamentos y políticas de la institución. ¿En qué puedo ayudarte?',
+            'buenos días': '¡Buenos días! 👋 Soy ARB-BOT, tu asistente institucional. Estoy aquí para ayudarte con información sobre el manual de convivencia y las políticas de la institución. ¿Qué te gustaría saber?',
+            'buenas tardes': '¡Buenas tardes! 👋 Soy ARB-BOT, tu asistente institucional. Puedo ayudarte con información sobre el manual de convivencia y las políticas de la institución. ¿En qué puedo asistirte?',
+            'buenas noches': '¡Buenas noches! 👋 Soy ARB-BOT, tu asistente institucional. Estoy disponible para responder tus preguntas sobre el manual de convivencia y las políticas de la institución. ¿Cómo puedo ayudarte?',
+            'hi': '¡Hola! 👋 Soy ARB-BOT, tu asistente institucional. Puedo responder preguntas sobre el manual de convivencia, reglamentos y políticas de la institución. ¿En qué puedo ayudarte?',
+            'hello': '¡Hola! 👋 Soy ARB-BOT, tu asistente institucional. Puedo responder preguntas sobre el manual de convivencia, reglamentos y políticas de la institución. ¿En qué puedo ayudarte?',
+        }
     
     def generate(self, input_text: str, max_tokens: int = 150, 
                  temperature: float = 0.7, context: Optional[str] = None, **kwargs) -> str:
@@ -43,6 +54,12 @@ class ContentGenerator:
         try:
             logger.info(f"Generando contenido para: {input_text[:50]}...")
             
+            # Paso 0: Verificar si es un saludo simple
+            greeting_response = self._check_greeting(input_text)
+            if greeting_response:
+                logger.info("Detectado saludo simple, usando respuesta predefinida")
+                return greeting_response
+            
             # Paso 1: Procesar el texto de entrada
             processed_input = self.text_processor.process(input_text)
             
@@ -50,8 +67,8 @@ class ContentGenerator:
             if context:
                 prompt = self._build_prompt_with_context(processed_input, context)
             else:
-                # Si no hay contexto, agregar instrucción para responder en español
-                prompt = f"Responde en español de manera clara y profesional: {processed_input}"
+                # Si no hay contexto, usar un prompt más instructivo
+                prompt = self._build_prompt_without_context(processed_input)
             
             # Paso 3: Generar usando el modelo de IA
             generated = self.ai_model.generate(
@@ -72,6 +89,61 @@ class ContentGenerator:
             logger.error(f"Error generando contenido: {str(e)}")
             return f"Lo siento, hubo un error al generar el contenido: {str(e)}"
     
+    def _check_greeting(self, input_text: str) -> Optional[str]:
+        """
+        Verificar si el input es un saludo simple y retornar respuesta predefinida
+        
+        Args:
+            input_text: Texto de entrada
+        
+        Returns:
+            Respuesta predefinida si es un saludo, None en caso contrario
+        """
+        # Normalizar el texto (minúsculas, sin puntuación)
+        normalized = re.sub(r'[^\w\s]', '', input_text.lower().strip())
+        
+        # Verificar saludos exactos
+        if normalized in self.greeting_responses:
+            return self.greeting_responses[normalized]
+        
+        # Verificar saludos que empiezan con estas palabras
+        words = normalized.split()
+        if words:
+            first_word = words[0]
+            if first_word in ['hola', 'hi', 'hello']:
+                return self.greeting_responses.get(first_word, self.greeting_responses['hola'])
+            if len(words) >= 2:
+                if f"{words[0]} {words[1]}" in self.greeting_responses:
+                    return self.greeting_responses[f"{words[0]} {words[1]}"]
+        
+        return None
+    
+    def _build_prompt_without_context(self, query: str) -> str:
+        """
+        Construir prompt cuando no hay contexto de documentos
+        
+        Args:
+            query: Pregunta del usuario
+        
+        Returns:
+            Prompt formateado
+        """
+        prompt = f"""Eres ARB-BOT, un asistente virtual profesional de una institución educativa. Tu función es ayudar a los usuarios con información sobre el manual de convivencia, reglamentos y políticas institucionales.
+
+INSTRUCCIONES:
+- Responde SIEMPRE en español
+- Sé claro, profesional y amable
+- Si no tienes información específica, indica que necesitas que se carguen documentos en el sistema
+- Mantén las respuestas concisas y útiles
+- Si el usuario hace una pregunta que no puedes responder sin documentos, explica que necesitas que se carguen documentos primero
+
+PREGUNTA DEL USUARIO:
+{query}
+
+RESPUESTA (en español, clara y profesional):"""
+        
+        return prompt
+    
     def _build_prompt_with_context(self, query: str, context: str) -> str:
         """
         Construir prompt con contexto de documentos
@@ -83,17 +155,22 @@ class ContentGenerator:
         Returns:
             Prompt formateado
         """
-        prompt = f"""Eres un asistente virtual de una institución educativa. Responde SIEMPRE en español, de manera clara, profesional y basándote únicamente en la información proporcionada.
+        prompt = f"""Eres ARB-BOT, un asistente virtual profesional de una institución educativa. Tu función es ayudar a los usuarios con información sobre el manual de convivencia, reglamentos y políticas institucionales.
 
-INFORMACIÓN INSTITUCIONAL:
+INFORMACIÓN INSTITUCIONAL (usa esta información para responder):
 {context}
 
 PREGUNTA DEL USUARIO:
 {query}
 
-IMPORTANTE: Responde SOLO en español. Usa únicamente la información del contexto proporcionado.
+INSTRUCCIONES:
+- Responde SIEMPRE en español
+- Basa tu respuesta ÚNICAMENTE en la información proporcionada arriba
+- Si la información no está en el contexto, indica que no tienes esa información específica
+- Sé claro, profesional y amable
+- Mantén las respuestas concisas y útiles
 
-RESPUESTA:"""
+RESPUESTA (en español, basada en la información proporcionada):"""
         
         return prompt
     
