@@ -224,14 +224,30 @@ class RAGService:
                 'embeddings_model': self.embeddings_model_name
             }
             
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            
-            # Guardar embeddings si es posible
+            # Preparar embeddings para guardar
+            embeddings_data = None
             if self.embeddings_store is not None:
-                np.save(filepath.replace('.json', '_embeddings.npy'), self.embeddings_store)
+                import io
+                embeddings_buffer = io.BytesIO()
+                np.save(embeddings_buffer, self.embeddings_store)
+                embeddings_data = embeddings_buffer.getvalue()
             
-            logger.info(f"Índice guardado en: {filepath}")
+            # Usar StorageService si está disponible
+            try:
+                from services.storage_service import StorageService
+                storage = StorageService()
+                storage.save_index(data, embeddings_data or b'', filepath)
+                logger.info(f"Índice guardado (usando storage service)")
+            except ImportError:
+                # Fallback: guardar localmente
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                
+                if embeddings_data:
+                    with open(filepath.replace('.json', '_embeddings.npy'), 'wb') as f:
+                        f.write(embeddings_data)
+                
+                logger.info(f"Índice guardado localmente en: {filepath}")
             
         except Exception as e:
             logger.error(f"Error guardando índice: {str(e)}")
@@ -239,6 +255,34 @@ class RAGService:
     def load_index(self, filepath: str):
         """Cargar índice y documentos"""
         try:
+            # Intentar usar StorageService primero
+            try:
+                from services.storage_service import StorageService
+                storage = StorageService()
+                result = storage.load_index(filepath)
+                
+                if result:
+                    data, embeddings_data = result
+                    self.document_store = data['documents']
+                    self.embeddings_model_name = data.get('embeddings_model', 'all-MiniLM-L6-v2')
+                    
+                    # Cargar embeddings desde bytes
+                    if embeddings_data:
+                        import io
+                        embeddings_buffer = io.BytesIO(embeddings_data)
+                        self.embeddings_store = np.load(embeddings_buffer)
+                        self._build_index()
+                    
+                    logger.info(f"Índice cargado desde storage: {len(self.document_store)} documentos")
+                    return
+            except ImportError:
+                pass  # Continuar con método local
+            
+            # Fallback: cargar localmente
+            if not os.path.exists(filepath):
+                logger.warning(f"Índice no encontrado en: {filepath}")
+                return
+            
             with open(filepath, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
@@ -251,7 +295,7 @@ class RAGService:
                 self.embeddings_store = np.load(embeddings_file)
                 self._build_index()
             
-            logger.info(f"Índice cargado: {len(self.document_store)} documentos")
+            logger.info(f"Índice cargado localmente: {len(self.document_store)} documentos")
             
         except Exception as e:
             logger.error(f"Error cargando índice: {str(e)}")

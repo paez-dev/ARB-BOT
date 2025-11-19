@@ -32,6 +32,9 @@ requests==2.31.0
 numpy>=1.25.0,<2.0
 pandas==2.1.3
 
+# Almacenamiento en la nube (Opcional - para Supabase)
+# supabase==2.0.0  # Descomentar si usas Supabase Storage
+
 # Base de Datos
 sqlalchemy==2.0.23
 

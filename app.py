@@ -439,7 +439,23 @@ def upload_document():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             filepath = os.path.join(UPLOAD_FOLDER, filename)
-            file.save(filepath)
+            
+            # Leer contenido del archivo
+            file_content = file.read()
+            file.seek(0)  # Resetear para guardar
+            
+            # Guardar archivo (local o Supabase)
+            try:
+                from services.storage_service import StorageService
+                storage = StorageService()
+                # Determinar content type
+                content_type = 'application/pdf' if filename.endswith('.pdf') else \
+                             'application/vnd.openxmlformats-officedocument.wordprocessingml.document' if filename.endswith('.docx') else \
+                             'text/plain'
+                storage.upload_file(filepath, file_content, content_type)
+            except ImportError:
+                # Fallback: guardar localmente
+                file.save(filepath)
             
             logger.info(f"Procesando documento: {filename}")
             
