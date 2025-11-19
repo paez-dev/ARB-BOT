@@ -268,7 +268,10 @@ class AIModel:
                         question_part = None
                         
                         # Buscar diferentes formatos de pregunta en el prompt
-                        if "Responde esta pregunta en español:" in prompt:
+                        if "Usuario:" in prompt:
+                            # Formato conversacional: "Usuario: pregunta\nAsistente:"
+                            question_part = prompt.split("Usuario:")[-1].split("Asistente:")[0].strip()
+                        elif "Responde esta pregunta en español:" in prompt:
                             question_part = prompt.split("Responde esta pregunta en español:")[-1].split("Respuesta:")[0].strip()
                         elif "Pregunta:" in prompt:
                             question_part = prompt.split("Pregunta:")[-1].split("Responde")[0].strip()
@@ -276,10 +279,10 @@ class AIModel:
                             question_part = prompt.split("PREGUNTA DEL USUARIO:")[-1].split("RESPUESTA")[0].strip()
                         
                         if question_part and len(question_part) > 5:
-                            # Usar solo la pregunta, sin contexto
-                            simple_prompt = f"{question_part}\n\nRespuesta:"
+                            # Usar solo la pregunta, sin contexto, formato conversacional
+                            simple_prompt = f"Usuario: {question_part}\nAsistente:"
                         else:
-                            # Si no encontramos la pregunta, usar solo los últimos 50 caracteres
+                            # Si no encontramos la pregunta, usar solo los últimos 100 caracteres
                             simple_prompt = prompt[-100:] if len(prompt) > 100 else prompt
                         
                         logger.info(f"Segundo intento con prompt simplificado (solo pregunta): {simple_prompt[:150]}")
