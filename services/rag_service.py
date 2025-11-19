@@ -40,12 +40,19 @@ class RAGService:
             # Optimizaciones de memoria
             torch.set_num_threads(1)
             
-            logger.info(f"Cargando modelo de embeddings: {self.embeddings_model_name}")
+            logger.info(f"Cargando modelo de embeddings: {self.embeddings_model_name} (esto puede tardar ~30-60 segundos)...")
+            
+            # Cargar modelo con timeout implícito (si tarda mucho, puede ser problema de red)
+            import time
+            start_time = time.time()
+            
             self.embeddings_model = SentenceTransformer(
                 self.embeddings_model_name,
                 device='cpu'
             )
-            logger.info("Modelo de embeddings cargado exitosamente")
+            
+            load_time = time.time() - start_time
+            logger.info(f"Modelo de embeddings cargado exitosamente en {load_time:.2f} segundos")
             
         except Exception as e:
             logger.error(f"Error cargando modelo de embeddings: {str(e)}")

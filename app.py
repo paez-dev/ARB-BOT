@@ -58,14 +58,26 @@ def get_rag_service():
     global rag_service
     if rag_service is None:
         logger.info("Cargando servicio RAG (primera vez)...")
-        rag_service = RAGService()
-        # Cargar índice si existe
-        if os.path.exists(INDEX_FILE):
-            try:
-                rag_service.load_index(INDEX_FILE)
-                logger.info("Documentos institucionales cargados desde índice")
-            except Exception as e:
-                logger.warning(f"No se pudo cargar índice: {e}")
+        try:
+            rag_service = RAGService()
+            logger.info("Servicio RAG inicializado")
+            
+            # Cargar índice si existe (no crítico si falla)
+            if os.path.exists(INDEX_FILE):
+                try:
+                    logger.info(f"Intentando cargar índice desde: {INDEX_FILE}")
+                    rag_service.load_index(INDEX_FILE)
+                    logger.info("Documentos institucionales cargados desde índice")
+                except Exception as e:
+                    logger.warning(f"No se pudo cargar índice (continuando sin documentos): {e}")
+                    # Continuar sin índice - se pueden agregar documentos después
+            else:
+                logger.info("No hay índice existente - servicio RAG listo para nuevos documentos")
+        except Exception as e:
+            logger.error(f"Error crítico cargando servicio RAG: {str(e)}")
+            # Crear un servicio RAG vacío para que la app no falle
+            # El usuario podrá agregar documentos después
+            raise
     return rag_service
 
 # Directorio para documentos
