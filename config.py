@@ -85,6 +85,32 @@ class Config:
             'size': '~500MB',
             'recommended': True,
             'spanish': True
+        },
+        'microsoft/DialoGPT-large': {
+            'name': 'DialoGPT Large',
+            'provider': 'huggingface',
+            'description': 'DialoGPT más grande - Máxima calidad de respuestas',
+            'free': True,
+            'size': '~1.5GB',
+            'recommended': False,
+            'note': 'Requiere más RAM, puede ser lento en Railway Hobby'
+        },
+        'facebook/blenderbot-400M-distill': {
+            'name': 'BlenderBot 400M',
+            'provider': 'huggingface',
+            'description': 'BlenderBot más grande - Excelente para chatbots',
+            'free': True,
+            'size': '~800MB',
+            'recommended': True
+        },
+        'bigscience/bloom-560m': {
+            'name': 'BLOOM 560M',
+            'provider': 'huggingface',
+            'description': 'Modelo multilingüe - Incluye español y muchos otros idiomas',
+            'free': True,
+            'size': '~1.1GB',
+            'recommended': False,
+            'multilingual': True
         }
     }
     

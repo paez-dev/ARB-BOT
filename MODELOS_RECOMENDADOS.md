@@ -10,6 +10,52 @@
 | `microsoft/DialoGPT-medium` | ~500MB | ⭐⭐⭐⭐⭐ | ❌ | ✅ | ✅✅✅ Excelente |
 | `facebook/blenderbot-small-90M` | ~350MB | ⭐⭐⭐⭐ | ❌ | ✅ | ✅✅ Muy recomendado |
 | `PlanTL-GOB-ES/gpt2-base-bne` | ~500MB | ⭐⭐⭐ | ✅ | ❌ | ✅✅ Para español |
+| `microsoft/DialoGPT-large` | ~1.5GB | ⭐⭐⭐⭐⭐ | ❌ | ✅ | ⚠️ Muy pesado |
+| `facebook/blenderbot-400M-distill` | ~800MB | ⭐⭐⭐⭐⭐ | ❌ | ✅ | ✅✅ Excelente |
+| `EleutherAI/gpt-neo-125M` | ~500MB | ⭐⭐⭐ | ❌ | ❌ | ✅ Alternativa |
+| `EleutherAI/gpt-neo-1.3B` | ~5GB | ⭐⭐⭐⭐ | ❌ | ❌ | ⚠️ Muy pesado |
+| `bigscience/bloom-560m` | ~1.1GB | ⭐⭐⭐⭐ | ✅ Multilingüe | ❌ | ✅ Para múltiples idiomas |
+
+---
+
+## 🆕 Modelos Adicionales Gratuitos (Hugging Face)
+
+### Modelos Más Grandes y Potentes
+
+**1. `microsoft/DialoGPT-large`** ⭐⭐⭐⭐⭐
+- ✅ Mejor calidad que medium
+- ✅ Excelente para conversaciones
+- ⚠️ ~1.5GB (requiere más RAM)
+- ⚠️ Puede ser lento en Railway Hobby (2GB RAM)
+
+**2. `facebook/blenderbot-400M-distill`** ⭐⭐⭐⭐⭐
+- ✅ Entrenado específicamente para chatbots
+- ✅ Respuestas muy coherentes
+- ✅ Mejor que BlenderBot-small
+- ⚠️ ~800MB
+
+**3. `EleutherAI/gpt-neo-125M`** ⭐⭐⭐
+- ✅ Alternativa a GPT-2
+- ✅ Código abierto
+- ⚠️ Similar calidad a GPT-2
+
+**4. `EleutherAI/gpt-neo-1.3B`** ⭐⭐⭐⭐
+- ✅ Mucho más potente que GPT-2
+- ✅ Código abierto
+- ⚠️ ~5GB (demasiado pesado para Railway Hobby)
+
+**5. `bigscience/bloom-560m`** ⭐⭐⭐⭐
+- ✅ Multilingüe (incluye español)
+- ✅ Entrenado en múltiples idiomas
+- ⚠️ ~1.1GB
+
+### Modelos Específicos para Español
+
+**1. `dccuchile/bert-base-spanish-wwm-uncased`**
+- ✅ BERT en español (para embeddings, no generación)
+
+**2. `mrm8488/distilroberta-finetuned-spanish-squad2`**
+- ✅ Modelo de pregunta-respuesta en español
 
 ---
 
@@ -102,4 +148,34 @@ O para español puro:
 ```
 DEFAULT_MODEL=PlanTL-GOB-ES/gpt2-base-bne
 ```
+
+O para mejor calidad (más pesado):
+```
+DEFAULT_MODEL=microsoft/DialoGPT-large
+```
+
+O para chatbots (muy buena calidad):
+```
+DEFAULT_MODEL=facebook/blenderbot-400M-distill
+```
+
+---
+
+## ⚠️ Limitaciones de Railway Hobby (2GB RAM)
+
+**Modelos que funcionan bien:**
+- ✅ `microsoft/DialoGPT-medium` (~500MB) - **RECOMENDADO**
+- ✅ `microsoft/DialoGPT-small` (~250MB)
+- ✅ `gpt2` (~500MB)
+- ✅ `facebook/blenderbot-small-90M` (~350MB)
+- ✅ `PlanTL-GOB-ES/gpt2-base-bne` (~500MB)
+
+**Modelos que pueden funcionar (con cuidado):**
+- ⚠️ `microsoft/DialoGPT-large` (~1.5GB) - Puede ser lento
+- ⚠️ `facebook/blenderbot-400M-distill` (~800MB) - Puede funcionar
+- ⚠️ `bigscience/bloom-560m` (~1.1GB) - Puede funcionar
+
+**Modelos demasiado pesados:**
+- ❌ `EleutherAI/gpt-neo-1.3B` (~5GB) - No cabe en 2GB RAM
+- ❌ Modelos más grandes de GPT-Neo/GPT-J
 
