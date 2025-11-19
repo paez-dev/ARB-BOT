@@ -37,11 +37,22 @@ class AIModel:
             import torch
             torch.set_num_threads(1)  # Reducir threads para ahorrar memoria
             
-            # Cargar tokenizador y modelo con opciones de bajo consumo
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                self.model_name,
-                use_fast=True
-            )
+            # Intentar cargar tokenizador (primero con use_fast, luego sin)
+            try:
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    self.model_name,
+                    use_fast=True
+                )
+            except Exception as tokenizer_error:
+                logger.warning(f"No se pudo cargar tokenizer rápido, intentando sin use_fast: {tokenizer_error}")
+                try:
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                        self.model_name,
+                        use_fast=False
+                    )
+                except Exception:
+                    logger.error(f"No se pudo cargar tokenizer para {self.model_name}")
+                    raise tokenizer_error
             
             # Cargar modelo con optimizaciones de memoria
             # No usar device_map para evitar conflictos con accelerate
@@ -70,7 +81,8 @@ class AIModel:
                 model_kwargs={
                     'low_cpu_mem_usage': True,
                     'torch_dtype': torch.float32
-                }
+                },
+                truncation=True
             )
             
             logger.info(f"Modelo {self.model_name} cargado exitosamente")
@@ -87,36 +99,67 @@ class AIModel:
             import torch
             torch.set_num_threads(1)
             
-            self.model_name = 'distilgpt2'  # Usar el más ligero
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                'distilgpt2',
-                use_fast=True
-            )
-            # Cargar modelo de respaldo sin device_map
-            self.model = AutoModelForCausalLM.from_pretrained(
-                'distilgpt2',
-                torch_dtype=torch.float32,
-                low_cpu_mem_usage=True
-            )
+            # Determinar modelo de respaldo basado en el modelo original
+            original_model = self.model_name.lower()
+            if 'spanish' in original_model or 'es' in original_model or 'bne' in original_model or 'plan' in original_model:
+                # Si el modelo original era en español, intentar modelos en español
+                fallback_models = ['microsoft/DialoGPT-small', 'gpt2', 'distilgpt2']
+            else:
+                # Si no, usar modelos estándar
+                fallback_models = ['distilgpt2', 'gpt2']
             
-            # Mover modelo a CPU
-            self.model = self.model.to('cpu')
+            # Intentar cargar modelos de respaldo en orden
+            for fallback_model in fallback_models:
+                try:
+                    logger.info(f"Intentando cargar modelo de respaldo: {fallback_model}")
+                    self.model_name = fallback_model
+                    
+                    # Intentar cargar tokenizer
+                    try:
+                        self.tokenizer = AutoTokenizer.from_pretrained(
+                            fallback_model,
+                            use_fast=True
+                        )
+                    except Exception:
+                        self.tokenizer = AutoTokenizer.from_pretrained(
+                            fallback_model,
+                            use_fast=False
+                        )
+                    
+                    # Cargar modelo de respaldo
+                    self.model = AutoModelForCausalLM.from_pretrained(
+                        fallback_model,
+                        torch_dtype=torch.float32,
+                        low_cpu_mem_usage=True
+                    )
+                    
+                    # Mover modelo a CPU
+                    self.model = self.model.to('cpu')
+                    
+                    if self.tokenizer.pad_token is None:
+                        self.tokenizer.pad_token = self.tokenizer.eos_token
+                    
+                    # Crear pipeline sin especificar device
+                    self.generator = pipeline(
+                        'text-generation',
+                        model=self.model,
+                        tokenizer=self.tokenizer,
+                        model_kwargs={
+                            'low_cpu_mem_usage': True,
+                            'torch_dtype': torch.float32
+                        },
+                        truncation=True
+                    )
+                    
+                    logger.info(f"Modelo de respaldo {fallback_model} cargado exitosamente")
+                    return  # Éxito, salir del bucle
+                    
+                except Exception as fallback_error:
+                    logger.warning(f"No se pudo cargar {fallback_model}: {fallback_error}")
+                    continue  # Intentar siguiente modelo
             
-            if self.tokenizer.pad_token is None:
-                self.tokenizer.pad_token = self.tokenizer.eos_token
-            
-            # Crear pipeline sin especificar device
-            self.generator = pipeline(
-                'text-generation',
-                model=self.model,
-                tokenizer=self.tokenizer,
-                model_kwargs={
-                    'low_cpu_mem_usage': True,
-                    'torch_dtype': torch.float32
-                }
-            )
-            
-            logger.info("Modelo de respaldo cargado exitosamente")
+            # Si todos los modelos de respaldo fallaron
+            raise Exception("No se pudo cargar ningún modelo de respaldo")
             
         except Exception as e:
             logger.error(f"Error cargando modelo de respaldo: {str(e)}")

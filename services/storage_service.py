@@ -156,21 +156,24 @@ class StorageService:
             else:
                 # Guardar localmente
                 self._save_index_local(index_data, embeddings_data, file_path)
+        except Exception as e:
+            logger.error(f"Error guardando índice: {str(e)}")
+            raise
     
     def _save_index_local(self, index_data: dict, embeddings_data: bytes, file_path: str):
         """Guardar índice localmente (método auxiliar)"""
-        import json
-        os.makedirs(os.path.dirname(file_path) if os.path.dirname(file_path) else '.', exist_ok=True)
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(index_data, f, ensure_ascii=False, indent=2)
-        
-        embeddings_path = file_path.replace('.json', '_embeddings.npy')
-        with open(embeddings_path, 'wb') as f:
-            f.write(embeddings_data)
-        logger.info("Índice guardado localmente")
-                
+        try:
+            import json
+            os.makedirs(os.path.dirname(file_path) if os.path.dirname(file_path) else '.', exist_ok=True)
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(index_data, f, ensure_ascii=False, indent=2)
+            
+            embeddings_path = file_path.replace('.json', '_embeddings.npy')
+            with open(embeddings_path, 'wb') as f:
+                f.write(embeddings_data)
+            logger.info("Índice guardado localmente")
         except Exception as e:
-            logger.error(f"Error guardando índice: {str(e)}")
+            logger.error(f"Error guardando índice localmente: {str(e)}")
             raise
     
     def load_index(self, file_path: str) -> Optional[tuple]:
