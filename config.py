@@ -39,20 +39,51 @@ class Config:
         'distilgpt2': {
             'name': 'DistilGPT-2',
             'provider': 'huggingface',
-            'description': 'Modelo ligero y rápido para generación de texto',
-            'free': True
+            'description': 'Modelo ligero y rápido (básico, respuestas limitadas)',
+            'free': True,
+            'size': '~250MB',
+            'recommended': False
         },
         'gpt2': {
             'name': 'GPT-2',
             'provider': 'huggingface',
-            'description': 'Modelo original GPT-2 de OpenAI',
-            'free': True
+            'description': 'Modelo original GPT-2 - Mejor calidad que DistilGPT-2',
+            'free': True,
+            'size': '~500MB',
+            'recommended': True
         },
-        'sentence-transformers': {
-            'name': 'Sentence Transformers',
+        'microsoft/DialoGPT-small': {
+            'name': 'DialoGPT Small',
             'provider': 'huggingface',
-            'description': 'Para embeddings y similitud semántica',
-            'free': True
+            'description': 'Entrenado para conversaciones - Mejor para preguntas/respuestas',
+            'free': True,
+            'size': '~250MB',
+            'recommended': True
+        },
+        'microsoft/DialoGPT-medium': {
+            'name': 'DialoGPT Medium',
+            'provider': 'huggingface',
+            'description': 'DialoGPT más grande - Mejor calidad de respuestas',
+            'free': True,
+            'size': '~500MB',
+            'recommended': True
+        },
+        'facebook/blenderbot-small-90M': {
+            'name': 'BlenderBot Small',
+            'provider': 'huggingface',
+            'description': 'Entrenado para chatbots - Respuestas más coherentes',
+            'free': True,
+            'size': '~350MB',
+            'recommended': True
+        },
+        'PlanTL-GOB-ES/gpt2-base-bne': {
+            'name': 'GPT-2 Español (BNE)',
+            'provider': 'huggingface',
+            'description': 'GPT-2 entrenado en español - Mejor para español',
+            'free': True,
+            'size': '~500MB',
+            'recommended': True,
+            'spanish': True
         }
     }
     
