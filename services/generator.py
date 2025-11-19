@@ -149,16 +149,20 @@ Respuesta:"""
             Prompt formateado
         """
         # Para DialoGPT, usar un formato más simple y conversacional
-        # Limitar el contexto a los primeros 800 caracteres para evitar prompts muy largos
-        context_limited = context[:800] + "..." if len(context) > 800 else context
+        # Limitar el contexto a los primeros 600 caracteres para evitar prompts muy largos
+        # Y limpiar el contexto de caracteres especiales que puedan confundir al modelo
+        context_limited = context[:600] + "..." if len(context) > 600 else context
+        # Remover saltos de línea múltiples y espacios excesivos
+        import re
+        context_limited = re.sub(r'\n+', ' ', context_limited)
+        context_limited = re.sub(r' +', ' ', context_limited).strip()
         
-        # Formato simplificado para DialoGPT
-        prompt = f"""Contexto del manual de convivencia:
-{context_limited}
+        # Formato simplificado para DialoGPT - más directo
+        prompt = f"""Basándote en esta información: {context_limited}
 
-Pregunta: {query}
+Responde esta pregunta en español: {query}
 
-Responde en español basándote en el contexto:"""
+Respuesta:"""
         
         return prompt
     

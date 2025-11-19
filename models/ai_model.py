@@ -222,20 +222,34 @@ class AIModel:
                 original_generated = generated_text
                 
                 # Remover el prompt original de la salida
+                # Para DialoGPT, el prompt puede estar al inicio o puede que el modelo genere directamente
                 if generated_text.startswith(prompt):
                     generated_text = generated_text[len(prompt):].strip()
                     logger.info(f"Prompt encontrado al inicio, texto restante: {len(generated_text)} caracteres")
                 else:
-                    # Si no empieza con el prompt, puede que el modelo haya generado algo diferente
                     # Intentar encontrar el prompt en el texto
                     prompt_index = generated_text.find(prompt)
                     if prompt_index >= 0:
                         generated_text = generated_text[prompt_index + len(prompt):].strip()
                         logger.info(f"Prompt encontrado en posición {prompt_index}, texto restante: {len(generated_text)} caracteres")
                     else:
-                        # Si no se encuentra, usar todo el texto generado (DialoGPT puede hacer esto)
-                        logger.info(f"Prompt no encontrado en el texto generado, usando todo el texto generado")
-                        generated_text = generated_text.strip()
+                        # Si no se encuentra el prompt completo, intentar encontrar solo la última parte
+                        # Buscar "Respuesta:" o "Responde" que es lo que viene después del contexto
+                        if "Respuesta:" in generated_text:
+                            generated_text = generated_text.split("Respuesta:")[-1].strip()
+                            logger.info(f"Encontrado 'Respuesta:' en el texto, usando lo que viene después")
+                        elif "Responde" in generated_text and ":" in generated_text:
+                            # Buscar la última ocurrencia de "Responde" seguida de ":"
+                            parts = generated_text.split("Responde")
+                            if len(parts) > 1:
+                                last_part = parts[-1]
+                                if ":" in last_part:
+                                    generated_text = last_part.split(":", 1)[-1].strip()
+                                    logger.info(f"Encontrado 'Responde:' en el texto, usando lo que viene después")
+                        else:
+                            # Si no se encuentra, usar todo el texto generado (DialoGPT puede hacer esto)
+                            logger.info(f"Prompt no encontrado en el texto generado, usando todo el texto generado")
+                            generated_text = generated_text.strip()
                 
                 # Validar que el texto generado no esté vacío
                 if not generated_text or len(generated_text.strip()) == 0:
@@ -245,10 +259,27 @@ class AIModel:
                     logger.warning("Intentando con parámetros diferentes...")
                     
                     # Intentar de nuevo con más tokens y temperatura más alta
-                    # También intentar con un prompt más corto para DialoGPT
+                    # También intentar con un prompt MUY simple - solo la pregunta
                     try:
-                        # Para DialoGPT, puede funcionar mejor con un prompt más simple
-                        simple_prompt = prompt.split("PREGUNTA DEL USUARIO:")[-1].split("RESPUESTA")[0].strip() if "PREGUNTA DEL USUARIO:" in prompt else prompt[-200:]
+                        # Extraer solo la pregunta del usuario del prompt
+                        question_part = None
+                        
+                        # Buscar diferentes formatos de pregunta en el prompt
+                        if "Responde esta pregunta en español:" in prompt:
+                            question_part = prompt.split("Responde esta pregunta en español:")[-1].split("Respuesta:")[0].strip()
+                        elif "Pregunta:" in prompt:
+                            question_part = prompt.split("Pregunta:")[-1].split("Responde")[0].strip()
+                        elif "PREGUNTA DEL USUARIO:" in prompt:
+                            question_part = prompt.split("PREGUNTA DEL USUARIO:")[-1].split("RESPUESTA")[0].strip()
+                        
+                        if question_part and len(question_part) > 5:
+                            # Usar solo la pregunta, sin contexto
+                            simple_prompt = f"{question_part}\n\nRespuesta:"
+                        else:
+                            # Si no encontramos la pregunta, usar solo los últimos 50 caracteres
+                            simple_prompt = prompt[-100:] if len(prompt) > 100 else prompt
+                        
+                        logger.info(f"Segundo intento con prompt simplificado (solo pregunta): {simple_prompt[:150]}")
                         
                         results = self.generator(
                             simple_prompt,
@@ -261,14 +292,26 @@ class AIModel:
                         )
                         if results and len(results) > 0:
                             generated_text = results[0]['generated_text']
-                            logger.info(f"Segundo intento - Texto generado: {generated_text[:200]}")
+                            logger.info(f"Segundo intento - Texto generado completo: {generated_text[:300]}")
                             
-                            # Para el segundo intento, si el prompt simple está al inicio, removerlo
+                            # Para el segundo intento, remover el prompt simple si está presente
                             if generated_text.startswith(simple_prompt):
                                 generated_text = generated_text[len(simple_prompt):].strip()
+                            elif "Respuesta:" in generated_text:
+                                # Si hay "Respuesta:" en el texto, usar solo lo que viene después
+                                generated_text = generated_text.split("Respuesta:")[-1].strip()
+                            elif simple_prompt in generated_text:
+                                # Si el prompt está en algún lugar del texto, removerlo
+                                prompt_index = generated_text.find(simple_prompt)
+                                if prompt_index >= 0:
+                                    generated_text = generated_text[prompt_index + len(simple_prompt):].strip()
+                                else:
+                                    generated_text = generated_text.strip()
                             else:
-                                # Para DialoGPT, puede que no incluya el prompt
+                                # Para DialoGPT, puede que no incluya el prompt - usar todo
                                 generated_text = generated_text.strip()
+                            
+                            logger.info(f"Segundo intento - Texto después de remover prompt: '{generated_text[:200]}'")
                     except Exception as retry_error:
                         logger.error(f"Error en segundo intento: {retry_error}")
                 
