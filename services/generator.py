@@ -81,13 +81,30 @@ class ContentGenerator:
             # Paso 4: Post-procesar la salida
             final_output = self._post_process(generated, processed_input)
             
-            # Paso 5: Si la respuesta no es válida pero hay contexto, usar fallback
+            # Paso 5: Si la respuesta no es válida pero hay contexto, usar fallback INMEDIATAMENTE
+            # DialoGPT puede fallar frecuentemente, así que el fallback es crítico
             if not self._is_valid_response(final_output) and context:
                 logger.warning("Respuesta generada no válida, usando fallback basado en contexto")
                 fallback_response = self._create_fallback_from_context(context, processed_input)
                 if fallback_response:
                     logger.info(f"Usando respuesta de fallback: {len(fallback_response)} caracteres")
                     return fallback_response
+                else:
+                    # Si el fallback también falla, construir respuesta básica del contexto
+                    logger.warning("Fallback no pudo construir respuesta, usando contexto directo")
+                    import re
+                    context_clean = re.sub(r'\[Fuente:.*?\]', '', context)
+                    context_clean = re.sub(r'---+', ' ', context_clean)
+                    context_clean = re.sub(r'\n+', ' ', context_clean)
+                    context_clean = re.sub(r' +', ' ', context_clean).strip()
+                    if len(context_clean) > 50:
+                        # Tomar las primeras 2 oraciones del contexto
+                        sentences = context_clean.split('.')
+                        if len(sentences) >= 2:
+                            response = ". ".join(sentences[:2]).strip()
+                            if not response.endswith('.'):
+                                response += "."
+                            return f"Según el manual de convivencia: {response}"
             
             logger.info(f"Contenido generado: {len(final_output)} caracteres")
             
@@ -177,23 +194,11 @@ Asistente:"""
             else:
                 context_clean = truncated + "..."
         
-        # FORMATO PROFESIONAL RAG (basado en mejores prácticas)
-        # Estructura: Instrucción clara + Contexto + Pregunta + Formato de respuesta
-        # Esto le dice explícitamente al modelo qué hacer con el contexto
-        prompt = f"""Eres un asistente que responde preguntas basándote ÚNICAMENTE en la información proporcionada.
-
-INFORMACIÓN DEL MANUAL DE CONVIVENCIA:
-{context_clean}
-
-PREGUNTA DEL USUARIO: {query}
-
-INSTRUCCIONES:
-- Responde SOLO usando la información del manual proporcionada arriba
-- Si la información no está en el contexto, di que no tienes esa información
-- Responde en español de manera clara y completa
-- Sé específico y menciona detalles relevantes del manual
-
-RESPUESTA:"""
+        # FORMATO CONVERSACIONAL PARA DIALOGPT (modelo conversacional, no instructivo)
+        # DialoGPT fue entrenado en diálogos, así que usamos formato de conversación natural
+        # El contexto se integra como parte de la conversación, no como instrucciones
+        prompt = f"""Usuario: Según el manual de convivencia, {context_clean[:400]}. {query}
+Asistente: Según el manual de convivencia,"""
         
         return prompt
     

@@ -229,17 +229,8 @@ class AIModel:
                 # Extraer respuesta de manera profesional
                 # DialoGPT puede incluir el prompt completo o solo generar la respuesta
                 
-                # Estrategia 1: Buscar "RESPUESTA:" que es el marcador explícito del nuevo formato
-                if "RESPUESTA:" in generated_text:
-                    # Dividir por "RESPUESTA:" y tomar la última parte
-                    parts = generated_text.split("RESPUESTA:")
-                    if len(parts) > 1:
-                        generated_text = parts[-1].strip()
-                        logger.info(f"Respuesta extraída después de 'RESPUESTA:' - {len(generated_text)} caracteres")
-                    else:
-                        generated_text = generated_text.strip()
-                # Estrategia 1b: Buscar "Asistente:" (formato antiguo, mantener compatibilidad)
-                elif "Asistente:" in generated_text:
+                # Estrategia 1: Buscar "Asistente:" que es el marcador principal del formato conversacional
+                if "Asistente:" in generated_text:
                     # Dividir por "Asistente:" y tomar la última parte (puede haber múltiples)
                     parts = generated_text.split("Asistente:")
                     if len(parts) > 1:
@@ -248,7 +239,18 @@ class AIModel:
                         # Limpiar repeticiones de "Asistente:" si las hay
                         while generated_text.startswith("Asistente:"):
                             generated_text = generated_text[10:].strip()
+                        # Limpiar "Según el manual de convivencia," si está al inicio (es parte del prompt)
+                        if generated_text.startswith("Según el manual de convivencia,"):
+                            generated_text = generated_text[len("Según el manual de convivencia,"):].strip()
                         logger.info(f"Respuesta extraída después de 'Asistente:' - {len(generated_text)} caracteres")
+                    else:
+                        generated_text = generated_text.strip()
+                # Estrategia 1b: Buscar "RESPUESTA:" (formato antiguo, mantener compatibilidad)
+                elif "RESPUESTA:" in generated_text:
+                    parts = generated_text.split("RESPUESTA:")
+                    if len(parts) > 1:
+                        generated_text = parts[-1].strip()
+                        logger.info(f"Respuesta extraída después de 'RESPUESTA:' - {len(generated_text)} caracteres")
                     else:
                         generated_text = generated_text.strip()
                 
