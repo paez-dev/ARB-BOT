@@ -9,37 +9,56 @@ En Render (plan gratuito), el sistema de archivos es **efímero**, lo que signif
 
 ## ✅ Soluciones Disponibles
 
-### Opción 1: Render Disk (Recomendado - Gratis)
+### Opción 1: Render Disk (Solo Planes de Pago) ❌
 
-Render ofrece **disco persistente gratuito** para servicios web:
+**⚠️ Render Disk NO está disponible en el plan gratuito.** Solo está disponible en planes de pago.
 
-1. **En Render Dashboard:**
-   - Ve a tu servicio → Settings
-   - Busca "Persistent Disk"
-   - Activa "Mount Persistent Disk"
-   - Asigna espacio (ej: 1GB - suficiente para documentos)
+Si actualizas a un plan de pago:
+- Los archivos se guardarán en `/persistent` automáticamente
+- El código ya está preparado para detectarlo
+- Persistencia garantizada
 
-2. **Configurar en el código:**
-   - Los archivos se guardarán en `/persistent` en lugar de `./documents`
-   - Necesitamos actualizar las rutas
+**Costo:** Desde $7/mes aproximadamente
+
+### Opción 2: Supabase Storage (GRATIS - Recomendado) ✅
+
+**Supabase** ofrece almacenamiento de archivos gratuito (hasta 1GB):
 
 **Ventajas:**
-- ✅ Gratis
-- ✅ Persistente (no se pierde al reiniciar)
-- ✅ Fácil de configurar
+- ✅ 100% Gratuito (hasta 1GB)
+- ✅ Persistente (no se pierde)
+- ✅ Fácil de integrar
+- ✅ API REST simple
 
-### Opción 2: Base de Datos Externa (Avanzado)
+**Cómo implementar:**
+1. Crear cuenta en [supabase.com](https://supabase.com) (gratis)
+2. Crear un proyecto
+3. Activar Storage
+4. Obtener API keys
+5. Modificar código para guardar en Supabase
 
-Guardar documentos en una base de datos externa:
-- **Supabase** (gratis): PostgreSQL con almacenamiento de archivos
-- **MongoDB Atlas** (gratis): Base de datos NoSQL
-- **Firebase Storage** (gratis): Almacenamiento de Google
+**¿Quieres que implemente Supabase Storage?** Puedo agregarlo fácilmente.
 
-### Opción 3: Servicios de Almacenamiento en la Nube
+### Opción 3: Cloudinary (GRATIS) ✅
 
-- **AWS S3** (gratis hasta cierto límite)
-- **Google Cloud Storage** (gratis hasta cierto límite)
-- **Cloudinary** (gratis para imágenes y documentos)
+**Cloudinary** ofrece almacenamiento gratuito para documentos:
+
+**Ventajas:**
+- ✅ Gratis (hasta 25GB/mes)
+- ✅ Persistente
+- ✅ CDN incluido
+- ✅ Fácil de usar
+
+**Limitación:**
+- Principalmente para imágenes, pero acepta PDFs
+
+### Opción 4: Aceptar Limitación del Free Tier
+
+**Para uso en desarrollo/testing:**
+- Los documentos se guardan mientras el servicio está activo
+- Si el servicio "duerme", se pierden
+- **Solución:** Subir documentos nuevamente cuando sea necesario
+- **Ventaja:** No requiere configuración adicional
 
 ## 🔧 Implementación Rápida: Render Disk
 
