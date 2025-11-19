@@ -79,12 +79,12 @@ class ContentGenerator:
             )
             
             # Paso 4: Post-procesar la salida
-            final_output = self._post_process(generated, processed_input)
+            final_output = self._post_process(generated, processed_input) if generated else None
             
-            # Paso 5: Si la respuesta no es válida pero hay contexto, usar fallback INMEDIATAMENTE
+            # Paso 5: Si la respuesta es None, vacía o no válida, usar fallback INMEDIATAMENTE
             # DialoGPT puede fallar frecuentemente, así que el fallback es crítico
-            if not self._is_valid_response(final_output) and context:
-                logger.warning("Respuesta generada no válida, usando fallback basado en contexto")
+            if (generated is None or not final_output or not self._is_valid_response(final_output)) and context:
+                logger.warning("Respuesta generada no válida o modelo retornó None, usando fallback basado en contexto")
                 fallback_response = self._create_fallback_from_context(context, processed_input)
                 if fallback_response:
                     logger.info(f"Usando respuesta de fallback: {len(fallback_response)} caracteres")
@@ -98,13 +98,19 @@ class ContentGenerator:
                     context_clean = re.sub(r'\n+', ' ', context_clean)
                     context_clean = re.sub(r' +', ' ', context_clean).strip()
                     if len(context_clean) > 50:
-                        # Tomar las primeras 2 oraciones del contexto
-                        sentences = context_clean.split('.')
+                        # Tomar las primeras 2-3 oraciones del contexto
+                        sentences = [s.strip() for s in context_clean.split('.') if s.strip() and len(s.strip()) > 20]
                         if len(sentences) >= 2:
-                            response = ". ".join(sentences[:2]).strip()
+                            response = ". ".join(sentences[:3]).strip()
                             if not response.endswith('.'):
                                 response += "."
                             return f"Según el manual de convivencia: {response}"
+                    # Último recurso: retornar el contexto directamente
+                    return f"Según el manual de convivencia: {context_clean[:200]}..."
+            
+            # Si no hay contexto y la respuesta es inválida, retornar mensaje de error
+            if not final_output or not self._is_valid_response(final_output):
+                return "Lo siento, no pude generar una respuesta coherente. Por favor, intenta reformular tu pregunta de manera más específica."
             
             logger.info(f"Contenido generado: {len(final_output)} caracteres")
             

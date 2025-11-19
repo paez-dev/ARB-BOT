@@ -410,13 +410,29 @@ class AIModel:
                                 logger.info(f"Extrayendo respuesta de texto generado: {potential_response[:100]}")
                                 generated_text = potential_response.strip()
                 
+                # Detectar si el modelo solo repitió el prompt (texto generado muy similar al prompt)
+                # Si el texto generado es casi igual al prompt, el modelo solo lo repitió
+                prompt_similarity = 0
+                if len(generated_text) > 0 and len(prompt) > 0:
+                    # Calcular similitud simple: cuántas palabras del prompt están en el texto generado
+                    prompt_words = set(prompt.lower().split())
+                    generated_words = set(generated_text.lower().split())
+                    if len(prompt_words) > 0:
+                        prompt_similarity = len(prompt_words.intersection(generated_words)) / len(prompt_words)
+                
+                # Si la similitud es muy alta (>80%) y el texto es corto, probablemente solo repitió el prompt
+                if prompt_similarity > 0.8 and len(generated_text) < len(prompt) + 50:
+                    logger.warning(f"El modelo probablemente solo repitió el prompt (similitud: {prompt_similarity:.2%})")
+                    generated_text = ""  # Forzar a usar fallback
+                
                 # Validar que la respuesta tenga sentido (mínimo 10 caracteres y al menos 3 palabras)
                 if not generated_text or len(generated_text.strip()) < 10:
                     logger.error(f"Respuesta generada muy corta o vacía. Modelo: {self.model_name}")
                     logger.error(f"Texto generado: '{generated_text}'")
                     logger.error(f"Prompt usado (últimos 300 chars): ...{prompt[-300:]}")
                     logger.error(f"Texto original generado (primeros 200 chars): {original_generated[:200]}")
-                    return "Lo siento, no pude generar una respuesta coherente. Por favor, intenta reformular tu pregunta de manera más específica o verifica que hay documentos cargados en el sistema."
+                    # Retornar None para que el generador use el fallback
+                    return None
                 
                 # Validar que tenga al menos 3 palabras
                 words = generated_text.split()
