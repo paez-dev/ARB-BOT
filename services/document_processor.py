@@ -22,7 +22,7 @@ class DocumentProcessor:
         self.chunk_size = 300  # Tamaño de chunks más pequeño para evitar problemas de memoria
         self.chunk_overlap = 30  # Solapamiento entre chunks
     
-    def process_document(self, file_path: str, max_pages: int = 50) -> List[Dict]:
+    def process_document(self, file_path: str, max_pages: Optional[int] = None) -> List[Dict]:
         """
         Procesar un documento y extraer texto
         
