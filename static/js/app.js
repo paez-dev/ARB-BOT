@@ -402,10 +402,32 @@ class ARBBot {
     }
 
     toggleHistory() {
-        const historySection = document.getElementById('historySection');
-        if (historySection) {
-            historySection.style.display = historySection.style.display === 'none' ? 'block' : 'none';
+        const historyPanel = document.getElementById('historyPanel');
+        const chatContainer = document.querySelector('.chat-container');
+        const chatInput = document.querySelector('.chat-input-container');
+        
+        if (historyPanel) {
+            if (historyPanel.style.display === 'none') {
+                historyPanel.style.display = 'block';
+                if (chatContainer) chatContainer.style.display = 'none';
+                if (chatInput) chatInput.style.display = 'none';
+                this.loadHistory();
+            } else {
+                this.closeHistoryPanel();
+            }
         }
+    }
+
+    closeHistoryPanel() {
+        const historyPanel = document.getElementById('historyPanel');
+        const chatContainer = document.querySelector('.chat-container');
+        const chatInput = document.querySelector('.chat-input-container');
+        
+        if (historyPanel) historyPanel.style.display = 'none';
+        
+        // Mostrar chat
+        if (chatContainer) chatContainer.style.display = 'flex';
+        if (chatInput) chatInput.style.display = 'block';
     }
 
     async checkAdminAuth() {
@@ -463,11 +485,26 @@ class ARBBot {
     async adminLogout() {
         try {
             await fetch('/api/admin/logout', { method: 'POST' });
-            document.getElementById('adminPanel').style.display = 'none';
-            sessionStorage.removeItem('admin_authenticated');
+            this.closeAdminPanel();
         } catch (error) {
             console.error('Error en logout:', error);
         }
+    }
+
+    closeAdminPanel() {
+        const adminPanel = document.getElementById('adminPanel');
+        const historyPanel = document.getElementById('historyPanel');
+        const chatContainer = document.querySelector('.chat-container');
+        const chatInput = document.querySelector('.chat-input-container');
+        
+        if (adminPanel) adminPanel.style.display = 'none';
+        if (historyPanel) historyPanel.style.display = 'none';
+        
+        // Mostrar chat
+        if (chatContainer) chatContainer.style.display = 'flex';
+        if (chatInput) chatInput.style.display = 'block';
+        
+        sessionStorage.removeItem('admin_authenticated');
     }
 
     showSuccess(message) {

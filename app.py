@@ -237,19 +237,17 @@ def list_models():
 def get_stats():
     """Obtener estadísticas del sistema"""
     try:
-        db_session = get_db_session()
-        cursor = db_session.cursor()
-        
-        # Contar total de interacciones
-        cursor.execute('SELECT COUNT(*) as total FROM interactions')
-        total_interactions = cursor.fetchone()['total']
-        
-        # Obtener última interacción
-        cursor.execute('SELECT timestamp FROM interactions ORDER BY timestamp DESC LIMIT 1')
-        last_interaction = cursor.fetchone()
-        last_interaction_time = last_interaction['timestamp'] if last_interaction else None
-        
-        db_session.close()
+        with get_db_session() as db_session:
+            cursor = db_session.cursor()
+            
+            # Contar total de interacciones
+            cursor.execute('SELECT COUNT(*) as total FROM interactions')
+            total_interactions = cursor.fetchone()['total']
+            
+            # Obtener última interacción
+            cursor.execute('SELECT timestamp FROM interactions ORDER BY timestamp DESC LIMIT 1')
+            last_interaction = cursor.fetchone()
+            last_interaction_time = last_interaction['timestamp'] if last_interaction else None
         
         return jsonify({
             'status': 'success',

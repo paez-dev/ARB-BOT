@@ -43,11 +43,7 @@ class RAGService:
             logger.info(f"Cargando modelo de embeddings: {self.embeddings_model_name}")
             self.embeddings_model = SentenceTransformer(
                 self.embeddings_model_name,
-                device='cpu',
-                model_kwargs={
-                    'torch_dtype': torch.float32,
-                    'low_cpu_mem_usage': True
-                }
+                device='cpu'
             )
             logger.info("Modelo de embeddings cargado exitosamente")
             

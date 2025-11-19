@@ -244,6 +244,8 @@
         document.getElementById('adminToggle')?.addEventListener('click', async function() {
             const panel = document.getElementById('adminPanel');
             const historyPanel = document.getElementById('historyPanel');
+            const chatContainer = document.querySelector('.chat-container');
+            const chatInput = document.querySelector('.chat-input-container');
             
             if (panel.style.display === 'none') {
                 // Verificar autenticación antes de abrir
@@ -252,6 +254,9 @@
                 if (isAuthenticated) {
                     panel.style.display = 'block';
                     historyPanel.style.display = 'none';
+                    // Ocultar chat cuando se abre admin
+                    if (chatContainer) chatContainer.style.display = 'none';
+                    if (chatInput) chatInput.style.display = 'none';
                 } else {
                     // Mostrar modal de login
                     const loginModal = new bootstrap.Modal(document.getElementById('adminLoginModal'));
@@ -259,6 +264,9 @@
                 }
             } else {
                 panel.style.display = 'none';
+                // Mostrar chat cuando se cierra admin
+                if (chatContainer) chatContainer.style.display = 'flex';
+                if (chatInput) chatInput.style.display = 'block';
             }
         });
 
@@ -266,13 +274,21 @@
         document.getElementById('historyToggle')?.addEventListener('click', function() {
             const panel = document.getElementById('historyPanel');
             const adminPanel = document.getElementById('adminPanel');
+            const chatContainer = document.querySelector('.chat-container');
+            const chatInput = document.querySelector('.chat-input-container');
             
             if (panel.style.display === 'none') {
                 panel.style.display = 'block';
                 adminPanel.style.display = 'none';
+                // Ocultar chat cuando se abre historial
+                if (chatContainer) chatContainer.style.display = 'none';
+                if (chatInput) chatInput.style.display = 'none';
                 window.arbBot?.loadHistory();
             } else {
                 panel.style.display = 'none';
+                // Mostrar chat cuando se cierra historial
+                if (chatContainer) chatContainer.style.display = 'flex';
+                if (chatInput) chatInput.style.display = 'block';
             }
         });
 
