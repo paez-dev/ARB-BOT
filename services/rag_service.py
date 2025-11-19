@@ -176,11 +176,21 @@ class RAGService:
                 convert_to_numpy=True
             )
             
+            # Intentar importar FAISS al inicio para verificar disponibilidad
+            faiss_available = False
+            try:
+                import faiss
+                faiss_available = True
+            except (ImportError, NameError):
+                faiss_available = False
+                if self.index is not None:
+                    logger.warning("FAISS no disponible, desactivando índice FAISS")
+                    self.index = None
+            
             # Buscar documentos similares
-            if self.index is not None:
+            if self.index is not None and faiss_available:
                 # Búsqueda con FAISS (rápida)
                 try:
-                    import faiss
                     faiss.normalize_L2(query_embedding)
                     distances, indices = self.index.search(
                         query_embedding.astype('float32'),
@@ -195,10 +205,9 @@ class RAGService:
                             result['similarity'] = float(similarity)
                             result['rank'] = i + 1
                             results.append(result)
-                except (ImportError, NameError) as e:
-                    # Si FAISS no está disponible, usar búsqueda lineal
-                    logger.warning(f"FAISS no disponible en búsqueda ({e}), usando método lineal")
-                    self.index = None  # Forzar búsqueda lineal en el futuro
+                except Exception as e:
+                    logger.warning(f"Error usando FAISS ({e}), usando búsqueda lineal")
+                    self.index = None
                     # Continuar con búsqueda lineal
                     query_embedding = query_embedding[0]
                     similarities = []
