@@ -7,8 +7,9 @@ Werkzeug==3.0.1
 Flask-SQLAlchemy==3.1.1
 
 # Procesamiento de IA (Gratuito)
-transformers>=4.36.0
-torch==2.5.0
+# Versiones optimizadas para memoria limitada (512MB en Render free)
+transformers>=4.36.0,<5.0.0
+torch>=2.0.0,<2.2.0  # Versión más ligera para ahorrar memoria
 sentence-transformers==2.2.2
 langchain==0.0.350
 huggingface-hub==0.23.4

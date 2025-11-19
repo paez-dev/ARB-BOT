@@ -46,9 +46,9 @@ El sistema utiliza **RAG (Retrieval Augmented Generation)** para buscar informac
 - **File System** - Almacenamiento de documentos cargados
 
 ### Deployment
-- **Render** - Hosting gratuito para aplicaciones web (RECOMENDADO)
-- **Railway** - Hosting gratuito con $5/mes de crédito
-- **PythonAnywhere** - Hosting específico para Python
+- **DigitalOcean** - $200 crédito gratis (60 días) - Ver `DESPLIEGUE_DIGITALOCEAN.md`
+- **Railway** - $5 crédito gratis (30 días) - Ver `DESPLIEGUE_RAILWAY.md` - Más fácil
+- **Docker** - Containerización para fácil despliegue
 - **GitHub** - Control de versiones gratuito
 
 ## 📁 Estructura del Proyecto
@@ -128,17 +128,26 @@ ARB-BOT/
 
 ## 🌐 Desplegar en la Nube (Gratis)
 
-¿Quieres que tu chatbot esté disponible en internet? Consulta **[DEPLOYMENT.md](DEPLOYMENT.md)** para instrucciones detalladas.
+¿Quieres que tu chatbot esté disponible en internet? 
 
-**Opciones gratuitas:**
-- 🚀 **Render** (Recomendado - Más fácil)
-- 🚂 **Railway** ($5 gratis/mes)
-- 🐍 **PythonAnywhere** (Gratis)
+### 🏆 Recomendado: Railway (Más fácil y mejor que Render)
+- ✅ $5 crédito gratis (30 días) + $1/mes crédito después
+- ✅ No se suspende por inactividad (a diferencia de Render)
+- ✅ Auto-deploy desde GitHub
+- ✅ HTTPS automático
+- 📖 Ver guía: **[DESPLIEGUE_RAILWAY.md](DESPLIEGUE_RAILWAY.md)**
 
-**Pasos rápidos:**
-1. Sube tu código a GitHub
-2. Conecta con Render/Railway
-3. ¡Despliega en minutos!
+### 🐳 Alternativa: DigitalOcean (Más tiempo gratis)
+- ✅ $200 crédito gratis (60 días)
+- ✅ Control total del servidor
+- ✅ 1GB RAM ($6/mes con crédito)
+- 📖 Ver guía: **[DESPLIEGUE_DIGITALOCEAN.md](DESPLIEGUE_DIGITALOCEAN.md)**
+
+**📊 ¿No sabes cuál elegir?** Ver comparación completa: **[COMPARACION_HOSTING.md](COMPARACION_HOSTING.md)**
+
+**Recomendación para demo universidad:**
+- **Railway** ⭐ - Más fácil, no se suspende, casi gratis ($1/mes crédito)
+- **DigitalOcean** - Si quieres máximo tiempo gratis con el crédito
 
 ## 🔧 Configuración
 

@@ -65,24 +65,19 @@ Deberías ver todos tus archivos allí.
 
 ---
 
-## 🚀 Paso 6: Conectar con Render
+## 🚀 Paso 6: Desplegar en Railway
 
 Una vez que tu código esté en GitHub:
 
-1. **Ve a [render.com](https://render.com)**
-2. **Crea una cuenta** (gratis) o inicia sesión
-3. **Haz clic en "New +"** → **"Web Service"**
+1. **Ve a [railway.app](https://railway.app)**
+2. **Crea una cuenta** (gratis con $5 crédito) o inicia sesión
+3. **Haz clic en "New Project"** → **"Deploy from GitHub repo"**
 4. **Conecta tu repositorio:**
-   - Selecciona "Connect account" si es la primera vez
-   - Autoriza a Render a acceder a GitHub
+   - Autoriza a Railway a acceder a GitHub
    - Selecciona tu repositorio `ARB-BOT`
-5. **Configura el servicio:**
-   - **Name:** `arb-bot` (o el nombre que prefieras)
-   - **Environment:** `Python 3`
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `gunicorn app:app`
-6. **Variables de Entorno (opcional pero recomendado):**
-   - Haz clic en "Advanced"
+5. **Railway detectará automáticamente** que es Python/Flask
+6. **Configura Variables de Entorno:**
+   - Ve a Settings → Variables
    - Agrega estas variables:
      ```
      FLASK_ENV=production
@@ -94,8 +89,10 @@ Una vez que tu código esté en GitHub:
      import secrets
      print(secrets.token_hex(32))
      ```
-7. **Haz clic en "Create Web Service"**
+7. **Railway desplegará automáticamente**
 8. **¡Espera 10-15 minutos!** (la primera vez tarda porque descarga los modelos de IA)
+
+**Ver guía completa:** [DESPLIEGUE_RAILWAY.md](DESPLIEGUE_RAILWAY.md)
 
 ---
 
@@ -107,9 +104,9 @@ Una vez que tu código esté en GitHub:
 - [ ] ✅ Repositorio creado en GitHub
 - [ ] ✅ Repositorio local conectado con GitHub
 - [ ] ✅ Código subido a GitHub
-- [ ] ✅ Cuenta creada en Render
-- [ ] ✅ Repositorio conectado en Render
-- [ ] ✅ Servicio configurado en Render
+- [ ] ✅ Cuenta creada en Railway
+- [ ] ✅ Repositorio conectado en Railway
+- [ ] ✅ Variables de entorno configuradas en Railway
 - [ ] ✅ Variables de entorno configuradas
 - [ ] ✅ Despliegue iniciado
 
@@ -147,6 +144,8 @@ git push -u origin main
 
 **¡Listo!** Una vez desplegado, tu chatbot estará disponible en:
 ```
-https://tu-app.onrender.com
+https://tu-app.up.railway.app
 ```
+
+Railway te asignará una URL automáticamente. Puedes verla en Settings → Networking.
 

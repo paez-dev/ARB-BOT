@@ -36,9 +36,14 @@ class RAGService:
         try:
             from sentence_transformers import SentenceTransformer
             import torch
+            import gc
             
-            # Optimizaciones de memoria
+            # Optimizaciones de memoria agresivas
             torch.set_num_threads(1)
+            # Limpiar caché antes de cargar
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             
             logger.info(f"Cargando modelo de embeddings: {self.embeddings_model_name} (esto puede tardar ~30-60 segundos)...")
             
@@ -46,10 +51,15 @@ class RAGService:
             import time
             start_time = time.time()
             
+            # Cargar con optimizaciones de memoria
             self.embeddings_model = SentenceTransformer(
                 self.embeddings_model_name,
-                device='cpu'
+                device='cpu',
+                model_kwargs={'low_cpu_mem_usage': True}
             )
+            
+            # Limpiar memoria después de cargar
+            gc.collect()
             
             load_time = time.time() - start_time
             logger.info(f"Modelo de embeddings cargado exitosamente en {load_time:.2f} segundos")
@@ -72,13 +82,29 @@ class RAGService:
             
             logger.info(f"Agregando {len(chunks)} chunks al sistema RAG...")
             
-            # Generar embeddings para todos los chunks
+            # Generar embeddings para todos los chunks con optimizaciones de memoria
             texts = [chunk['text'] for chunk in chunks]
-            embeddings = self.embeddings_model.encode(
-                texts,
-                show_progress_bar=True,
-                convert_to_numpy=True
-            )
+            import gc
+            
+            # Generar embeddings en batches pequeños para ahorrar memoria
+            batch_size = min(10, len(texts))  # Máximo 10 chunks por vez
+            all_embeddings = []
+            
+            for i in range(0, len(texts), batch_size):
+                batch_texts = texts[i:i + batch_size]
+                batch_embeddings = self.embeddings_model.encode(
+                    batch_texts,
+                    show_progress_bar=False,  # Desactivar para ahorrar memoria
+                    convert_to_numpy=True,
+                    batch_size=5,  # Procesar en mini-batches
+                    normalize_embeddings=True
+                )
+                all_embeddings.append(batch_embeddings)
+                # Limpiar memoria después de cada batch
+                gc.collect()
+            
+            # Concatenar todos los embeddings
+            embeddings = np.vstack(all_embeddings)
             
             # Guardar documentos y embeddings
             start_id = len(self.document_store)

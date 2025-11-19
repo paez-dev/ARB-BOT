@@ -154,7 +154,7 @@ Actualmente no hay una función para eliminar documentos individuales. Si necesi
 - O contactarme para agregar esta funcionalidad
 
 ### ¿Los documentos se guardan en el servidor?
-Sí, los documentos se guardan en la carpeta `documents/` del servidor. En Render (plan gratuito), estos archivos se mantienen mientras el servicio esté activo.
+Sí, los documentos se guardan en la carpeta `documents/` del servidor. Si usas Supabase Storage (recomendado), los documentos se guardan de forma persistente en la nube.
 
 ---
 

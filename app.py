@@ -500,15 +500,16 @@ def upload_document():
                 logger.warning(f"Archivo grande detectado: {file_size_mb:.2f} MB. El procesamiento puede tardar varios minutos.")
             
             # Procesar documento completo
-            # Si el documento es muy grande, se procesará en lotes más pequeños
+            # Limitar páginas para evitar problemas de memoria en Render (512MB límite)
             try:
                 # Determinar límite de páginas basado en el tamaño del archivo
-                if file_size_mb > 5:
-                    # Archivos grandes: procesar en lotes más pequeños
-                    max_pages = 100
-                    logger.info(f"Archivo grande ({file_size_mb:.2f} MB). Procesando hasta {max_pages} páginas por lote.")
+                # Para evitar OOM, limitamos a 50 páginas por defecto en archivos > 1MB
+                if file_size_mb > 1:
+                    # Archivos medianos/grandes: procesar máximo 50 páginas para evitar OOM
+                    max_pages = 50
+                    logger.info(f"Archivo detectado ({file_size_mb:.2f} MB). Procesando hasta {max_pages} páginas para evitar problemas de memoria.")
                 else:
-                    # Archivos normales: procesar todo
+                    # Archivos pequeños: procesar todo
                     max_pages = None  # Sin límite
                     logger.info(f"Procesando documento completo ({file_size_mb:.2f} MB)")
                 
@@ -536,8 +537,17 @@ def upload_document():
             logger.info(f"Agregando {len(chunks)} chunks al sistema RAG...")
             
             # Agregar al sistema RAG en lotes más pequeños para evitar problemas de memoria
-            rag = get_rag_service()
-            batch_size = 20  # Procesar en lotes más pequeños (20 chunks)
+            try:
+                rag = get_rag_service()
+            except Exception as rag_error:
+                logger.error(f"Error cargando servicio RAG: {str(rag_error)}")
+                return jsonify({
+                    'error': 'Error cargando sistema de búsqueda. El documento se guardó pero no se pudo procesar.',
+                    'status': 'error',
+                    'hint': 'El sistema puede estar sin memoria. Intenta más tarde o con un documento más pequeño.'
+                }), 500
+            
+            batch_size = 10  # Procesar en lotes más pequeños (10 chunks) para ahorrar memoria
             
             total_batches = (len(chunks) - 1) // batch_size + 1
             logger.info(f"Procesando {len(chunks)} chunks en {total_batches} lotes de {batch_size}...")
@@ -560,11 +570,17 @@ def upload_document():
             logger.info("Guardando índice...")
             rag.save_index(INDEX_FILE)
             
+            # Mensaje informativo sobre páginas procesadas
+            message = f'Documento {filename} procesado exitosamente'
+            if max_pages and max_pages == 50:
+                message += f' (procesadas {max_pages} páginas para optimizar memoria)'
+            
             return jsonify({
                 'status': 'success',
-                'message': f'Documento {filename} procesado exitosamente',
+                'message': message,
                 'chunks_added': len(chunks),
-                'total_documents': rag.get_stats()['total_documents']
+                'total_documents': rag.get_stats()['total_documents'],
+                'pages_processed': max_pages if max_pages else 'todas'
             })
         else:
             return jsonify({

@@ -1,8 +1,8 @@
 # 💾 Soluciones GRATIS para Persistencia de Documentos
 
-## ⚠️ Realidad: Render Free Tier
+## ⚠️ Realidad: Almacenamiento en Servidores Cloud
 
-**Render Disk NO está disponible en el plan gratuito.** Solo en planes de pago ($7+/mes).
+**Los servidores cloud gratuitos (Railway, Render, etc.) NO tienen almacenamiento persistente en el plan gratuito.** Los archivos se pierden al reiniciar.
 
 ## ✅ Soluciones 100% Gratuitas
 

@@ -45,7 +45,11 @@
 ```
 SUPABASE_URL=https://tu-proyecto.supabase.co
 SUPABASE_KEY=tu-anon-key-aqui
-SUPABASE_BUCKET=documents
+   
+
+
+
+
 ```
 
 3. Haz clic en **"Save Changes"**
