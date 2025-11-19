@@ -4,8 +4,12 @@ Implementación usando modelos gratuitos de Hugging Face
 """
 
 import logging
+import warnings
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 import torch
+
+# Suprimir warning de TypedStorage (deprecación de PyTorch, no afecta funcionalidad)
+warnings.filterwarnings("ignore", category=UserWarning, message=".*TypedStorage.*")
 
 logger = logging.getLogger(__name__)
 
