@@ -442,25 +442,28 @@ def upload_document():
             
             # Leer contenido del archivo
             file_content = file.read()
-            file.seek(0)  # Resetear para guardar
+            file_size = len(file_content)  # Obtener tamaño desde el contenido
             
-            # Guardar archivo (local o Supabase)
+            # Guardar archivo localmente (necesario para procesamiento)
+            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+            with open(filepath, 'wb') as f:
+                f.write(file_content)
+            
+            # También guardar en Supabase si está configurado (para persistencia)
             try:
                 from services.storage_service import StorageService
                 storage = StorageService()
-                # Determinar content type
-                content_type = 'application/pdf' if filename.endswith('.pdf') else \
-                             'application/vnd.openxmlformats-officedocument.wordprocessingml.document' if filename.endswith('.docx') else \
-                             'text/plain'
-                storage.upload_file(filepath, file_content, content_type)
+                if storage.use_supabase:
+                    # Determinar content type
+                    content_type = 'application/pdf' if filename.endswith('.pdf') else \
+                                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' if filename.endswith('.docx') else \
+                                 'text/plain'
+                    storage.upload_file(filepath, file_content, content_type)
+                    logger.info(f"Archivo también guardado en Supabase para persistencia")
             except ImportError:
-                # Fallback: guardar localmente
-                file.save(filepath)
+                pass  # Supabase no disponible, solo usar local
             
             logger.info(f"Procesando documento: {filename}")
-            
-            # Verificar tamaño del archivo
-            file_size = os.path.getsize(filepath)
             file_size_mb = file_size / (1024 * 1024)
             
             if file_size_mb > 10:
@@ -470,7 +473,6 @@ def upload_document():
             # Si el documento es muy grande, se procesará en lotes más pequeños
             try:
                 # Determinar límite de páginas basado en el tamaño del archivo
-                file_size_mb = file_size / (1024 * 1024)
                 if file_size_mb > 5:
                     # Archivos grandes: procesar en lotes más pequeños
                     max_pages = 100
