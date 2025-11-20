@@ -702,14 +702,13 @@ def get_rag_stats():
         else:
             # Retornar stats vacías si el servicio no está cargado
             # Esto evita cargar el RAG solo para ver stats
-            # Verificar si hay índice sin cargar el servicio completo
-            has_index = os.path.exists(INDEX_FILE)
+            # Con Supabase pgvector, no hay archivo de índice local
             return jsonify({
                 'status': 'success',
                 'stats': {
                     'total_documents': 0,
                     'embeddings_model': 'N/A',
-                    'has_index': has_index,
+                    'vector_store': 'not_loaded',
                     'sources': [],
                     'service_loaded': False,
                     'message': 'Servicio RAG no cargado. Se cargará cuando sea necesario.'
@@ -723,7 +722,7 @@ def get_rag_stats():
             'stats': {
                 'total_documents': 0,
                 'embeddings_model': 'N/A',
-                'has_index': False,
+                'vector_store': 'error',
                 'sources': [],
                 'service_loaded': False
             }
