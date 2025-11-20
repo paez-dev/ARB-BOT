@@ -503,6 +503,9 @@ class RAGService:
                 logger.info(f"   Mejor match: similitud={results[0]['similarity']:.2f}, preview={results[0].get('text', '')[:100]}...")
             
             return results
+        except Exception as e:
+            logger.error(f"Error en búsqueda por keywords: {str(e)}")
+            return []
     
     def save_index(self, filepath: str):
         """Guardar índice y documentos"""
