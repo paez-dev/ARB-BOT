@@ -178,14 +178,27 @@ class RAGService:
                 convert_to_numpy=True
             )
             
-            # 2. Extraer palabras clave importantes de la consulta
+            # 2. Extraer palabras clave importantes de la consulta (mejorado)
             import re
+            import unicodedata
+            # Normalizar query (sin acentos) para mejor matching
+            query_normalized = ''.join(c for c in unicodedata.normalize('NFD', query.lower()) if unicodedata.category(c) != 'Mn')
+            
             # Extraer números (artículos, etc.)
             numbers = re.findall(r'\d+', query)
             # Extraer palabras importantes (más de 3 caracteres, no artículos comunes)
-            stop_words = {'que', 'del', 'de', 'la', 'el', 'los', 'las', 'un', 'una', 'es', 'son', 'está', 'están', 'dice', 'dicen', 'según', 'sobre', 'para', 'con', 'por', 'en', 'a', 'al', 'se', 'le', 'me', 'te', 'nos', 'les'}
-            words = re.findall(r'\b\w{4,}\b', query.lower())
+            stop_words = {'que', 'del', 'de', 'la', 'el', 'los', 'las', 'un', 'una', 'es', 'son', 'está', 'están', 'dice', 'dicen', 'según', 'sobre', 'para', 'con', 'por', 'en', 'a', 'al', 'se', 'le', 'me', 'te', 'nos', 'les', 'podrías', 'podría', 'puedes', 'puede', 'decir', 'dime', 'cuáles', 'cuál', 'cuando', 'donde', 'como', 'ser', 'tener', 'hacer'}
+            words = re.findall(r'\b\w{3,}\b', query_normalized)  # Reducido de 4 a 3 para capturar más
             keywords = [w for w in words if w not in stop_words]
+            
+            # Expandir keywords con variantes (singular/plural)
+            expanded_keywords = set(keywords)
+            for kw in keywords:
+                if kw.endswith('es') and len(kw) > 4:  # Plural
+                    expanded_keywords.add(kw[:-2])  # Singular
+                elif not kw.endswith('s') and len(kw) > 3:
+                    expanded_keywords.add(kw + 'es')  # Plural
+            keywords = list(expanded_keywords)
             
             logger.info(f"Búsqueda: query='{query}', keywords={keywords}, numbers={numbers}")
             
