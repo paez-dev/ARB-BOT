@@ -154,7 +154,7 @@ class RAGService:
             logger.error(f"Error construyendo índice: {str(e)}")
             self.index = None
     
-    def search(self, query: str, top_k: int = 5) -> List[Dict]:
+    def search(self, query: str, top_k: int = 7) -> List[Dict]:
         """
         Buscar documentos relevantes para una consulta
         
@@ -266,7 +266,7 @@ class RAGService:
             logger.error(f"Error en búsqueda: {str(e)}")
             return []
     
-    def get_context_for_query(self, query: str, top_k: int = 5, max_context_length: int = 1200) -> str:
+    def get_context_for_query(self, query: str, top_k: int = 7, max_context_length: int = 1500) -> str:
         """
         Obtener contexto relevante para una consulta
         
@@ -281,20 +281,21 @@ class RAGService:
         results = self.search(query, top_k)
         
         if not results:
+            logger.warning(f"No se encontraron resultados para la consulta: {query[:50]}")
             return ""
         
         # Filtrar resultados con similitud muy baja antes de construir contexto
-        # Solo usar chunks con similitud >= 0.3 para asegurar calidad
         # Incluir resultados con similitud >= 0.25 para capturar más contexto relevante
         quality_results = [r for r in results if r.get('similarity', 0) >= 0.25]
         
         if not quality_results:
             # Si no hay resultados de calidad, retornar vacío (el fallback se encargará)
-            logger.warning(f"No se encontraron resultados con similitud suficiente (>= 0.25) para la consulta")
+            logger.warning(f"No se encontraron resultados con similitud suficiente (>= 0.25) para la consulta: {query[:50]}")
             return ""
         
         # Usar solo los resultados de calidad
         results = quality_results
+        logger.info(f"Usando {len(results)} resultados de calidad (similitud >= 0.25) de {len(self.search(query, top_k))} encontrados")
         
         context_parts = []
         total_length = 0
@@ -302,12 +303,13 @@ class RAGService:
         for result in results:
             # Limitar el texto de cada chunk si es muy largo
             chunk_text = result['text']
-            # Limitar cada chunk a 500 caracteres para mantener más contexto (aumentado de 300)
-            if len(chunk_text) > 500:
+            # Limitar cada chunk a 600 caracteres para mantener más contexto (aumentado de 500)
+            # Esto ayuda especialmente si los chunks fueron creados con tamaño anterior
+            if len(chunk_text) > 600:
                 # Truncar en un punto completo si es posible
-                truncated = chunk_text[:500]
+                truncated = chunk_text[:600]
                 last_period = truncated.rfind('.')
-                if last_period > 350:
+                if last_period > 450:
                     chunk_text = truncated[:last_period + 1]
                 else:
                     chunk_text = truncated + "..."
@@ -334,6 +336,10 @@ class RAGService:
             
             context_parts.append(context_part)
             total_length += len(context_part) + 10  # +10 para separador estimado
+        
+        # Logging para diagnóstico
+        if context_parts:
+            logger.info(f"Contexto construido: {len(context_parts)} chunks, {total_length} caracteres totales (máx: {max_context_length})")
         
         # Unir con espacios simples (más limpio que "---")
         return " ".join(context_parts)
