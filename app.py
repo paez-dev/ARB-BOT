@@ -258,15 +258,33 @@ def generate_content():
             context = ""
             rag = None
         
-        # Paso 3: Generar contenido usando IA con contexto
-        ai_model_instance, generator = get_ai_model()
-        generated_content = generator.generate(
-            processed_input,
-            max_tokens=app.config['MAX_TOKENS'],
-            temperature=app.config['TEMPERATURE'],
-            context=context if context else None
-        )
-        logger.info("Contenido generado exitosamente")
+        # Información de RAG para decisiones posteriores
+        rag_documents = rag.get_stats()['total_documents'] if rag else 0
+        context_available = bool(context.strip()) if context else False
+        
+        # Paso 3: Generar contenido usando IA con contexto (o respuesta institucional si no hay contexto)
+        ai_model_instance = None
+        generated_content = ""
+        model_used_label = ""
+        
+        if rag_documents > 0 and not context_available:
+            logger.info("No se encontró contexto en RAG para la consulta. Usando respuesta institucional de contacto.")
+            generated_content = (
+                "Lo siento, esa información no aparece en el manual ni en los documentos institucionales. "
+                "Para recibir ayuda personalizada comunícate con un asesor administrativo al 333-333-3333. "
+                "Solo puedo responder preguntas relacionadas con la institución."
+            )
+            model_used_label = "RAG-Fallback (sin modelo)"
+        else:
+            ai_model_instance, generator = get_ai_model()
+            generated_content = generator.generate(
+                processed_input,
+                max_tokens=app.config['MAX_TOKENS'],
+                temperature=app.config['TEMPERATURE'],
+                context=context if context else None
+            )
+            logger.info("Contenido generado exitosamente")
+            model_used_label = f"{app.config.get('API_PROVIDER', 'groq')} - {ai_model_instance.model_name if ai_model_instance else 'N/A'}"
         
         # Paso 3: Preparar respuesta
         response = {
@@ -274,14 +292,14 @@ def generate_content():
             'input': user_input,
             'processed_input': processed_input,
             'generated_content': generated_content,
-            'model_used': f"{app.config.get('API_PROVIDER', 'groq')} - {ai_model_instance.model_name if ai_model_instance else 'N/A'}",
+            'model_used': model_used_label if model_used_label else f"{app.config.get('API_PROVIDER', 'groq')} - {ai_model_instance.model_name if ai_model_instance else 'N/A'}",
             'timestamp': datetime.now().isoformat(),
             'metadata': {
                 'input_length': len(user_input),
                 'output_length': len(generated_content),
                 'processing_time': 'N/A',
                 'context_used': len(context) > 0,
-                'rag_documents': rag.get_stats()['total_documents'] if rag else 0
+                'rag_documents': rag_documents
             }
         }
         
@@ -294,7 +312,7 @@ def generate_content():
             save_interaction(
                 user_input=user_input,
                 generated_output=generated_content,
-                model_used=f"{app.config.get('API_PROVIDER', 'groq')} - {ai_model_instance.model_name if ai_model_instance else 'N/A'}",
+                model_used=response['model_used'],
                 processing_time=processing_time,
                 metadata={
                     'input_length': len(user_input),
