@@ -427,8 +427,82 @@ class RAGService:
         
         # Unir con espacios simples (más limpio que "---")
         full_context = " ".join(context_parts)
-        logger.info(f"Contexto final completo: {len(full_context)} caracteres")
+        logger.info(f"✅ Contexto final completo: {len(full_context)} caracteres")
+        if len(full_context) == 0:
+            logger.warning("⚠️ Contexto vacío - el modelo no tendrá información del manual")
         return full_context
+    
+    def _keyword_search(self, query: str, top_k: int = 15) -> List[Dict]:
+        """
+        Búsqueda directa por palabras clave cuando la búsqueda semántica falla
+        Busca chunks que contengan las palabras clave de la consulta
+        
+        Args:
+            query: Pregunta del usuario
+            top_k: Número máximo de resultados
+        
+        Returns:
+            Lista de chunks con scores basados en coincidencias de palabras
+        """
+        try:
+            if not self.document_store or len(self.document_store) == 0:
+                return []
+            
+            import re
+            # Extraer palabras clave importantes
+            stop_words = {'que', 'del', 'de', 'la', 'el', 'los', 'las', 'un', 'una', 'es', 'son', 'está', 'están', 'dice', 'dicen', 'según', 'sobre', 'para', 'con', 'por', 'en', 'a', 'al', 'se', 'le', 'me', 'te', 'nos', 'les', 'podrías', 'podría', 'puedes', 'puede', 'decir', 'dime', 'cuáles', 'cuál', 'cuando', 'donde', 'como'}
+            query_lower = query.lower()
+            words = re.findall(r'\b\w{3,}\b', query_lower)
+            keywords = [w for w in words if w not in stop_words]
+            
+            # Extraer números
+            numbers = re.findall(r'\d+', query)
+            
+            if not keywords and not numbers:
+                logger.warning("No se pudieron extraer palabras clave de la consulta")
+                return []
+            
+            logger.info(f"🔍 Búsqueda por keywords: {keywords}, números: {numbers}")
+            
+            # Buscar chunks que contengan las palabras clave
+            scored_chunks = []
+            for idx, chunk in enumerate(self.document_store):
+                chunk_text_lower = chunk.get('text', '').lower()
+                score = 0.0
+                matches = 0
+                
+                # Puntuar por números encontrados (muy importante)
+                for num in numbers:
+                    if num in chunk_text_lower:
+                        score += 0.5
+                        matches += 1
+                
+                # Puntuar por palabras clave encontradas
+                for keyword in keywords:
+                    if keyword in chunk_text_lower:
+                        score += 0.3
+                        matches += 1
+                
+                # Bonus si encuentra múltiples keywords
+                if matches > 1:
+                    score += (matches - 1) * 0.1
+                
+                if score > 0:
+                    result = chunk.copy()
+                    result['similarity'] = min(1.0, score)
+                    result['rank'] = len(scored_chunks) + 1
+                    result['has_keywords'] = True
+                    scored_chunks.append(result)
+            
+            # Ordenar por score y tomar top_k
+            scored_chunks.sort(key=lambda x: x['similarity'], reverse=True)
+            results = scored_chunks[:top_k]
+            
+            logger.info(f"🔍 Búsqueda por keywords encontró {len(results)} chunks")
+            if results:
+                logger.info(f"   Mejor match: similitud={results[0]['similarity']:.2f}, preview={results[0].get('text', '')[:100]}...")
+            
+            return results
     
     def save_index(self, filepath: str):
         """Guardar índice y documentos"""
