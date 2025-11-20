@@ -53,6 +53,13 @@ class ContentGenerator:
         """
         try:
             logger.info(f"Generando contenido para: {input_text[:50]}...")
+            if context:
+                logger.info(f"Contexto recibido: {len(context)} caracteres, primeros 500: {context[:500]}...")
+            if context:
+                logger.info(f"Contexto disponible para generación: {len(context)} caracteres")
+                # Log preview del contexto (primeros 300 chars)
+                context_preview = context[:300].replace('\n', ' ')
+                logger.info(f"Preview del contexto: {context_preview}...")
             
             # Paso 0: Verificar si es un saludo simple
             greeting_response = self._check_greeting(input_text)
@@ -261,26 +268,25 @@ Asistente: Según el manual de convivencia,"""
             else:
                 context_clean = truncated + "..."
         
-        # FORMATO PROFESIONAL PARA APIs (instrucciones claras y enfáticas)
+        # FORMATO PROFESIONAL PARA APIs (instrucciones muy claras y directas)
         # Los modelos avanzados (Llama, Gemini) entienden mejor instrucciones explícitas
-        prompt = f"""Eres un asistente experto que responde preguntas sobre el manual de convivencia de una institución educativa.
+        prompt = f"""Eres un asistente que responde preguntas sobre el manual de convivencia escolar.
 
-INFORMACIÓN DEL MANUAL DE CONVIVENCIA (lee cuidadosamente):
+CONTEXTO DEL MANUAL (lee TODO esto antes de responder):
 {context_clean}
 
-PREGUNTA DEL USUARIO: {query}
+PREGUNTA: {query}
 
-INSTRUCCIONES IMPORTANTES:
-- DEBES responder usando ÚNICAMENTE la información del manual proporcionada arriba
-- Lee TODO el contexto cuidadosamente antes de responder
-- Si encuentras la información en el contexto, proporciona una respuesta completa y específica
-- Si la pregunta es sobre uniformes, colores, deberes, derechos, etc., busca esa información específica en el contexto
-- Responde en español de manera clara, completa y profesional
-- Sé específico: menciona detalles exactos del manual (colores, números, fechas, etc.)
-- NO digas que no tienes la información si está presente en el contexto proporcionado
-- Si realmente no está en el contexto, entonces di que no tienes esa información específica
+IMPORTANTE:
+1. Busca en el contexto proporcionado la respuesta a la pregunta
+2. Si encuentras información relevante (artículos, números, colores, deberes, derechos, etc.), responde con ESA información
+3. Si la pregunta menciona un número (como "artículo 52"), busca ese número o información relacionada en el contexto
+4. Si la pregunta menciona un tema (como "tenis", "color", "deberes"), busca ese tema en el contexto
+5. Responde SOLO con información que encuentres en el contexto
+6. Si NO encuentras la información específica después de buscar cuidadosamente, entonces di: "No encontré información específica sobre [tema] en el contexto proporcionado"
+7. Responde en español de forma clara y completa
 
-RESPUESTA (basada en el manual):"""
+RESPUESTA:"""
         
         return prompt
     

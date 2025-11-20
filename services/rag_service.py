@@ -341,9 +341,15 @@ class RAGService:
         # Logging para diagnóstico
         if context_parts:
             logger.info(f"Contexto construido: {len(context_parts)} chunks, {total_length} caracteres totales (máx: {max_context_length})")
+            # Log de los primeros 200 caracteres de cada chunk para diagnóstico
+            for i, part in enumerate(context_parts[:3]):  # Solo primeros 3 para no saturar logs
+                preview = part[:200].replace('\n', ' ')
+                logger.info(f"  Chunk {i+1} preview: {preview}...")
         
         # Unir con espacios simples (más limpio que "---")
-        return " ".join(context_parts)
+        full_context = " ".join(context_parts)
+        logger.info(f"Contexto final completo: {len(full_context)} caracteres")
+        return full_context
     
     def save_index(self, filepath: str):
         """Guardar índice y documentos"""
