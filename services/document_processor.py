@@ -1,6 +1,7 @@
 """
 ARB-BOT - Procesador de Documentos Institucionales
 Procesa documentos PDF, DOCX para el sistema RAG
+Usa LlamaIndex para chunking semántico avanzado
 """
 
 import os
@@ -9,6 +10,17 @@ from typing import List, Dict, Optional
 import re
 
 logger = logging.getLogger(__name__)
+
+# Intentar importar LlamaIndex para chunking avanzado
+try:
+    from llama_index.core.node_parser import SemanticSplitterNodeParser
+    from llama_index.core.schema import Document as LlamaDocument
+    from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+    LLAMAINDEX_AVAILABLE = True
+    logger.info("✅ LlamaIndex disponible - usando chunking semántico avanzado")
+except ImportError:
+    LLAMAINDEX_AVAILABLE = False
+    logger.warning("⚠️ LlamaIndex no disponible - usando chunking básico mejorado")
 
 class DocumentProcessor:
     """
@@ -21,6 +33,25 @@ class DocumentProcessor:
         self.supported_formats = ['.pdf', '.docx', '.txt']
         self.chunk_size = 800  # Tamaño de chunks optimizado para Railway (2GB RAM) - sin modelos locales
         self.chunk_overlap = 100  # Solapamiento mayor para mantener contexto entre chunks
+        
+        # Inicializar LlamaIndex si está disponible
+        self.semantic_splitter = None
+        if LLAMAINDEX_AVAILABLE:
+            try:
+                # Usar el mismo modelo de embeddings que RAGService
+                embedding_model = HuggingFaceEmbedding(
+                    model_name="paraphrase-multilingual-MiniLM-L12-v2"
+                )
+                # SemanticSplitter agrupa por similitud semántica
+                self.semantic_splitter = SemanticSplitterNodeParser(
+                    buffer_size=1,  # Pequeño para chunks más granulares
+                    breakpoint_percentile_threshold=95,  # Umbral para dividir
+                    embed_model=embedding_model
+                )
+                logger.info("✅ SemanticSplitter inicializado para chunking inteligente")
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo inicializar SemanticSplitter: {e}. Usando chunking básico.")
+                self.semantic_splitter = None
     
     def process_document(self, file_path: str, max_pages: Optional[int] = None) -> List[Dict]:
         """
@@ -54,9 +85,12 @@ class DocumentProcessor:
             
             logger.info(f"Texto extraído: {len(text)} caracteres")
             
-            # Dividir en chunks
+            # Dividir en chunks (usar LlamaIndex si está disponible)
             logger.info("Dividiendo texto en chunks...")
-            chunks = self._split_into_chunks(text, file_path)
+            if LLAMAINDEX_AVAILABLE and self.semantic_splitter:
+                chunks = self._split_with_llamaindex(text, file_path)
+            else:
+                chunks = self._split_into_chunks(text, file_path)
             
             logger.info(f"Documento procesado: {len(chunks)} chunks extraídos")
             return chunks
