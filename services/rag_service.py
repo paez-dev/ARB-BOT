@@ -334,34 +334,47 @@ class RAGService:
     
     def get_context_for_query(self, query: str, top_k: int = 10, max_context_length: int = 2500) -> str:
         """
-        Obtener contexto relevante para una consulta
+        Obtener contexto relevante para una consulta con búsqueda expandida si no encuentra resultados
         
         Args:
             query: Pregunta del usuario
             top_k: Número de chunks a incluir
-            max_context_length: Longitud máxima del contexto en caracteres (reducido a 800 para DialoGPT)
+            max_context_length: Longitud máxima del contexto en caracteres
         
         Returns:
             Texto de contexto formateado
         """
+        # Intento 1: Búsqueda normal
         results = self.search(query, top_k)
         
         if not results:
-            logger.warning(f"No se encontraron resultados para la consulta: {query[:50]}")
-            return ""
+            logger.warning(f"⚠️ No se encontraron resultados para: {query[:50]}")
+            # Intento 2: Búsqueda expandida con más resultados
+            logger.info("🔄 Intentando búsqueda expandida con más resultados...")
+            results = self.search(query, top_k=20)  # Aumentar a 20 resultados
         
-        # Filtrar resultados con similitud muy baja antes de construir contexto
-        # Incluir resultados con similitud >= 0.25 para capturar más contexto relevante
+        # Filtrar resultados con similitud >= 0.25
         quality_results = [r for r in results if r.get('similarity', 0) >= 0.25]
         
         if not quality_results:
-            # Si no hay resultados de calidad, retornar vacío (el fallback se encargará)
-            logger.warning(f"No se encontraron resultados con similitud suficiente (>= 0.25) para la consulta: {query[:50]}")
+            logger.warning(f"⚠️ No se encontraron resultados con similitud >= 0.25")
+            # Intento 3: Búsqueda más permisiva (umbral más bajo)
+            logger.info("🔄 Intentando búsqueda más permisiva (umbral 0.15)...")
+            quality_results = [r for r in results if r.get('similarity', 0) >= 0.15]
+        
+        if not quality_results:
+            # Intento 4: Búsqueda por palabras clave directa (sin embeddings)
+            logger.info("🔄 Intentando búsqueda por palabras clave directa...")
+            quality_results = self._keyword_search(query, top_k=15)
+        
+        if not quality_results:
+            logger.warning(f"❌ No se encontró información relevante después de múltiples intentos para: {query[:50]}")
+            logger.info(f"   Total de documentos en sistema: {len(self.document_store)}")
             return ""
         
         # Usar solo los resultados de calidad
         results = quality_results
-        logger.info(f"Usando {len(results)} resultados de calidad (similitud >= 0.25) de {len(self.search(query, top_k))} encontrados")
+        logger.info(f"✅ Usando {len(results)} resultados de calidad para construir contexto")
         
         context_parts = []
         total_length = 0
