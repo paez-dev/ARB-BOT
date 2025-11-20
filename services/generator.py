@@ -261,23 +261,26 @@ Asistente: Según el manual de convivencia,"""
             else:
                 context_clean = truncated + "..."
         
-        # FORMATO PROFESIONAL PARA APIs (instrucciones claras)
+        # FORMATO PROFESIONAL PARA APIs (instrucciones claras y enfáticas)
         # Los modelos avanzados (Llama, Gemini) entienden mejor instrucciones explícitas
-        prompt = f"""Eres un asistente que responde preguntas sobre el manual de convivencia de una institución educativa.
+        prompt = f"""Eres un asistente experto que responde preguntas sobre el manual de convivencia de una institución educativa.
 
-INFORMACIÓN DEL MANUAL DE CONVIVENCIA:
+INFORMACIÓN DEL MANUAL DE CONVIVENCIA (lee cuidadosamente):
 {context_clean}
 
 PREGUNTA DEL USUARIO: {query}
 
-INSTRUCCIONES:
-- Responde SOLO usando la información del manual proporcionada arriba
-- Si la información no está en el contexto, di que no tienes esa información específica
+INSTRUCCIONES IMPORTANTES:
+- DEBES responder usando ÚNICAMENTE la información del manual proporcionada arriba
+- Lee TODO el contexto cuidadosamente antes de responder
+- Si encuentras la información en el contexto, proporciona una respuesta completa y específica
+- Si la pregunta es sobre uniformes, colores, deberes, derechos, etc., busca esa información específica en el contexto
 - Responde en español de manera clara, completa y profesional
-- Sé específico y menciona detalles relevantes del manual cuando sea apropiado
-- Si la pregunta es sobre derechos, deberes, uniformes, etc., proporciona la información exacta del manual
+- Sé específico: menciona detalles exactos del manual (colores, números, fechas, etc.)
+- NO digas que no tienes la información si está presente en el contexto proporcionado
+- Si realmente no está en el contexto, entonces di que no tienes esa información específica
 
-RESPUESTA:"""
+RESPUESTA (basada en el manual):"""
         
         return prompt
     
