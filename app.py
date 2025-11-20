@@ -647,8 +647,19 @@ def upload_document():
             rag.save_index(INDEX_FILE)
             total_docs_after = rag.get_stats()['total_documents']
             logger.info(f"✅ Índice guardado exitosamente. Total de documentos DESPUÉS: {total_docs_after}")
-            logger.info("⚠️ NOTA: El servicio RAG en memoria tiene los nuevos documentos.")
-            logger.info("⚠️ Si la app se reinicia, cargará el índice guardado (que ahora es el nuevo).")
+            
+            # IMPORTANTE: Forzar recarga del servicio RAG para que use el nuevo índice
+            # Esto asegura que las siguientes búsquedas usen los nuevos documentos
+            global rag_service
+            logger.info("🔄 Recargando servicio RAG para usar el nuevo índice...")
+            try:
+                # Recargar el servicio RAG para que cargue el nuevo índice
+                rag_service = None  # Limpiar instancia vieja
+                rag = get_rag_service()  # Esto cargará el nuevo índice
+                logger.info(f"✅ Servicio RAG recargado. Total de documentos ahora: {rag.get_stats()['total_documents']}")
+            except Exception as reload_error:
+                logger.warning(f"⚠️ No se pudo recargar RAG (continuando con instancia en memoria): {reload_error}")
+                # Continuar con la instancia en memoria que ya tiene los nuevos documentos
             
             # Mensaje informativo
             message = f'Documento {filename} procesado exitosamente (todas las páginas)'
