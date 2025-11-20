@@ -289,7 +289,7 @@ def generate_content():
             save_interaction(
                 user_input=user_input,
                 generated_output=generated_content,
-                model_used=app.config['DEFAULT_MODEL'],
+                model_used=f"{app.config.get('API_PROVIDER', 'groq')} - {ai_model_instance.model_name if ai_model_instance else 'N/A'}",
                 processing_time=processing_time,
                 metadata={
                     'input_length': len(user_input),
@@ -315,8 +315,9 @@ def list_models():
     """Listar modelos disponibles"""
     return jsonify({
         'status': 'success',
-        'models': app.config['AVAILABLE_MODELS'],
-        'current_model': app.config['DEFAULT_MODEL']
+        'api_providers': app.config['AVAILABLE_API_PROVIDERS'],
+        'current_provider': app.config.get('API_PROVIDER', 'groq'),
+        'current_model': ai_model.model_name if ai_model else 'N/A'
     })
 
 @app.route('/api/stats', methods=['GET'])
@@ -342,7 +343,7 @@ def get_stats():
                 'active_model': app.config['DEFAULT_MODEL'],
                 'system_status': 'operational',
                 'last_interaction': last_interaction_time,
-                'models_available': len(app.config['AVAILABLE_MODELS']),
+                'providers_available': len(app.config['AVAILABLE_API_PROVIDERS']),
                 'models_loaded': ai_model is not None
             }
         })
@@ -355,7 +356,7 @@ def get_stats():
                 'active_model': app.config['DEFAULT_MODEL'],
                 'system_status': 'operational',
                 'last_interaction': None,
-                'models_available': len(app.config['AVAILABLE_MODELS']),
+                'providers_available': len(app.config['AVAILABLE_API_PROVIDERS']),
                 'models_loaded': False
             }
         })
