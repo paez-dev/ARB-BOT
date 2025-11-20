@@ -23,6 +23,13 @@ class Config:
     # API Keys (Opcionales - el sistema funciona sin ellas)
     HUGGINGFACE_API_KEY = os.getenv('HUGGINGFACE_API_KEY', '')
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+    GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+    
+    # Configuración de Modelo (local o API)
+    USE_API_MODEL = os.getenv('USE_API_MODEL', 'false').lower() == 'true'
+    API_PROVIDER = os.getenv('API_PROVIDER', 'huggingface')  # huggingface, groq, gemini
+    API_MODEL_NAME = os.getenv('API_MODEL_NAME', '')  # Opcional, usa defaults
     
     # Configuración de Modelos de IA
     # DialoGPT-medium es más pesado pero funciona mucho mejor que small
