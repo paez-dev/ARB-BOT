@@ -367,6 +367,13 @@ class DocumentProcessor:
         logger.info(f"Chunks creados: {len(chunks)} (con chunking inteligente)")
         return chunks
     
+    def _extract_article_number(self, text: str) -> Optional[str]:
+        """Extraer número de artículo del texto"""
+        article_match = re.search(r'(?i)(art[ií]culo|art\.?)\s+(\d+)', text)
+        if article_match:
+            return article_match.group(2)
+        return None
+    
     def _clean_text(self, text: str) -> str:
         """Limpiar y normalizar texto"""
         # Remover caracteres especiales
