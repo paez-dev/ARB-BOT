@@ -19,8 +19,8 @@ class DocumentProcessor:
     def __init__(self):
         """Inicializar procesador de documentos"""
         self.supported_formats = ['.pdf', '.docx', '.txt']
-        self.chunk_size = 300  # Tamaño de chunks más pequeño para evitar problemas de memoria
-        self.chunk_overlap = 30  # Solapamiento entre chunks
+        self.chunk_size = 500  # Tamaño de chunks balanceado (aumentado de 300 para mejor contexto)
+        self.chunk_overlap = 50  # Solapamiento entre chunks (aumentado para mantener contexto)
     
     def process_document(self, file_path: str, max_pages: Optional[int] = None) -> List[Dict]:
         """

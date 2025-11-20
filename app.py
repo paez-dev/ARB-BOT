@@ -248,7 +248,7 @@ def generate_content():
         try:
             rag = get_rag_service()
             if rag and rag.get_stats()['total_documents'] > 0:
-                context = rag.get_context_for_query(processed_input, top_k=3)
+                context = rag.get_context_for_query(processed_input, top_k=5)
                 logger.info(f"Contexto encontrado: {len(context)} caracteres")
             else:
                 logger.info("No hay documentos cargados en RAG - generando sin contexto")

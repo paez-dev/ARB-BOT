@@ -154,7 +154,7 @@ class RAGService:
             logger.error(f"Error construyendo índice: {str(e)}")
             self.index = None
     
-    def search(self, query: str, top_k: int = 3) -> List[Dict]:
+    def search(self, query: str, top_k: int = 5) -> List[Dict]:
         """
         Buscar documentos relevantes para una consulta
         
@@ -211,8 +211,8 @@ class RAGService:
                             result['rank'] = i + 1
                             results.append(result)
                     
-                    # Filtrar resultados con similitud muy baja (< 0.3) para mejor calidad
-                    results = [r for r in results if r['similarity'] >= 0.3]
+                    # Filtrar resultados con similitud muy baja (< 0.25) para incluir más contexto relevante
+                    results = [r for r in results if r['similarity'] >= 0.25]
                 except Exception as e:
                     logger.warning(f"Error usando FAISS ({e}), usando búsqueda lineal")
                     self.index = None
@@ -266,7 +266,7 @@ class RAGService:
             logger.error(f"Error en búsqueda: {str(e)}")
             return []
     
-    def get_context_for_query(self, query: str, top_k: int = 3, max_context_length: int = 500) -> str:
+    def get_context_for_query(self, query: str, top_k: int = 5, max_context_length: int = 1200) -> str:
         """
         Obtener contexto relevante para una consulta
         
@@ -285,11 +285,12 @@ class RAGService:
         
         # Filtrar resultados con similitud muy baja antes de construir contexto
         # Solo usar chunks con similitud >= 0.3 para asegurar calidad
-        quality_results = [r for r in results if r.get('similarity', 0) >= 0.3]
+        # Incluir resultados con similitud >= 0.25 para capturar más contexto relevante
+        quality_results = [r for r in results if r.get('similarity', 0) >= 0.25]
         
         if not quality_results:
             # Si no hay resultados de calidad, retornar vacío (el fallback se encargará)
-            logger.warning(f"No se encontraron resultados con similitud suficiente (>= 0.3) para la consulta")
+            logger.warning(f"No se encontraron resultados con similitud suficiente (>= 0.25) para la consulta")
             return ""
         
         # Usar solo los resultados de calidad
@@ -301,12 +302,12 @@ class RAGService:
         for result in results:
             # Limitar el texto de cada chunk si es muy largo
             chunk_text = result['text']
-            # Limitar cada chunk a 300 caracteres para contexto más conciso
-            if len(chunk_text) > 300:
+            # Limitar cada chunk a 500 caracteres para mantener más contexto (aumentado de 300)
+            if len(chunk_text) > 500:
                 # Truncar en un punto completo si es posible
-                truncated = chunk_text[:300]
+                truncated = chunk_text[:500]
                 last_period = truncated.rfind('.')
-                if last_period > 200:
+                if last_period > 350:
                     chunk_text = truncated[:last_period + 1]
                 else:
                     chunk_text = truncated + "..."
