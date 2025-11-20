@@ -611,7 +611,7 @@ def upload_document():
                 }), 500
             
             # Procesar en lotes pequeños para ahorrar memoria y permitir procesamiento de documentos grandes
-            batch_size = 10  # 10 chunks por lote para optimizar memoria
+            batch_size = 20  # 20 chunks por lote (aumentado para Railway con más memoria)
             total_batches = (len(chunks) - 1) // batch_size + 1
             logger.info(f"Procesando {len(chunks)} chunks en {total_batches} lotes de {batch_size}...")
             
