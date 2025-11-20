@@ -340,11 +340,12 @@ def get_stats():
             'status': 'success',
             'stats': {
                 'total_interactions': total_interactions,
-                'active_model': app.config['DEFAULT_MODEL'],
+                'active_provider': app.config.get('API_PROVIDER', 'groq'),
+                'active_model': ai_model.model_name if ai_model else 'N/A',
                 'system_status': 'operational',
                 'last_interaction': last_interaction_time,
                 'providers_available': len(app.config['AVAILABLE_API_PROVIDERS']),
-                'models_loaded': ai_model is not None
+                'api_loaded': ai_model is not None
             }
         })
     except Exception as e:
@@ -353,11 +354,12 @@ def get_stats():
             'status': 'success',
             'stats': {
                 'total_interactions': 0,
-                'active_model': app.config['DEFAULT_MODEL'],
+                'active_provider': app.config.get('API_PROVIDER', 'groq'),
+                'active_model': 'N/A',
                 'system_status': 'operational',
                 'last_interaction': None,
                 'providers_available': len(app.config['AVAILABLE_API_PROVIDERS']),
-                'models_loaded': False
+                'api_loaded': False
             }
         })
 
@@ -729,7 +731,7 @@ def internal_error(error):
 if __name__ == '__main__':
     logger.info("Iniciando ARB-BOT...")
     logger.info(f"Modo: {config_name}")
-    logger.info(f"Modelo por defecto: {app.config['DEFAULT_MODEL']}")
+    logger.info(f"Proveedor API: {app.config.get('API_PROVIDER', 'groq')}")
     
     # Obtener puerto de variable de entorno (para producción)
     port = int(os.environ.get('PORT', 5000))
