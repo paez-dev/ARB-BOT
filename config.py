@@ -26,15 +26,12 @@ class Config:
     GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
     
-    # Configuración de Modelo (local o API)
-    USE_API_MODEL = os.getenv('USE_API_MODEL', 'false').lower() == 'true'
-    API_PROVIDER = os.getenv('API_PROVIDER', 'huggingface')  # huggingface, groq, gemini
+    # Configuración de Modelo (solo API - Groq por defecto)
+    API_PROVIDER = os.getenv('API_PROVIDER', 'groq')  # groq, huggingface, gemini
     API_MODEL_NAME = os.getenv('API_MODEL_NAME', '')  # Opcional, usa defaults
     
-    # Configuración de Modelos de IA
-    # DialoGPT-medium es más pesado pero funciona mucho mejor que small
-    DEFAULT_MODEL = os.getenv('DEFAULT_MODEL', 'microsoft/DialoGPT-medium')  # Modelo conversacional de mejor calidad
-    MAX_TOKENS = int(os.getenv('MAX_TOKENS', '150'))
+    # Configuración de Modelos de IA (solo API)
+    MAX_TOKENS = int(os.getenv('MAX_TOKENS', '200'))  # Aumentado para APIs
     TEMPERATURE = float(os.getenv('TEMPERATURE', '0.7'))
     
     # Configuración de Procesamiento

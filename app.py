@@ -10,7 +10,6 @@ import logging
 import threading
 
 from config import config
-from models.ai_model import AIModel
 from models.api_model import APIModel
 from services.text_processor import TextProcessor
 from services.generator import ContentGenerator
@@ -89,30 +88,24 @@ def _preload_services_async(load_rag: bool = False):
     thread.start()
 
 def get_ai_model():
-    """Obtener modelo de IA (carga bajo demanda) - Soporta modelos locales y APIs"""
+    """Obtener modelo de IA mediante API (solo Groq)"""
     global ai_model, content_generator
     if ai_model is None:
-        # Verificar si usar API o modelo local
-        if app.config.get('USE_API_MODEL', False):
-            logger.info("Usando modelo mediante API...")
-            provider = app.config.get('API_PROVIDER', 'huggingface')
-            model_name = app.config.get('API_MODEL_NAME') or None
-            api_key = None
-            
-            # Obtener API key según el proveedor
-            if provider == 'huggingface':
-                api_key = app.config.get('HUGGINGFACE_API_KEY')
-            elif provider == 'groq':
-                api_key = app.config.get('GROQ_API_KEY')
-            elif provider == 'gemini':
-                api_key = app.config.get('GEMINI_API_KEY')
-            
-            ai_model = APIModel(provider=provider, model_name=model_name, api_key=api_key)
-            logger.info(f"Modelo API inicializado: {provider} - {ai_model.model_name}")
-        else:
-            logger.info("Cargando modelo local (primera vez)...")
-            ai_model = AIModel(app.config['DEFAULT_MODEL'])
+        logger.info("Inicializando modelo mediante API Groq...")
+        provider = app.config.get('API_PROVIDER', 'groq')
+        model_name = app.config.get('API_MODEL_NAME') or None
         
+        # Obtener API key según el proveedor
+        api_key = None
+        if provider == 'groq':
+            api_key = app.config.get('GROQ_API_KEY')
+        elif provider == 'huggingface':
+            api_key = app.config.get('HUGGINGFACE_API_KEY')
+        elif provider == 'gemini':
+            api_key = app.config.get('GEMINI_API_KEY')
+        
+        ai_model = APIModel(provider=provider, model_name=model_name, api_key=api_key)
+        logger.info(f"Modelo API inicializado: {provider} - {ai_model.model_name}")
         content_generator = ContentGenerator(ai_model, text_processor)
     return ai_model, content_generator
 
@@ -276,7 +269,7 @@ def generate_content():
             'input': user_input,
             'processed_input': processed_input,
             'generated_content': generated_content,
-            'model_used': app.config['DEFAULT_MODEL'],
+            'model_used': f"{app.config.get('API_PROVIDER', 'groq')} - {ai_model_instance.model_name if ai_model_instance else 'N/A'}",
             'timestamp': datetime.now().isoformat(),
             'metadata': {
                 'input_length': len(user_input),
