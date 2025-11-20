@@ -210,22 +210,75 @@ class RAGService:
                         min(top_k, len(self.document_store))
                     )
                     
-                    results = []
+                    semantic_results = []
                     for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
                         if idx < len(self.document_store):
-                            # Calcular similitud coseno correctamente
-                            # Con embeddings normalizados L2, la distancia L2 al cuadrado es: 2 - 2*cosine_similarity
-                            # Entonces: cosine_similarity = 1 - (distance^2 / 2)
-                            # Pero como ya están normalizados, podemos usar: similarity = max(0, 1 - distance)
-                            # Para asegurar valores entre 0 y 1
                             similarity = max(0.0, min(1.0, 1.0 - (distance / 2.0)))
                             result = self.document_store[idx].copy()
                             result['similarity'] = float(similarity)
                             result['rank'] = i + 1
-                            results.append(result)
+                            semantic_results.append(result)
                     
-                    # Filtrar resultados con similitud muy baja (< 0.25) para incluir más contexto relevante
-                    results = [r for r in results if r['similarity'] >= 0.25]
+                    # BÚSQUEDA POR PALABRAS CLAVE (boost para resultados que contienen keywords)
+                    keyword_boost = {}
+                    query_lower = query.lower()
+                    chunk_texts = [doc['text'].lower() for doc in self.document_store]
+                    
+                    for idx, chunk_text in enumerate(chunk_texts):
+                        boost = 0.0
+                        # Boost por números encontrados (artículos, etc.)
+                        for num in numbers:
+                            if num in chunk_text:
+                                boost += 0.3
+                        # Boost por palabras clave encontradas
+                        for keyword in keywords:
+                            if keyword in chunk_text:
+                                boost += 0.2
+                        # Boost si palabras de la consulta están en el chunk
+                        if len(query_lower) > 5:
+                            query_words = [w for w in query_lower.split() if len(w) > 3]
+                            matches = sum(1 for word in query_words if word in chunk_text)
+                            if matches > 0:
+                                boost += (matches / max(len(query_words), 1)) * 0.3
+                        
+                        if boost > 0:
+                            keyword_boost[idx] = min(boost, 0.5)
+                    
+                    # Combinar resultados semánticos con boost de keywords
+                    results = []
+                    seen_indices = set()
+                    
+                    # Primero agregar resultados con keyword boost (prioridad)
+                    for idx, boost in sorted(keyword_boost.items(), key=lambda x: x[1], reverse=True)[:top_k]:
+                        if idx < len(self.document_store):
+                            result = self.document_store[idx].copy()
+                            # Buscar similitud semántica si existe
+                            semantic_sim = next((r['similarity'] for r in semantic_results if r.get('id') == result.get('id', idx)), 0.0)
+                            # Combinar similitud semántica + keyword boost
+                            result['similarity'] = min(1.0, semantic_sim + boost)
+                            result['rank'] = len(results) + 1
+                            result['has_keywords'] = True
+                            results.append(result)
+                            seen_indices.add(idx)
+                    
+                    # Agregar resultados semánticos que no están ya incluidos
+                    for result in semantic_results:
+                        result_idx = result.get('id', -1)
+                        if result_idx not in seen_indices and result['similarity'] >= 0.2:
+                            result['has_keywords'] = False
+                            results.append(result)
+                            seen_indices.add(result_idx)
+                            if len(results) >= top_k * 2:
+                                break
+                    
+                    # Ordenar por similitud combinada y tomar top_k
+                    results.sort(key=lambda x: x['similarity'], reverse=True)
+                    results = results[:top_k]
+                    
+                    # Filtrar resultados con similitud muy baja (< 0.2 ahora más permisivo)
+                    results = [r for r in results if r['similarity'] >= 0.2]
+                    
+                    logger.info(f"Búsqueda híbrida: {len([r for r in results if r.get('has_keywords', False)])} con keywords, {len(results)} total")
                 except Exception as e:
                     logger.warning(f"Error usando FAISS ({e}), usando búsqueda lineal")
                     self.index = None
