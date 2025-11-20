@@ -64,11 +64,20 @@ class ContentGenerator:
             processed_input = self.text_processor.process(input_text)
             
             # Paso 2: Construir prompt con contexto si está disponible
+            # Verificar si el modelo es API para usar formato diferente
+            is_api_model = hasattr(self.ai_model, 'provider')
+            
             if context:
-                prompt = self._build_prompt_with_context(processed_input, context)
+                if is_api_model:
+                    prompt = self._build_prompt_with_context_api(processed_input, context)
+                else:
+                    prompt = self._build_prompt_with_context(processed_input, context)
             else:
                 # Si no hay contexto, usar un prompt más instructivo
-                prompt = self._build_prompt_without_context(processed_input)
+                if is_api_model:
+                    prompt = self._build_prompt_without_context_api(processed_input)
+                else:
+                    prompt = self._build_prompt_without_context(processed_input)
             
             # Paso 3: Generar usando el modelo de IA
             generated = self.ai_model.generate(
@@ -151,7 +160,7 @@ class ContentGenerator:
     
     def _build_prompt_without_context(self, query: str) -> str:
         """
-        Construir prompt cuando no hay contexto de documentos
+        Construir prompt cuando no hay contexto de documentos (modelos locales)
         
         Args:
             query: Pregunta del usuario
@@ -164,6 +173,19 @@ class ContentGenerator:
 Asistente:"""
         
         return prompt
+    
+    def _build_prompt_without_context_api(self, query: str) -> str:
+        """
+        Construir prompt cuando no hay contexto de documentos (APIs)
+        
+        Args:
+            query: Pregunta del usuario
+        
+        Returns:
+            Prompt formateado para APIs
+        """
+        # Formato directo para APIs (más simple)
+        return query
     
     def _build_prompt_with_context(self, query: str, context: str) -> str:
         """
@@ -205,6 +227,55 @@ Asistente:"""
         # El contexto se integra como parte de la conversación, no como instrucciones
         prompt = f"""Usuario: Según el manual de convivencia, {context_clean[:400]}. {query}
 Asistente: Según el manual de convivencia,"""
+        
+        return prompt
+    
+    def _build_prompt_with_context_api(self, query: str, context: str) -> str:
+        """
+        Construir prompt con contexto para APIs (Groq, Gemini, etc.)
+        Formato profesional optimizado para modelos avanzados
+        
+        Args:
+            query: Pregunta del usuario
+            context: Contexto relevante de documentos
+        
+        Returns:
+            Prompt formateado para APIs
+        """
+        import re
+        
+        # Limpiar contexto
+        context_clean = re.sub(r'\[Fuente:.*?\]', '', context)
+        context_clean = re.sub(r'---+', ' ', context_clean)
+        context_clean = re.sub(r'\n+', ' ', context_clean)
+        context_clean = re.sub(r' +', ' ', context_clean).strip()
+        
+        # Aumentar límite para APIs (pueden manejar más contexto)
+        if len(context_clean) > 800:
+            truncated = context_clean[:800]
+            last_period = truncated.rfind('.')
+            if last_period > 600:
+                context_clean = truncated[:last_period + 1]
+            else:
+                context_clean = truncated + "..."
+        
+        # FORMATO PROFESIONAL PARA APIs (instrucciones claras)
+        # Los modelos avanzados (Llama, Gemini) entienden mejor instrucciones explícitas
+        prompt = f"""Eres un asistente que responde preguntas sobre el manual de convivencia de una institución educativa.
+
+INFORMACIÓN DEL MANUAL DE CONVIVENCIA:
+{context_clean}
+
+PREGUNTA DEL USUARIO: {query}
+
+INSTRUCCIONES:
+- Responde SOLO usando la información del manual proporcionada arriba
+- Si la información no está en el contexto, di que no tienes esa información específica
+- Responde en español de manera clara, completa y profesional
+- Sé específico y menciona detalles relevantes del manual cuando sea apropiado
+- Si la pregunta es sobre derechos, deberes, uniformes, etc., proporciona la información exacta del manual
+
+RESPUESTA:"""
         
         return prompt
     
