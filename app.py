@@ -384,7 +384,7 @@ def get_history():
 
 @app.route('/api/change-model', methods=['POST'])
 def change_model():
-    """Cambiar el modelo de IA activo"""
+    """Cambiar el proveedor de API (Groq, Hugging Face, Gemini)"""
     # Verificar autenticación
     auth_error = require_admin()
     if auth_error:
@@ -393,20 +393,22 @@ def change_model():
     try:
         data = request.get_json()
         
-        if not data or 'model' not in data:
+        if not data or 'provider' not in data:
             return jsonify({
-                'error': 'Modelo requerido',
+                'error': 'Proveedor requerido',
                 'status': 'error'
             }), 400
         
-        model_name = data['model']
+        provider = data['provider'].lower()
+        model_name = data.get('model_name')  # Opcional
         
-        # Validar que el modelo existe
-        if model_name not in app.config['AVAILABLE_MODELS']:
+        # Validar proveedor
+        valid_providers = ['groq', 'huggingface', 'gemini']
+        if provider not in valid_providers:
             return jsonify({
-                'error': f'Modelo {model_name} no disponible',
+                'error': f'Proveedor {provider} no válido',
                 'status': 'error',
-                'available_models': list(app.config['AVAILABLE_MODELS'].keys())
+                'available_providers': valid_providers
             }), 400
         
         # Cambiar modelo
@@ -418,22 +420,34 @@ def change_model():
             import gc
             gc.collect()
         
-        ai_model = AIModel(model_name)
-        content_generator = ContentGenerator(ai_model, text_processor)
-        app.config['DEFAULT_MODEL'] = model_name
+        # Obtener API key según el proveedor
+        api_key = None
+        if provider == 'groq':
+            api_key = app.config.get('GROQ_API_KEY')
+        elif provider == 'huggingface':
+            api_key = app.config.get('HUGGINGFACE_API_KEY')
+        elif provider == 'gemini':
+            api_key = app.config.get('GEMINI_API_KEY')
         
-        logger.info(f"Modelo cambiado a: {model_name}")
+        ai_model = APIModel(provider=provider, model_name=model_name, api_key=api_key)
+        content_generator = ContentGenerator(ai_model, text_processor)
+        app.config['API_PROVIDER'] = provider
+        if model_name:
+            app.config['API_MODEL_NAME'] = model_name
+        
+        logger.info(f"Proveedor API cambiado a: {provider} - {ai_model.model_name}")
         
         return jsonify({
             'status': 'success',
-            'message': f'Modelo cambiado a {model_name}',
-            'current_model': model_name
+            'message': f'Proveedor API cambiado a {provider}',
+            'current_provider': provider,
+            'current_model': ai_model.model_name
         })
         
     except Exception as e:
-        logger.error(f"Error cambiando modelo: {str(e)}")
+        logger.error(f"Error cambiando proveedor API: {str(e)}")
         return jsonify({
-            'error': 'Error al cambiar modelo',
+            'error': 'Error al cambiar proveedor API',
             'message': str(e),
             'status': 'error'
         }), 500
