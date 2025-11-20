@@ -244,17 +244,19 @@ Asistente: Según el manual de convivencia,"""
         """
         import re
         
-        # Limpiar contexto
+        # Limpiar contexto (mantener más información)
         context_clean = re.sub(r'\[Fuente:.*?\]', '', context)
         context_clean = re.sub(r'---+', ' ', context_clean)
         context_clean = re.sub(r'\n+', ' ', context_clean)
         context_clean = re.sub(r' +', ' ', context_clean).strip()
         
-        # Aumentar límite para APIs (pueden manejar más contexto)
-        if len(context_clean) > 800:
-            truncated = context_clean[:800]
+        # Usar TODO el contexto disponible (APIs pueden manejar mucho más)
+        # Solo truncar si es extremadamente largo (más de 3000 chars)
+        if len(context_clean) > 3000:
+            # Truncar en un punto completo si es posible
+            truncated = context_clean[:3000]
             last_period = truncated.rfind('.')
-            if last_period > 600:
+            if last_period > 2500:
                 context_clean = truncated[:last_period + 1]
             else:
                 context_clean = truncated + "..."

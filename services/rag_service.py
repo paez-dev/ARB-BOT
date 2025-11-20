@@ -318,13 +318,14 @@ class RAGService:
             context_part = chunk_text.strip()
             
             # Verificar si agregar este chunk excedería el límite
+            # Usar un margen más flexible para incluir más chunks
             if total_length + len(context_part) + 10 > max_context_length:  # +10 para separador
-                # Si ya tenemos al menos un chunk, parar aquí
-                if context_parts:
+                # Si ya tenemos al menos 3 chunks, parar aquí (mejor que solo 1-2)
+                if len(context_parts) >= 3:
                     break
-                # Si es el primer chunk y es muy largo, truncarlo más
+                # Si tenemos menos de 3 chunks, intentar incluir al menos parte de este
                 remaining = max_context_length - total_length - 10
-                if remaining > 50:
+                if remaining > 100:  # Aumentado de 50 para incluir más texto
                     truncated = context_part[:remaining]
                     last_period = truncated.rfind('.')
                     if last_period > remaining * 0.7:
