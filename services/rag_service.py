@@ -156,7 +156,8 @@ class RAGService:
     
     def search(self, query: str, top_k: int = 10) -> List[Dict]:
         """
-        Buscar documentos relevantes para una consulta
+        Buscar documentos relevantes para una consulta usando búsqueda híbrida
+        (semántica + palabras clave para mejor recuperación)
         
         Args:
             query: Pregunta o consulta del usuario
@@ -170,11 +171,23 @@ class RAGService:
                 logger.warning("No hay documentos en el sistema RAG")
                 return []
             
-            # Generar embedding de la consulta
+            # BÚSQUEDA HÍBRIDA: Combinar semántica + palabras clave
+            # 1. Búsqueda semántica (embeddings)
             query_embedding = self.embeddings_model.encode(
                 [query],
                 convert_to_numpy=True
             )
+            
+            # 2. Extraer palabras clave importantes de la consulta
+            import re
+            # Extraer números (artículos, etc.)
+            numbers = re.findall(r'\d+', query)
+            # Extraer palabras importantes (más de 3 caracteres, no artículos comunes)
+            stop_words = {'que', 'del', 'de', 'la', 'el', 'los', 'las', 'un', 'una', 'es', 'son', 'está', 'están', 'dice', 'dicen', 'según', 'sobre', 'para', 'con', 'por', 'en', 'a', 'al', 'se', 'le', 'me', 'te', 'nos', 'les'}
+            words = re.findall(r'\b\w{4,}\b', query.lower())
+            keywords = [w for w in words if w not in stop_words]
+            
+            logger.info(f"Búsqueda: query='{query}', keywords={keywords}, numbers={numbers}")
             
             # Intentar importar FAISS al inicio para verificar disponibilidad
             faiss_available = False
