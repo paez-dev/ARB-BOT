@@ -19,8 +19,10 @@ tokenizers>=0.15.0
 accelerate>=0.20.0
 
 # RAG y Base de Datos Vectorial (Gratuito)
-faiss-cpu==1.13.0
-chromadb==0.4.22
+# faiss-cpu removido - ahora usamos LlamaIndex con Supabase pgvector
+llama-index-vector-stores-supabase==0.1.0
+llama-index-embeddings-huggingface==0.1.0
+psycopg2-binary==2.9.9  # Para conexión a PostgreSQL de Supabase
 
 # Procesamiento de Documentos (Gratuito)
 PyPDF2==3.0.1

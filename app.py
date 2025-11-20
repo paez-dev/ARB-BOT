@@ -62,7 +62,7 @@ def _load_services(load_rag: bool = False):
     get_ai_model()
     logger.info("Modelo de IA disponible.")
 
-    if load_rag and os.path.exists(INDEX_FILE):
+    if load_rag:
         try:
             get_rag_service()
             rag_loaded = True
@@ -122,18 +122,19 @@ def get_rag_service():
             rag_service = RAGService()
             logger.info("Servicio RAG inicializado")
             
-            # Cargar índice desde Supabase o almacenamiento local (no crítico si falla)
+            # Con Supabase pgvector, el índice se carga automáticamente
+            # Verificar si hay documentos disponibles
             try:
-                logger.info(f"⚠️ Intentando cargar índice desde Supabase/local: {INDEX_FILE}")
-                rag_service.load_index(INDEX_FILE)
-                total_docs = len(rag_service.document_store) if rag_service.document_store else 0
-                if total_docs > 0:
-                    logger.info(f"✅ Documentos institucionales cargados: {total_docs} documentos disponibles en RAG")
+                stats = rag_service.get_stats()
+                total_docs = stats.get('total_documents', 0)
+                vector_store = stats.get('vector_store', 'unknown')
+                if total_docs and total_docs != 'unknown' and total_docs > 0:
+                    logger.info(f"✅ Documentos institucionales disponibles en RAG: {total_docs} documentos (vector store: {vector_store})")
                 else:
-                    logger.info("ℹ️ Índice cargado pero sin documentos (puede que aún no se haya procesado ningún archivo).")
+                    logger.info(f"ℹ️ No hay documentos procesados aún. Vector store: {vector_store}")
             except Exception as e:
-                logger.warning(f"⚠️ No se pudo cargar índice (continuando sin documentos): {e}")
-                # Continuar sin índice - se pueden agregar documentos después
+                logger.warning(f"⚠️ No se pudo verificar documentos (continuando): {e}")
+                # Continuar sin verificar - se pueden agregar documentos después
         except Exception as e:
             logger.error(f"Error crítico cargando servicio RAG: {str(e)}")
             # Crear un servicio RAG vacío para que la app no falle
@@ -145,12 +146,13 @@ def get_rag_service():
 # Usar disco persistente si está disponible, sino usar directorio local
 if os.path.exists('/persistent'):
     UPLOAD_FOLDER = '/persistent/documents'
-    INDEX_FILE = '/persistent/rag_index.json'
     logger.info("Usando disco persistente para almacenamiento")
 else:
     UPLOAD_FOLDER = 'documents'
-    INDEX_FILE = 'rag_index.json'
     logger.info("Usando almacenamiento local (desarrollo)")
+
+# Nota: Con Supabase pgvector, no se necesita INDEX_FILE
+# Los índices se guardan automáticamente en Supabase
 
 ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
 
@@ -653,26 +655,12 @@ def upload_document():
                     # Continuar con el siguiente lote
                     continue
             
-            # Guardar índice
-            total_docs_before = rag.get_stats()['total_documents']
-            logger.info(f"💾 Guardando índice nuevo con {len(chunks)} chunks en: {INDEX_FILE}")
-            logger.info(f"   Total de documentos ANTES de guardar: {total_docs_before}")
-            rag.save_index(INDEX_FILE)
-            total_docs_after = rag.get_stats()['total_documents']
-            logger.info(f"✅ Índice guardado exitosamente. Total de documentos DESPUÉS: {total_docs_after}")
-            
-            # IMPORTANTE: Forzar recarga del servicio RAG para que use el nuevo índice
-            # Esto asegura que las siguientes búsquedas usen los nuevos documentos
-            global rag_service
-            logger.info("🔄 Recargando servicio RAG para usar el nuevo índice...")
-            try:
-                # Recargar el servicio RAG para que cargue el nuevo índice
-                rag_service = None  # Limpiar instancia vieja
-                rag = get_rag_service()  # Esto cargará el nuevo índice
-                logger.info(f"✅ Servicio RAG recargado. Total de documentos ahora: {rag.get_stats()['total_documents']}")
-            except Exception as reload_error:
-                logger.warning(f"⚠️ No se pudo recargar RAG (continuando con instancia en memoria): {reload_error}")
-                # Continuar con la instancia en memoria que ya tiene los nuevos documentos
+            # Con Supabase pgvector, el índice se guarda automáticamente
+            # No es necesario llamar save_index() manualmente
+            total_docs = rag.get_stats()['total_documents']
+            logger.info(f"✅ {len(chunks)} chunks agregados al sistema RAG")
+            logger.info(f"   Total de documentos en el sistema: {total_docs}")
+            logger.info("ℹ️ Con Supabase pgvector, los vectores se guardan automáticamente")
             
             # Mensaje informativo
             message = f'Documento {filename} procesado exitosamente (todas las páginas)'

@@ -1,75 +1,168 @@
 """
 ARB-BOT - Servicio RAG (Retrieval Augmented Generation)
 Sistema de búsqueda y recuperación de información de documentos
+Usa LlamaIndex con Supabase pgvector para persistencia
 """
 
 import os
 import logging
-import json
 from typing import List, Dict, Optional
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
 class RAGService:
     """
     Servicio RAG para buscar información relevante en documentos
-    Usa embeddings y búsqueda semántica (100% gratuito)
+    Usa LlamaIndex con Supabase pgvector (100% gratuito, persistente)
     """
     
     def __init__(self, embeddings_model='paraphrase-multilingual-MiniLM-L12-v2'):
         """
-        Inicializar servicio RAG
+        Inicializar servicio RAG con LlamaIndex y Supabase
         
         Args:
             embeddings_model: Modelo de embeddings (gratuito de sentence-transformers)
         """
         self.embeddings_model_name = embeddings_model
-        self.embeddings_model = None
-        self.document_store = []
-        self.embeddings_store = None
+        self.vector_store = None
         self.index = None
-        self._load_embeddings_model()
+        self.query_engine = None
+        self._initialize_llamaindex()
     
-    def _load_embeddings_model(self):
-        """Cargar modelo de embeddings con optimizaciones de memoria"""
+    def _initialize_llamaindex(self):
+        """Inicializar LlamaIndex con Supabase como vector store"""
         try:
-            from sentence_transformers import SentenceTransformer
-            import torch
-            import gc
+            from llama_index.core import VectorStoreIndex, Settings, StorageContext
+            from llama_index.vector_stores.supabase import SupabaseVectorStore
+            from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+            import os
             
-            # Optimizaciones de memoria agresivas
-            torch.set_num_threads(1)
-            # Limpiar caché antes de cargar
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
+            # Obtener configuración de Supabase
+            supabase_url = os.getenv('SUPABASE_URL', '')
+            supabase_key = os.getenv('SUPABASE_KEY', '')
+            supabase_db_url = os.getenv('SUPABASE_DB_URL', '')
             
-            logger.info(f"Cargando modelo de embeddings: {self.embeddings_model_name} (esto puede tardar ~30-60 segundos)...")
+            if not supabase_url or not supabase_key:
+                logger.warning("⚠️ SUPABASE_URL o SUPABASE_KEY no configurados. Usando almacenamiento en memoria.")
+                # Fallback a almacenamiento en memoria
+                self._initialize_in_memory()
+                return
             
-            # Cargar modelo con timeout implícito (si tarda mucho, puede ser problema de red)
-            import time
-            start_time = time.time()
+            if not supabase_db_url:
+                # Intentar construir la connection string desde SUPABASE_URL
+                # Formato: postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres
+                # Necesitamos extraer el host de SUPABASE_URL
+                logger.warning("⚠️ SUPABASE_DB_URL no configurado. Intentando construir desde SUPABASE_URL...")
+                # Extraer host de SUPABASE_URL (ej: https://xxxxx.supabase.co -> xxxxx.supabase.co)
+                if 'supabase.co' in supabase_url:
+                    host = supabase_url.replace('https://', '').replace('http://', '').split('/')[0]
+                    # Necesitamos la contraseña de la base de datos
+                    db_password = os.getenv('SUPABASE_DB_PASSWORD', '')
+                    if db_password:
+                        supabase_db_url = f"postgresql://postgres:{db_password}@{host}:5432/postgres"
+                    else:
+                        logger.error("❌ Se necesita SUPABASE_DB_URL o SUPABASE_DB_PASSWORD para conectar a PostgreSQL")
+                        self._initialize_in_memory()
+                        return
+                else:
+                    logger.error("❌ No se pudo construir SUPABASE_DB_URL desde SUPABASE_URL")
+                    self._initialize_in_memory()
+                    return
             
-            # Cargar modelo de embeddings (sentence-transformers no acepta model_kwargs)
-            self.embeddings_model = SentenceTransformer(
-                self.embeddings_model_name,
-                device='cpu'
+            logger.info("🔧 Inicializando LlamaIndex con Supabase pgvector...")
+            
+            # Configurar embeddings
+            Settings.embed_model = HuggingFaceEmbedding(
+                model_name=self.embeddings_model_name
             )
             
-            # Limpiar memoria después de cargar
-            gc.collect()
+            # Crear vector store de Supabase
+            self.vector_store = SupabaseVectorStore(
+                postgres_connection_string=supabase_db_url,
+                collection_name="arbot_documents",
+                table_name="arbot_vectors"
+            )
             
-            load_time = time.time() - start_time
-            logger.info(f"Modelo de embeddings cargado exitosamente en {load_time:.2f} segundos")
+            # Crear storage context
+            storage_context = StorageContext.from_defaults(
+                vector_store=self.vector_store
+            )
+            
+            # Crear o cargar índice
+            try:
+                # Intentar cargar índice existente
+                self.index = VectorStoreIndex.from_vector_store(
+                    vector_store=self.vector_store,
+                    storage_context=storage_context
+                )
+                logger.info("✅ Índice cargado desde Supabase")
+            except Exception as load_error:
+                # Si no existe, crear uno nuevo
+                logger.info(f"ℹ️ No se encontró índice existente en Supabase, se creará uno nuevo: {load_error}")
+                self.index = VectorStoreIndex(
+                    nodes=[],
+                    storage_context=storage_context
+                )
+                logger.info("✅ Nuevo índice creado en Supabase")
+            
+            # Crear query engine
+            self.query_engine = self.index.as_query_engine(
+                similarity_top_k=10,
+                response_mode="compact"
+            )
+            
+            logger.info("✅ LlamaIndex inicializado correctamente con Supabase")
+            
+        except ImportError as e:
+            logger.error(f"❌ Error importando LlamaIndex: {e}")
+            logger.error("💡 Instala: pip install llama-index-vector-stores-supabase llama-index-embeddings-huggingface")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Error inicializando LlamaIndex con Supabase: {e}")
+            logger.warning("⚠️ Fallback a almacenamiento en memoria...")
+            self._initialize_in_memory()
+    
+    def _initialize_in_memory(self):
+        """Inicializar LlamaIndex en memoria (fallback)"""
+        try:
+            from llama_index.core import VectorStoreIndex, Settings
+            from llama_index.vector_stores.simple import SimpleVectorStore
+            from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+            from llama_index.core import StorageContext
+            
+            logger.info("🔧 Inicializando LlamaIndex en memoria (fallback)...")
+            
+            # Configurar embeddings
+            Settings.embed_model = HuggingFaceEmbedding(
+                model_name=self.embeddings_model_name
+            )
+            
+            # Crear vector store simple en memoria
+            vector_store = SimpleVectorStore()
+            storage_context = StorageContext.from_defaults(vector_store=vector_store)
+            
+            # Crear índice vacío
+            self.index = VectorStoreIndex(
+                nodes=[],
+                storage_context=storage_context
+            )
+            
+            # Crear query engine
+            self.query_engine = self.index.as_query_engine(
+                similarity_top_k=10,
+                response_mode="compact"
+            )
+            
+            self.vector_store = vector_store
+            logger.info("✅ LlamaIndex inicializado en memoria (sin persistencia)")
             
         except Exception as e:
-            logger.error(f"Error cargando modelo de embeddings: {str(e)}")
+            logger.error(f"❌ Error en fallback a memoria: {e}")
             raise
     
     def add_documents(self, chunks: List[Dict]):
         """
-        Agregar documentos al sistema RAG
+        Agregar documentos al sistema RAG usando LlamaIndex
         
         Args:
             chunks: Lista de chunks de documentos
@@ -79,85 +172,38 @@ class RAGService:
                 logger.warning("No hay chunks para agregar")
                 return
             
-            logger.info(f"Agregando {len(chunks)} chunks al sistema RAG...")
+            logger.info(f"📄 Agregando {len(chunks)} chunks al sistema RAG con LlamaIndex...")
             
-            # Generar embeddings para todos los chunks con optimizaciones de memoria
-            texts = [chunk['text'] for chunk in chunks]
-            import gc
+            from llama_index.core import Document
             
-            # Generar embeddings en batches (aumentado para Railway con más memoria)
-            batch_size = min(20, len(texts))  # Máximo 20 chunks por vez (aumentado de 10)
-            all_embeddings = []
-            
-            for i in range(0, len(texts), batch_size):
-                batch_texts = texts[i:i + batch_size]
-                batch_embeddings = self.embeddings_model.encode(
-                    batch_texts,
-                    show_progress_bar=False,  # Desactivar para ahorrar memoria
-                    convert_to_numpy=True,
-                    batch_size=5,  # Procesar en mini-batches
-                    normalize_embeddings=True
+            # Convertir chunks a documentos de LlamaIndex
+            documents = []
+            for chunk in chunks:
+                doc = Document(
+                    text=chunk.get('text', ''),
+                    metadata={
+                        'source': chunk.get('source', 'unknown'),
+                        'chunk_id': chunk.get('id', 0),
+                        'chunk_index': chunk.get('chunk_index', 0),
+                        'article': chunk.get('article', None)
+                    }
                 )
-                all_embeddings.append(batch_embeddings)
-                # Limpiar memoria después de cada batch
-                gc.collect()
+                documents.append(doc)
             
-            # Concatenar todos los embeddings
-            embeddings = np.vstack(all_embeddings)
+            # Agregar documentos al índice (LlamaIndex maneja embeddings automáticamente)
+            # Usar insert en lugar de add para no recrear el índice completo
+            for doc in documents:
+                self.index.insert(doc)
             
-            # Guardar documentos y embeddings
-            start_id = len(self.document_store)
-            for i, chunk in enumerate(chunks):
-                chunk['id'] = start_id + i
-                self.document_store.append(chunk)
-            
-            # Guardar embeddings
-            if self.embeddings_store is None:
-                self.embeddings_store = embeddings
-            else:
-                self.embeddings_store = np.vstack([self.embeddings_store, embeddings])
-            
-            # Crear índice FAISS para búsqueda rápida
-            self._build_index()
-            
-            logger.info(f"Documentos agregados. Total en sistema: {len(self.document_store)}")
+            logger.info(f"✅ {len(documents)} documentos agregados al índice de LlamaIndex")
             
         except Exception as e:
-            logger.error(f"Error agregando documentos: {str(e)}")
+            logger.error(f"❌ Error agregando documentos: {str(e)}")
             raise
-    
-    def _build_index(self):
-        """Construir índice FAISS para búsqueda rápida"""
-        try:
-            import faiss
-            
-            if self.embeddings_store is None or len(self.embeddings_store) == 0:
-                return
-            
-            dimension = self.embeddings_store.shape[1]
-            
-            # Crear índice FAISS (L2 distance)
-            self.index = faiss.IndexFlatL2(dimension)
-            
-            # Normalizar embeddings para búsqueda por coseno
-            faiss.normalize_L2(self.embeddings_store)
-            
-            # Agregar embeddings al índice
-            self.index.add(self.embeddings_store.astype('float32'))
-            
-            logger.info(f"Índice FAISS construido con {self.index.ntotal} vectores")
-            
-        except ImportError:
-            logger.warning("FAISS no disponible, usando búsqueda lineal")
-            self.index = None
-        except Exception as e:
-            logger.error(f"Error construyendo índice: {str(e)}")
-            self.index = None
     
     def search(self, query: str, top_k: int = 10) -> List[Dict]:
         """
-        Buscar documentos relevantes para una consulta usando búsqueda híbrida
-        (semántica + palabras clave para mejor recuperación)
+        Buscar documentos relevantes usando LlamaIndex
         
         Args:
             query: Pregunta o consulta del usuario
@@ -167,503 +213,159 @@ class RAGService:
             Lista de chunks relevantes con scores
         """
         try:
-            if not self.document_store or len(self.document_store) == 0:
-                logger.warning("No hay documentos en el sistema RAG")
+            if self.index is None or self.query_engine is None:
+                logger.warning("No hay índice disponible en el sistema RAG")
                 return []
             
-            # BÚSQUEDA HÍBRIDA: Combinar semántica + palabras clave
-            # 1. Búsqueda semántica (embeddings)
-            query_embedding = self.embeddings_model.encode(
-                [query],
-                convert_to_numpy=True
+            # Actualizar top_k del query engine
+            self.query_engine = self.index.as_query_engine(
+                similarity_top_k=top_k,
+                response_mode="compact"
             )
             
-            # 2. Extraer palabras clave importantes de la consulta (mejorado)
-            import re
-            import unicodedata
-            # Normalizar query (sin acentos) para mejor matching
-            query_normalized = ''.join(c for c in unicodedata.normalize('NFD', query.lower()) if unicodedata.category(c) != 'Mn')
+            # Realizar búsqueda
+            response = self.query_engine.query(query)
             
-            # Extraer números (artículos, etc.)
-            numbers = re.findall(r'\d+', query)
-            # Extraer palabras importantes (más de 3 caracteres, no artículos comunes)
-            stop_words = {'que', 'del', 'de', 'la', 'el', 'los', 'las', 'un', 'una', 'es', 'son', 'está', 'están', 'dice', 'dicen', 'según', 'sobre', 'para', 'con', 'por', 'en', 'a', 'al', 'se', 'le', 'me', 'te', 'nos', 'les', 'podrías', 'podría', 'puedes', 'puede', 'decir', 'dime', 'cuáles', 'cuál', 'cuando', 'donde', 'como', 'ser', 'tener', 'hacer'}
-            words = re.findall(r'\b\w{3,}\b', query_normalized)  # Reducido de 4 a 3 para capturar más
-            keywords = [w for w in words if w not in stop_words]
-            
-            # Expandir keywords con variantes (singular/plural)
-            expanded_keywords = set(keywords)
-            for kw in keywords:
-                if kw.endswith('es') and len(kw) > 4:  # Plural
-                    expanded_keywords.add(kw[:-2])  # Singular
-                elif not kw.endswith('s') and len(kw) > 3:
-                    expanded_keywords.add(kw + 'es')  # Plural
-            keywords = list(expanded_keywords)
-            
-            logger.info(f"Búsqueda: query='{query}', keywords={keywords}, numbers={numbers}")
-            
-            # Intentar importar FAISS al inicio para verificar disponibilidad
-            faiss_available = False
-            try:
-                import faiss
-                faiss_available = True
-            except (ImportError, NameError):
-                faiss_available = False
-                if self.index is not None:
-                    logger.warning("FAISS no disponible, desactivando índice FAISS")
-                    self.index = None
-            
-            # Buscar documentos similares
-            if self.index is not None and faiss_available:
-                # Búsqueda con FAISS (rápida)
-                try:
-                    faiss.normalize_L2(query_embedding)
-                    distances, indices = self.index.search(
-                        query_embedding.astype('float32'),
-                        min(top_k, len(self.document_store))
-                    )
-                    
-                    semantic_results = []
-                    for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
-                        if idx < len(self.document_store):
-                            similarity = max(0.0, min(1.0, 1.0 - (distance / 2.0)))
-                            result = self.document_store[idx].copy()
-                            result['similarity'] = float(similarity)
-                            result['rank'] = i + 1
-                            semantic_results.append(result)
-                    
-                    # BÚSQUEDA POR PALABRAS CLAVE (boost mejorado con normalización)
-                    import unicodedata
-                    def normalize_text(txt):
-                        txt_lower = txt.lower()
-                        return ''.join(c for c in unicodedata.normalize('NFD', txt_lower) if unicodedata.category(c) != 'Mn')
-                    
-                    keyword_boost = {}
-                    query_lower = query.lower()
-                    query_normalized = normalize_text(query)
-                    chunk_texts = [doc['text'].lower() for doc in self.document_store]
-                    chunk_texts_normalized = [normalize_text(doc['text']) for doc in self.document_store]
-                    
-                    for idx, (chunk_text, chunk_text_norm) in enumerate(zip(chunk_texts, chunk_texts_normalized)):
-                        boost = 0.0
-                        # Boost por números encontrados (artículos, etc.) - más importante
-                        for num in numbers:
-                            if num in chunk_text or num in chunk_text_norm:
-                                boost += 0.4  # Aumentado de 0.3
-                        # Boost por palabras clave encontradas (búsqueda normalizada)
-                        for keyword in keywords:
-                            keyword_norm = normalize_text(keyword)
-                            if keyword_norm in chunk_text_norm:
-                                boost += 0.3  # Aumentado de 0.2
-                                # Bonus si es coincidencia exacta
-                                if keyword in chunk_text:
-                                    boost += 0.1
-                        # Boost si palabras de la consulta están en el chunk
-                        if len(query_normalized) > 5:
-                            query_words = [w for w in query_normalized.split() if len(w) > 3 and w not in stop_words]
-                            matches = sum(1 for word in query_words if normalize_text(word) in chunk_text_norm)
-                            if matches > 0:
-                                boost += (matches / max(len(query_words), 1)) * 0.4  # Aumentado de 0.3
-                        
-                        if boost > 0:
-                            keyword_boost[idx] = min(boost, 0.6)  # Aumentado máximo de 0.5 a 0.6
-                    
-                    # Combinar resultados semánticos con boost de keywords
-                    results = []
-                    seen_indices = set()
-                    
-                    # Primero agregar resultados con keyword boost (prioridad)
-                    for idx, boost in sorted(keyword_boost.items(), key=lambda x: x[1], reverse=True)[:top_k]:
-                        if idx < len(self.document_store):
-                            result = self.document_store[idx].copy()
-                            # Buscar similitud semántica si existe
-                            semantic_sim = next((r['similarity'] for r in semantic_results if r.get('id') == result.get('id', idx)), 0.0)
-                            # Combinar similitud semántica + keyword boost
-                            result['similarity'] = min(1.0, semantic_sim + boost)
-                            result['rank'] = len(results) + 1
-                            result['has_keywords'] = True
-                            results.append(result)
-                            seen_indices.add(idx)
-                    
-                    # Agregar resultados semánticos que no están ya incluidos
-                    for result in semantic_results:
-                        result_idx = result.get('id', -1)
-                        if result_idx not in seen_indices and result['similarity'] >= 0.2:
-                            result['has_keywords'] = False
-                            results.append(result)
-                            seen_indices.add(result_idx)
-                            if len(results) >= top_k * 2:
-                                break
-                    
-                    # Ordenar por similitud combinada y tomar top_k
-                    results.sort(key=lambda x: x['similarity'], reverse=True)
-                    results = results[:top_k]
-                    
-                    # Filtrar resultados con similitud muy baja (< 0.2 ahora más permisivo)
-                    results = [r for r in results if r['similarity'] >= 0.2]
-                    
-                    logger.info(f"Búsqueda híbrida: {len([r for r in results if r.get('has_keywords', False)])} con keywords, {len(results)} total")
-                except Exception as e:
-                    logger.warning(f"Error usando FAISS ({e}), usando búsqueda lineal")
-                    self.index = None
-                    # Continuar con búsqueda lineal
-                    query_embedding = query_embedding[0]
-                    similarities = []
-                    
-                    for i, doc_embedding in enumerate(self.embeddings_store):
-                        # Calcular similitud coseno
-                        similarity = np.dot(query_embedding, doc_embedding) / (
-                            np.linalg.norm(query_embedding) * np.linalg.norm(doc_embedding)
-                        )
-                        similarities.append((similarity, i))
-                    
-                    # Ordenar por similitud
-                    similarities.sort(reverse=True, key=lambda x: x[0])
-                    
-                    results = []
-                    for rank, (similarity, idx) in enumerate(similarities[:top_k]):
-                        result = self.document_store[idx].copy()
-                        result['similarity'] = float(similarity)
-                        result['rank'] = rank + 1
-                        results.append(result)
-                
-            else:
-                # Búsqueda lineal (más lenta pero funciona sin FAISS)
-                query_embedding = query_embedding[0]
-                similarities = []
-                
-                for i, doc_embedding in enumerate(self.embeddings_store):
-                    # Calcular similitud coseno
-                    similarity = np.dot(query_embedding, doc_embedding) / (
-                        np.linalg.norm(query_embedding) * np.linalg.norm(doc_embedding)
-                    )
-                    similarities.append((similarity, i))
-                
-                # Ordenar por similitud
-                similarities.sort(reverse=True, key=lambda x: x[0])
-                
-                results = []
-                for rank, (similarity, idx) in enumerate(similarities[:top_k]):
-                    result = self.document_store[idx].copy()
-                    result['similarity'] = float(similarity)
-                    result['rank'] = rank + 1
+            # Extraer resultados de la respuesta
+            results = []
+            if hasattr(response, 'source_nodes'):
+                for i, node in enumerate(response.source_nodes[:top_k]):
+                    result = {
+                        'text': node.text,
+                        'source': node.metadata.get('source', 'unknown'),
+                        'similarity': float(node.score) if hasattr(node, 'score') and node.score else 0.8,
+                        'rank': i + 1,
+                        'metadata': node.metadata
+                    }
                     results.append(result)
             
-            logger.info(f"Búsqueda completada: {len(results)} resultados encontrados")
+            logger.info(f"🔍 Búsqueda completada: {len(results)} resultados encontrados")
+            if results:
+                logger.info(f"   Mejor match: similitud={results[0]['similarity']:.2f}, preview={results[0]['text'][:100]}...")
+            
             return results
             
         except Exception as e:
-            logger.error(f"Error en búsqueda: {str(e)}")
+            logger.error(f"❌ Error en búsqueda RAG: {str(e)}")
             return []
     
     def get_context_for_query(self, query: str, top_k: int = 10, max_context_length: int = 2500) -> str:
         """
-        Obtener contexto relevante para una consulta con búsqueda expandida si no encuentra resultados
+        Obtener contexto relevante para una consulta
         
         Args:
             query: Pregunta del usuario
-            top_k: Número de chunks a incluir
-            max_context_length: Longitud máxima del contexto en caracteres
+            top_k: Número de chunks a recuperar
+            max_context_length: Longitud máxima del contexto
         
         Returns:
-            Texto de contexto formateado
+            Contexto formateado
         """
-        # Intento 1: Búsqueda normal
-        results = self.search(query, top_k)
-        
-        if not results:
-            logger.warning(f"⚠️ No se encontraron resultados para: {query[:50]}")
-            # Intento 2: Búsqueda expandida con más resultados
-            logger.info("🔄 Intentando búsqueda expandida con más resultados...")
-            results = self.search(query, top_k=20)  # Aumentar a 20 resultados
-        
-        # Filtrar resultados con similitud >= 0.25
-        quality_results = [r for r in results if r.get('similarity', 0) >= 0.25]
-        
-        if not quality_results:
-            logger.warning(f"⚠️ No se encontraron resultados con similitud >= 0.25")
-            # Intento 3: Búsqueda más permisiva (umbral más bajo)
-            logger.info("🔄 Intentando búsqueda más permisiva (umbral 0.15)...")
-            quality_results = [r for r in results if r.get('similarity', 0) >= 0.15]
-        
-        if not quality_results:
-            # Intento 4: Búsqueda por palabras clave directa (sin embeddings)
-            logger.info("🔄 Intentando búsqueda por palabras clave directa...")
-            quality_results = self._keyword_search(query, top_k=15)
-        
-        if not quality_results:
-            logger.warning(f"❌ No se encontró información relevante después de múltiples intentos para: {query[:50]}")
-            logger.info(f"   Total de documentos en sistema: {len(self.document_store)}")
-            return ""
-        
-        # Usar solo los resultados de calidad
-        results = quality_results
-        logger.info(f"✅ Usando {len(results)} resultados de calidad para construir contexto")
-        
-        context_parts = []
-        total_length = 0
-        
-        for result in results:
-            # Limitar el texto de cada chunk si es muy largo
-            chunk_text = result['text']
-            # Limitar cada chunk a 800 caracteres (aumentado para Railway con más memoria)
-            # Esto permite mantener más contexto completo por chunk
-            if len(chunk_text) > 800:
-                # Truncar en un punto completo si es posible
-                truncated = chunk_text[:800]
-                last_period = truncated.rfind('.')
-                if last_period > 600:
-                    chunk_text = truncated[:last_period + 1]
-                else:
-                    chunk_text = truncated + "..."
+        try:
+            results = self.search(query, top_k=top_k)
             
-            # Formato más limpio sin etiquetas de fuente (se removerán después)
-            context_part = chunk_text.strip()
+            if not results:
+                logger.warning("No se encontraron resultados relevantes")
+                return ""
             
-            # Verificar si agregar este chunk excedería el límite
-            # Usar un margen más flexible para incluir más chunks
-            if total_length + len(context_part) + 10 > max_context_length:  # +10 para separador
-                # Si ya tenemos al menos 3 chunks, parar aquí (mejor que solo 1-2)
-                if len(context_parts) >= 3:
+            # Construir contexto desde los resultados
+            context_parts = []
+            current_length = 0
+            
+            for result in results:
+                text = result['text']
+                # Limitar longitud de cada chunk individual
+                if len(text) > 800:
+                    text = text[:800] + "..."
+                
+                if current_length + len(text) > max_context_length:
                     break
-                # Si tenemos menos de 3 chunks, intentar incluir al menos parte de este
-                remaining = max_context_length - total_length - 10
-                if remaining > 100:  # Aumentado de 50 para incluir más texto
-                    truncated = context_part[:remaining]
-                    last_period = truncated.rfind('.')
-                    if last_period > remaining * 0.7:
-                        context_part = truncated[:last_period + 1]
-                    else:
-                        context_part = truncated + "..."
-                    context_parts.append(context_part)
-                break
-            
-            context_parts.append(context_part)
-            total_length += len(context_part) + 10  # +10 para separador estimado
-        
-        # Logging para diagnóstico
-        if context_parts:
-            logger.info(f"Contexto construido: {len(context_parts)} chunks, {total_length} caracteres totales (máx: {max_context_length})")
-            # Log de los primeros 200 caracteres de cada chunk para diagnóstico
-            for i, part in enumerate(context_parts[:3]):  # Solo primeros 3 para no saturar logs
-                preview = part[:200].replace('\n', ' ')
-                logger.info(f"  Chunk {i+1} preview: {preview}...")
-        
-        # Unir con espacios simples (más limpio que "---")
-        full_context = " ".join(context_parts)
-        logger.info(f"✅ Contexto final completo: {len(full_context)} caracteres")
-        if len(full_context) == 0:
-            logger.warning("⚠️ Contexto vacío - el modelo no tendrá información del manual")
-        return full_context
-    
-    def _keyword_search(self, query: str, top_k: int = 15) -> List[Dict]:
-        """
-        Búsqueda directa por palabras clave cuando la búsqueda semántica falla
-        Busca chunks que contengan las palabras clave de la consulta
-        
-        Args:
-            query: Pregunta del usuario
-            top_k: Número máximo de resultados
-        
-        Returns:
-            Lista de chunks con scores basados en coincidencias de palabras
-        """
-        try:
-            if not self.document_store or len(self.document_store) == 0:
-                return []
-            
-            import re
-            # Extraer palabras clave importantes (stop words más restrictivas)
-            stop_words = {'que', 'del', 'de', 'la', 'el', 'los', 'las', 'un', 'una', 'es', 'son', 'está', 'están', 'dice', 'dicen', 'según', 'sobre', 'para', 'con', 'por', 'en', 'a', 'al', 'se', 'le', 'me', 'te', 'nos', 'les', 'podrías', 'podría', 'puedes', 'puede', 'decir', 'dime', 'cuáles', 'cuál', 'cuando', 'donde', 'como', 'ser', 'tener', 'hacer', 'estar'}
-            query_lower = query.lower().strip()
-            # Normalizar: remover acentos para búsqueda más flexible
-            import unicodedata
-            query_normalized = ''.join(c for c in unicodedata.normalize('NFD', query_lower) if unicodedata.category(c) != 'Mn')
-            words = re.findall(r'\b\w{3,}\b', query_normalized)
-            keywords = [w for w in words if w not in stop_words]
-            
-            # Agregar variantes de palabras importantes (singular/plural básico)
-            expanded_keywords = set(keywords)
-            for kw in keywords:
-                if kw.endswith('es'):  # Plural
-                    expanded_keywords.add(kw[:-2])  # Singular
-                elif not kw.endswith('s'):
-                    expanded_keywords.add(kw + 'es')  # Plural
-                if kw.endswith('s') and len(kw) > 4:
-                    expanded_keywords.add(kw[:-1])  # Singular
-            keywords = list(expanded_keywords)
-            
-            # Extraer números
-            numbers = re.findall(r'\d+', query)
-            
-            if not keywords and not numbers:
-                logger.warning("No se pudieron extraer palabras clave de la consulta")
-                return []
-            
-            logger.info(f"🔍 Búsqueda por keywords: {keywords}, números: {numbers}")
-            
-            # Normalizar texto de chunks para búsqueda (sin acentos)
-            import unicodedata
-            def normalize_text(txt):
-                txt_lower = txt.lower()
-                return ''.join(c for c in unicodedata.normalize('NFD', txt_lower) if unicodedata.category(c) != 'Mn')
-            
-            # Buscar chunks que contengan las palabras clave
-            scored_chunks = []
-            for idx, chunk in enumerate(self.document_store):
-                chunk_text = chunk.get('text', '')
-                chunk_text_lower = chunk_text.lower()
-                chunk_text_normalized = normalize_text(chunk_text)
                 
-                score = 0.0
-                matches = 0
-                exact_matches = 0
-                
-                # Puntuar por números encontrados (muy importante)
-                for num in numbers:
-                    if num in chunk_text_lower or num in chunk_text_normalized:
-                        score += 0.6  # Aumentado de 0.5
-                        matches += 1
-                        exact_matches += 1
-                
-                # Puntuar por palabras clave encontradas (búsqueda flexible)
-                for keyword in keywords:
-                    keyword_normalized = normalize_text(keyword)
-                    # Buscar en texto normalizado (sin acentos)
-                    if keyword_normalized in chunk_text_normalized:
-                        score += 0.4  # Aumentado de 0.3
-                        matches += 1
-                        # Bonus si es coincidencia exacta (con acentos)
-                        if keyword in chunk_text_lower:
-                            exact_matches += 1
-                            score += 0.1
-                
-                # Bonus si encuentra múltiples keywords
-                if matches > 1:
-                    score += (matches - 1) * 0.15  # Aumentado de 0.1
-                
-                # Bonus extra si encuentra todas las keywords importantes
-                if len(keywords) > 0 and matches >= len(keywords) * 0.7:  # 70% de keywords
-                    score += 0.2
-                
-                if score > 0:
-                    result = chunk.copy()
-                    result['similarity'] = min(1.0, score)
-                    result['rank'] = len(scored_chunks) + 1
-                    result['has_keywords'] = True
-                    scored_chunks.append(result)
+                context_parts.append(text)
+                current_length += len(text)
             
-            # Ordenar por score y tomar top_k
-            scored_chunks.sort(key=lambda x: x['similarity'], reverse=True)
-            results = scored_chunks[:top_k]
+            full_context = " ".join(context_parts)
             
-            logger.info(f"🔍 Búsqueda por keywords encontró {len(results)} chunks")
-            if results:
-                logger.info(f"   Mejor match: similitud={results[0]['similarity']:.2f}, preview={results[0].get('text', '')[:100]}...")
+            # Truncar si es necesario
+            if len(full_context) > max_context_length:
+                full_context = full_context[:max_context_length]
+                # Truncar en un punto completo si es posible
+                last_period = full_context.rfind('.')
+                if last_period > max_context_length * 0.8:
+                    full_context = full_context[:last_period + 1]
             
-            return results
-        except Exception as e:
-            logger.error(f"Error en búsqueda por keywords: {str(e)}")
-            return []
-    
-    def save_index(self, filepath: str):
-        """Guardar índice y documentos"""
-        try:
-            data = {
-                'documents': self.document_store,
-                'embeddings_model': self.embeddings_model_name
-            }
+            logger.info(f"✅ Contexto final completo: {len(full_context)} caracteres")
+            if len(full_context) == 0:
+                logger.warning("⚠️ Contexto vacío - el modelo no tendrá información del manual")
             
-            # Preparar embeddings para guardar
-            embeddings_data = None
-            if self.embeddings_store is not None:
-                import io
-                embeddings_buffer = io.BytesIO()
-                np.save(embeddings_buffer, self.embeddings_store)
-                embeddings_data = embeddings_buffer.getvalue()
-            
-            # Usar StorageService si está disponible
-            try:
-                from services.storage_service import StorageService
-                storage = StorageService()
-                storage.save_index(data, embeddings_data or b'', filepath)
-                logger.info(f"Índice guardado (usando storage service)")
-            except ImportError:
-                # Fallback: guardar localmente
-                with open(filepath, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
-                
-                if embeddings_data:
-                    with open(filepath.replace('.json', '_embeddings.npy'), 'wb') as f:
-                        f.write(embeddings_data)
-                
-                logger.info(f"Índice guardado localmente en: {filepath}")
+            return full_context
             
         except Exception as e:
-            logger.error(f"Error guardando índice: {str(e)}")
-    
-    def load_index(self, filepath: str):
-        """Cargar índice y documentos"""
-        try:
-            # Intentar usar StorageService primero
-            try:
-                from services.storage_service import StorageService
-                storage = StorageService()
-                result = storage.load_index(filepath)
-                
-                if result:
-                    data, embeddings_data = result
-                    self.document_store = data['documents']
-                    self.embeddings_model_name = data.get('embeddings_model', 'all-MiniLM-L6-v2')
-                    
-                    # Cargar embeddings desde bytes
-                    if embeddings_data:
-                        import io
-                        embeddings_buffer = io.BytesIO(embeddings_data)
-                        self.embeddings_store = np.load(embeddings_buffer)
-                        self._build_index()
-                    
-                    # Logging detallado para diagnóstico
-                    logger.info(f"Índice cargado desde storage: {len(self.document_store)} documentos")
-                    if len(self.document_store) > 0:
-                        # Mostrar preview de algunos chunks para verificar
-                        sample_chunks = self.document_store[:3]
-                        for i, chunk in enumerate(sample_chunks):
-                            preview = chunk.get('text', '')[:100].replace('\n', ' ')
-                            logger.info(f"  Chunk {i+1} sample: {preview}...")
-                    return
-            except ImportError:
-                pass  # Continuar con método local
-            
-            # Fallback: cargar localmente
-            if not os.path.exists(filepath):
-                logger.warning(f"Índice no encontrado en: {filepath}")
-                return
-            
-            with open(filepath, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            
-            self.document_store = data['documents']
-            self.embeddings_model_name = data.get('embeddings_model', 'all-MiniLM-L6-v2')
-            
-            # Cargar embeddings
-            embeddings_file = filepath.replace('.json', '_embeddings.npy')
-            if os.path.exists(embeddings_file):
-                self.embeddings_store = np.load(embeddings_file)
-                self._build_index()
-            
-            logger.info(f"Índice cargado localmente: {len(self.document_store)} documentos")
-            
-        except Exception as e:
-            logger.error(f"Error cargando índice: {str(e)}")
-            raise
+            logger.error(f"❌ Error obteniendo contexto: {str(e)}")
+            return ""
     
     def get_stats(self) -> Dict:
-        """Obtener estadísticas del sistema RAG"""
-        return {
-            'total_documents': len(self.document_store),
-            'embeddings_model': self.embeddings_model_name,
-            'has_index': self.index is not None,
-            'sources': list(set([doc.get('source', 'Desconocido') for doc in self.document_store]))
-        }
-
+        """
+        Obtener estadísticas del sistema RAG
+        
+        Returns:
+            Diccionario con estadísticas
+        """
+        try:
+            if self.index is None:
+                return {
+                    'total_documents': 0,
+                    'embeddings_model': self.embeddings_model_name,
+                    'vector_store': 'none'
+                }
+            
+            # Obtener número de documentos del índice
+            total_docs = 0
+            try:
+                if hasattr(self.index, '_vector_store'):
+                    # Intentar obtener conteo del vector store
+                    if hasattr(self.index._vector_store, 'client'):
+                        # Supabase vector store
+                        total_docs = getattr(self.index._vector_store, '_collection_size', 0)
+                    else:
+                        # Simple vector store
+                        if hasattr(self.index._vector_store, '_data'):
+                            total_docs = len(self.index._vector_store._data.get('embeddings_dict', {}))
+            except:
+                pass
+            
+            # Determinar tipo de vector store
+            vector_store_type = 'memory'
+            if self.vector_store is not None:
+                store_type_str = str(type(self.vector_store))
+                if 'Supabase' in store_type_str:
+                    vector_store_type = 'supabase'
+                elif 'Simple' in store_type_str:
+                    vector_store_type = 'memory'
+            
+            return {
+                'total_documents': total_docs if total_docs > 0 else 'unknown',
+                'embeddings_model': self.embeddings_model_name,
+                'vector_store': vector_store_type
+            }
+        except Exception as e:
+            logger.error(f"Error obteniendo stats: {str(e)}")
+            return {
+                'total_documents': 'error',
+                'embeddings_model': self.embeddings_model_name,
+                'vector_store': 'unknown'
+            }
+    
+    def save_index(self, filepath: str):
+        """
+        Guardar índice (ya no necesario con Supabase, pero mantenido para compatibilidad)
+        """
+        logger.info("ℹ️ Con Supabase pgvector, el índice se guarda automáticamente. No se requiere guardar manualmente.")
+        pass
+    
+    def load_index(self, filepath: str):
+        """
+        Cargar índice (ya no necesario con Supabase, pero mantenido para compatibilidad)
+        """
+        logger.info("ℹ️ Con Supabase pgvector, el índice se carga automáticamente al inicializar.")
+        pass
