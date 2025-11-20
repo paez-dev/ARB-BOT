@@ -98,12 +98,16 @@ def get_ai_model():
         # Obtener API key según el proveedor
         api_key = None
         if provider == 'groq':
-            api_key = app.config.get('GROQ_API_KEY')
+            api_key = app.config.get('GROQ_API_KEY') or os.getenv('GROQ_API_KEY')
+            if not api_key:
+                logger.error("GROQ_API_KEY no encontrada en configuración ni variables de entorno")
+                raise ValueError("GROQ_API_KEY no configurada. Agrega GROQ_API_KEY en Railway → Settings → Variables")
         elif provider == 'huggingface':
-            api_key = app.config.get('HUGGINGFACE_API_KEY')
+            api_key = app.config.get('HUGGINGFACE_API_KEY') or os.getenv('HUGGINGFACE_API_KEY')
         elif provider == 'gemini':
-            api_key = app.config.get('GEMINI_API_KEY')
+            api_key = app.config.get('GEMINI_API_KEY') or os.getenv('GEMINI_API_KEY')
         
+        logger.info(f"Inicializando {provider} con API key: {'Configurada' if api_key else 'NO ENCONTRADA'}")
         ai_model = APIModel(provider=provider, model_name=model_name, api_key=api_key)
         logger.info(f"Modelo API inicializado: {provider} - {ai_model.model_name}")
         content_generator = ContentGenerator(ai_model, text_processor)

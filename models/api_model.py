@@ -132,7 +132,11 @@ class APIModel:
     def _generate_groq(self, prompt: str, max_length: int, temperature: float) -> str:
         """Generar usando Groq API (gratis y rápido)"""
         if not self.api_key:
-            raise ValueError("GROQ_API_KEY requerida. Obtén una gratis en https://console.groq.com")
+            # Intentar obtener de variables de entorno como último recurso
+            self.api_key = os.getenv('GROQ_API_KEY')
+            if not self.api_key:
+                logger.error("GROQ_API_KEY no encontrada. Verifica que esté configurada en Railway → Settings → Variables")
+                raise ValueError("GROQ_API_KEY requerida. Agrega la variable GROQ_API_KEY en Railway → Settings → Variables. Obtén una gratis en https://console.groq.com")
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
