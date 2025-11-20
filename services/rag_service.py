@@ -232,30 +232,41 @@ class RAGService:
                             result['rank'] = i + 1
                             semantic_results.append(result)
                     
-                    # BÚSQUEDA POR PALABRAS CLAVE (boost para resultados que contienen keywords)
+                    # BÚSQUEDA POR PALABRAS CLAVE (boost mejorado con normalización)
+                    import unicodedata
+                    def normalize_text(txt):
+                        txt_lower = txt.lower()
+                        return ''.join(c for c in unicodedata.normalize('NFD', txt_lower) if unicodedata.category(c) != 'Mn')
+                    
                     keyword_boost = {}
                     query_lower = query.lower()
+                    query_normalized = normalize_text(query)
                     chunk_texts = [doc['text'].lower() for doc in self.document_store]
+                    chunk_texts_normalized = [normalize_text(doc['text']) for doc in self.document_store]
                     
-                    for idx, chunk_text in enumerate(chunk_texts):
+                    for idx, (chunk_text, chunk_text_norm) in enumerate(zip(chunk_texts, chunk_texts_normalized)):
                         boost = 0.0
-                        # Boost por números encontrados (artículos, etc.)
+                        # Boost por números encontrados (artículos, etc.) - más importante
                         for num in numbers:
-                            if num in chunk_text:
-                                boost += 0.3
-                        # Boost por palabras clave encontradas
+                            if num in chunk_text or num in chunk_text_norm:
+                                boost += 0.4  # Aumentado de 0.3
+                        # Boost por palabras clave encontradas (búsqueda normalizada)
                         for keyword in keywords:
-                            if keyword in chunk_text:
-                                boost += 0.2
+                            keyword_norm = normalize_text(keyword)
+                            if keyword_norm in chunk_text_norm:
+                                boost += 0.3  # Aumentado de 0.2
+                                # Bonus si es coincidencia exacta
+                                if keyword in chunk_text:
+                                    boost += 0.1
                         # Boost si palabras de la consulta están en el chunk
-                        if len(query_lower) > 5:
-                            query_words = [w for w in query_lower.split() if len(w) > 3]
-                            matches = sum(1 for word in query_words if word in chunk_text)
+                        if len(query_normalized) > 5:
+                            query_words = [w for w in query_normalized.split() if len(w) > 3 and w not in stop_words]
+                            matches = sum(1 for word in query_words if normalize_text(word) in chunk_text_norm)
                             if matches > 0:
-                                boost += (matches / max(len(query_words), 1)) * 0.3
+                                boost += (matches / max(len(query_words), 1)) * 0.4  # Aumentado de 0.3
                         
                         if boost > 0:
-                            keyword_boost[idx] = min(boost, 0.5)
+                            keyword_boost[idx] = min(boost, 0.6)  # Aumentado máximo de 0.5 a 0.6
                     
                     # Combinar resultados semánticos con boost de keywords
                     results = []
