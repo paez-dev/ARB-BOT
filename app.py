@@ -122,23 +122,18 @@ def get_rag_service():
             rag_service = RAGService()
             logger.info("Servicio RAG inicializado")
             
-            # Cargar índice si existe (no crítico si falla)
-            # IMPORTANTE: Si hay un índice viejo, puede estar cargando datos antiguos
-            if os.path.exists(INDEX_FILE):
-                try:
-                    logger.info(f"⚠️ Intentando cargar índice desde: {INDEX_FILE}")
-                    logger.info("⚠️ NOTA: Si acabas de procesar un documento nuevo, este índice puede ser viejo.")
-                    logger.info("⚠️ El nuevo índice se guarda después del procesamiento, pero se carga al iniciar.")
-                    rag_service.load_index(INDEX_FILE)
-                    total_docs = len(rag_service.document_store) if rag_service.document_store else 0
-                    logger.info(f"✅ Documentos institucionales cargados desde índice: {total_docs} documentos")
-                    if total_docs > 0:
-                        logger.info(f"   Si esperabas más documentos, puede que estés usando un índice viejo.")
-                except Exception as e:
-                    logger.warning(f"No se pudo cargar índice (continuando sin documentos): {e}")
-                    # Continuar sin índice - se pueden agregar documentos después
-            else:
-                logger.info("No hay índice existente - servicio RAG listo para nuevos documentos")
+            # Cargar índice desde Supabase o almacenamiento local (no crítico si falla)
+            try:
+                logger.info(f"⚠️ Intentando cargar índice desde Supabase/local: {INDEX_FILE}")
+                rag_service.load_index(INDEX_FILE)
+                total_docs = len(rag_service.document_store) if rag_service.document_store else 0
+                if total_docs > 0:
+                    logger.info(f"✅ Documentos institucionales cargados: {total_docs} documentos disponibles en RAG")
+                else:
+                    logger.info("ℹ️ Índice cargado pero sin documentos (puede que aún no se haya procesado ningún archivo).")
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo cargar índice (continuando sin documentos): {e}")
+                # Continuar sin índice - se pueden agregar documentos después
         except Exception as e:
             logger.error(f"Error crítico cargando servicio RAG: {str(e)}")
             # Crear un servicio RAG vacío para que la app no falle
