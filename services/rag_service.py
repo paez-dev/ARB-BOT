@@ -17,7 +17,7 @@ class RAGService:
     Usa embeddings y búsqueda semántica (100% gratuito)
     """
     
-    def __init__(self, embeddings_model='all-MiniLM-L6-v2'):
+    def __init__(self, embeddings_model='paraphrase-multilingual-MiniLM-L12-v2'):
         """
         Inicializar servicio RAG
         
@@ -449,11 +449,25 @@ class RAGService:
                 return []
             
             import re
-            # Extraer palabras clave importantes
-            stop_words = {'que', 'del', 'de', 'la', 'el', 'los', 'las', 'un', 'una', 'es', 'son', 'está', 'están', 'dice', 'dicen', 'según', 'sobre', 'para', 'con', 'por', 'en', 'a', 'al', 'se', 'le', 'me', 'te', 'nos', 'les', 'podrías', 'podría', 'puedes', 'puede', 'decir', 'dime', 'cuáles', 'cuál', 'cuando', 'donde', 'como'}
-            query_lower = query.lower()
-            words = re.findall(r'\b\w{3,}\b', query_lower)
+            # Extraer palabras clave importantes (stop words más restrictivas)
+            stop_words = {'que', 'del', 'de', 'la', 'el', 'los', 'las', 'un', 'una', 'es', 'son', 'está', 'están', 'dice', 'dicen', 'según', 'sobre', 'para', 'con', 'por', 'en', 'a', 'al', 'se', 'le', 'me', 'te', 'nos', 'les', 'podrías', 'podría', 'puedes', 'puede', 'decir', 'dime', 'cuáles', 'cuál', 'cuando', 'donde', 'como', 'ser', 'tener', 'hacer', 'estar'}
+            query_lower = query.lower().strip()
+            # Normalizar: remover acentos para búsqueda más flexible
+            import unicodedata
+            query_normalized = ''.join(c for c in unicodedata.normalize('NFD', query_lower) if unicodedata.category(c) != 'Mn')
+            words = re.findall(r'\b\w{3,}\b', query_normalized)
             keywords = [w for w in words if w not in stop_words]
+            
+            # Agregar variantes de palabras importantes (singular/plural básico)
+            expanded_keywords = set(keywords)
+            for kw in keywords:
+                if kw.endswith('es'):  # Plural
+                    expanded_keywords.add(kw[:-2])  # Singular
+                elif not kw.endswith('s'):
+                    expanded_keywords.add(kw + 'es')  # Plural
+                if kw.endswith('s') and len(kw) > 4:
+                    expanded_keywords.add(kw[:-1])  # Singular
+            keywords = list(expanded_keywords)
             
             # Extraer números
             numbers = re.findall(r'\d+', query)
@@ -464,28 +478,49 @@ class RAGService:
             
             logger.info(f"🔍 Búsqueda por keywords: {keywords}, números: {numbers}")
             
+            # Normalizar texto de chunks para búsqueda (sin acentos)
+            import unicodedata
+            def normalize_text(txt):
+                txt_lower = txt.lower()
+                return ''.join(c for c in unicodedata.normalize('NFD', txt_lower) if unicodedata.category(c) != 'Mn')
+            
             # Buscar chunks que contengan las palabras clave
             scored_chunks = []
             for idx, chunk in enumerate(self.document_store):
-                chunk_text_lower = chunk.get('text', '').lower()
+                chunk_text = chunk.get('text', '')
+                chunk_text_lower = chunk_text.lower()
+                chunk_text_normalized = normalize_text(chunk_text)
+                
                 score = 0.0
                 matches = 0
+                exact_matches = 0
                 
                 # Puntuar por números encontrados (muy importante)
                 for num in numbers:
-                    if num in chunk_text_lower:
-                        score += 0.5
+                    if num in chunk_text_lower or num in chunk_text_normalized:
+                        score += 0.6  # Aumentado de 0.5
                         matches += 1
+                        exact_matches += 1
                 
-                # Puntuar por palabras clave encontradas
+                # Puntuar por palabras clave encontradas (búsqueda flexible)
                 for keyword in keywords:
-                    if keyword in chunk_text_lower:
-                        score += 0.3
+                    keyword_normalized = normalize_text(keyword)
+                    # Buscar en texto normalizado (sin acentos)
+                    if keyword_normalized in chunk_text_normalized:
+                        score += 0.4  # Aumentado de 0.3
                         matches += 1
+                        # Bonus si es coincidencia exacta (con acentos)
+                        if keyword in chunk_text_lower:
+                            exact_matches += 1
+                            score += 0.1
                 
                 # Bonus si encuentra múltiples keywords
                 if matches > 1:
-                    score += (matches - 1) * 0.1
+                    score += (matches - 1) * 0.15  # Aumentado de 0.1
+                
+                # Bonus extra si encuentra todas las keywords importantes
+                if len(keywords) > 0 and matches >= len(keywords) * 0.7:  # 70% de keywords
+                    score += 0.2
                 
                 if score > 0:
                     result = chunk.copy()

@@ -218,7 +218,8 @@ class DocumentProcessor:
     
     def _split_into_chunks(self, text: str, source: str) -> List[Dict]:
         """
-        Dividir texto en chunks para embeddings
+        Dividir texto en chunks para embeddings con chunking inteligente
+        Respeta artículos, secciones y párrafos completos
         
         Args:
             text: Texto completo
@@ -230,40 +231,75 @@ class DocumentProcessor:
         # Limpiar texto
         text = self._clean_text(text)
         
-        # Dividir por párrafos primero
-        paragraphs = re.split(r'\n\s*\n', text)
+        # Detectar artículos y secciones importantes
+        # Patrones: "Artículo X", "ARTÍCULO X", "Art. X", "artículo X", etc.
+        article_pattern = re.compile(r'(?i)(art[ií]culo|art\.?)\s+(\d+)', re.IGNORECASE)
+        section_pattern = re.compile(r'(?i)(secci[oó]n|cap[ií]tulo|t[ií]tulo)\s+([IVX\d]+)', re.IGNORECASE)
         
         chunks = []
-        current_chunk = ""
         chunk_id = 0
+        
+        # Dividir por párrafos primero
+        paragraphs = re.split(r'\n\s*\n+', text)
+        
+        current_chunk = ""
+        current_article = None
         
         for para in paragraphs:
             para = para.strip()
-            if not para:
+            if not para or len(para) < 10:
                 continue
             
-            # Si el párrafo es muy largo, dividirlo
+            # Detectar si este párrafo es un artículo o sección
+            article_match = article_pattern.search(para)
+            section_match = section_pattern.search(para)
+            
+            # Si encontramos un nuevo artículo, guardar chunk anterior y empezar uno nuevo
+            if article_match:
+                article_num = article_match.group(2)
+                if current_chunk and current_article != article_num:
+                    # Guardar chunk anterior con overlap
+                    if current_chunk:
+                        chunks.append({
+                            'id': chunk_id,
+                            'text': current_chunk.strip(),
+                            'source': source,
+                            'chunk_index': chunk_id,
+                            'article': current_article
+                        })
+                        chunk_id += 1
+                    
+                    # Empezar nuevo chunk con el artículo
+                    current_chunk = para
+                    current_article = article_num
+                    continue
+            
+            # Si el párrafo es muy largo, dividirlo inteligentemente
             if len(para) > self.chunk_size:
-                # Dividir párrafo largo
-                words = para.split()
-                temp_chunk = ""
+                # Dividir por oraciones primero
+                sentences = re.split(r'([.!?]\s+)', para)
+                temp_chunk = current_chunk
                 
-                for word in words:
-                    if len(temp_chunk) + len(word) + 1 > self.chunk_size:
+                for i in range(0, len(sentences), 2):
+                    sentence = sentences[i] + (sentences[i+1] if i+1 < len(sentences) else '')
+                    
+                    if len(temp_chunk) + len(sentence) + 2 > self.chunk_size:
                         if temp_chunk:
                             chunks.append({
                                 'id': chunk_id,
                                 'text': temp_chunk.strip(),
                                 'source': source,
-                                'chunk_index': chunk_id
+                                'chunk_index': chunk_id,
+                                'article': current_article
                             })
                             chunk_id += 1
-                        temp_chunk = word
+                        # Mantener overlap: últimos 100 caracteres del chunk anterior
+                        overlap = temp_chunk[-self.chunk_overlap:] if len(temp_chunk) > self.chunk_overlap else ""
+                        temp_chunk = overlap + sentence
                     else:
-                        temp_chunk += " " + word if temp_chunk else word
+                        temp_chunk += " " + sentence if temp_chunk else sentence
                 
-                if temp_chunk:
-                    current_chunk = temp_chunk
+                current_chunk = temp_chunk
             else:
                 # Agregar párrafo al chunk actual
                 if len(current_chunk) + len(para) + 2 > self.chunk_size:
@@ -272,10 +308,15 @@ class DocumentProcessor:
                             'id': chunk_id,
                             'text': current_chunk.strip(),
                             'source': source,
-                            'chunk_index': chunk_id
+                            'chunk_index': chunk_id,
+                            'article': current_article
                         })
                         chunk_id += 1
-                    current_chunk = para
+                        # Mantener overlap para contexto
+                        overlap = current_chunk[-self.chunk_overlap:] if len(current_chunk) > self.chunk_overlap else ""
+                        current_chunk = overlap + "\n\n" + para
+                    else:
+                        current_chunk = para
                 else:
                     current_chunk += "\n\n" + para if current_chunk else para
         
@@ -285,9 +326,11 @@ class DocumentProcessor:
                 'id': chunk_id,
                 'text': current_chunk.strip(),
                 'source': source,
-                'chunk_index': chunk_id
+                'chunk_index': chunk_id,
+                'article': current_article
             })
         
+        logger.info(f"Chunks creados: {len(chunks)} (con chunking inteligente)")
         return chunks
     
     def _clean_text(self, text: str) -> str:
