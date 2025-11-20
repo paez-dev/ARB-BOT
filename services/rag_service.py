@@ -474,7 +474,14 @@ class RAGService:
                         self.embeddings_store = np.load(embeddings_buffer)
                         self._build_index()
                     
+                    # Logging detallado para diagnóstico
                     logger.info(f"Índice cargado desde storage: {len(self.document_store)} documentos")
+                    if len(self.document_store) > 0:
+                        # Mostrar preview de algunos chunks para verificar
+                        sample_chunks = self.document_store[:3]
+                        for i, chunk in enumerate(sample_chunks):
+                            preview = chunk.get('text', '')[:100].replace('\n', ' ')
+                            logger.info(f"  Chunk {i+1} sample: {preview}...")
                     return
             except ImportError:
                 pass  # Continuar con método local
