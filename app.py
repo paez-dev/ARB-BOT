@@ -641,8 +641,14 @@ def upload_document():
                     continue
             
             # Guardar índice
-            logger.info("Guardando índice...")
+            total_docs_before = rag.get_stats()['total_documents']
+            logger.info(f"💾 Guardando índice nuevo con {len(chunks)} chunks en: {INDEX_FILE}")
+            logger.info(f"   Total de documentos ANTES de guardar: {total_docs_before}")
             rag.save_index(INDEX_FILE)
+            total_docs_after = rag.get_stats()['total_documents']
+            logger.info(f"✅ Índice guardado exitosamente. Total de documentos DESPUÉS: {total_docs_after}")
+            logger.info("⚠️ NOTA: El servicio RAG en memoria tiene los nuevos documentos.")
+            logger.info("⚠️ Si la app se reinicia, cargará el índice guardado (que ahora es el nuevo).")
             
             # Mensaje informativo
             message = f'Documento {filename} procesado exitosamente (todas las páginas)'
