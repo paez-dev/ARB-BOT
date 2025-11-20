@@ -85,8 +85,8 @@ class RAGService:
             texts = [chunk['text'] for chunk in chunks]
             import gc
             
-            # Generar embeddings en batches pequeños para ahorrar memoria
-            batch_size = min(10, len(texts))  # Máximo 10 chunks por vez
+            # Generar embeddings en batches (aumentado para Railway con más memoria)
+            batch_size = min(20, len(texts))  # Máximo 20 chunks por vez (aumentado de 10)
             all_embeddings = []
             
             for i in range(0, len(texts), batch_size):
