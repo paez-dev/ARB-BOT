@@ -268,9 +268,35 @@ Asistente: Según el manual de convivencia,"""
             else:
                 context_clean = truncated + "..."
         
+        # Detectar si la pregunta es sobre un artículo específico
+        import re
+        article_match = re.search(r'art[ií]culo\s+(\d+)', query, re.IGNORECASE)
+        is_article_query = article_match is not None
+        article_num = article_match.group(1) if article_match else None
+        
         # FORMATO PROFESIONAL PARA APIs (instrucciones muy claras y directas)
         # Los modelos avanzados (Llama, Gemini) entienden mejor instrucciones explícitas
-        prompt = f"""Eres un asistente que responde preguntas sobre el manual de convivencia escolar.
+        if is_article_query and article_num:
+            prompt = f"""Eres un asistente experto que responde preguntas sobre el manual de convivencia escolar.
+
+CONTEXTO DEL MANUAL (lee TODO esto palabra por palabra, especialmente busca "Artículo {article_num}" o "artículo {article_num}"):
+{context_clean}
+
+PREGUNTA: {query}
+
+INSTRUCCIONES CRÍTICAS:
+1. La pregunta es específicamente sobre el ARTÍCULO {article_num}
+2. DEBES buscar en el contexto las siguientes variantes: "Artículo {article_num}", "artículo {article_num}", "Art. {article_num}", "art. {article_num}", o simplemente el número "{article_num}"
+3. Lee TODO el contexto completo buscando el artículo {article_num}
+4. Si encuentras el artículo {article_num}, copia y proporciona TODO su contenido completo
+5. NO digas que no existe hasta que hayas leído TODO el contexto cuidadosamente
+6. El artículo puede estar escrito de diferentes formas, busca todas las variantes
+7. Responde en español de manera clara y completa
+8. Si encuentras el artículo, proporciona TODO su texto completo sin omitir nada
+
+RESPUESTA (busca el artículo {article_num} en el contexto y proporciona su contenido completo):"""
+        else:
+            prompt = f"""Eres un asistente que responde preguntas sobre el manual de convivencia escolar.
 
 CONTEXTO DEL MANUAL (lee TODO esto antes de responder):
 {context_clean}
