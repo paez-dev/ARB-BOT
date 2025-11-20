@@ -154,7 +154,7 @@ class RAGService:
             logger.error(f"Error construyendo índice: {str(e)}")
             self.index = None
     
-    def search(self, query: str, top_k: int = 7) -> List[Dict]:
+    def search(self, query: str, top_k: int = 10) -> List[Dict]:
         """
         Buscar documentos relevantes para una consulta
         
@@ -266,7 +266,7 @@ class RAGService:
             logger.error(f"Error en búsqueda: {str(e)}")
             return []
     
-    def get_context_for_query(self, query: str, top_k: int = 7, max_context_length: int = 1500) -> str:
+    def get_context_for_query(self, query: str, top_k: int = 10, max_context_length: int = 2500) -> str:
         """
         Obtener contexto relevante para una consulta
         
@@ -303,13 +303,13 @@ class RAGService:
         for result in results:
             # Limitar el texto de cada chunk si es muy largo
             chunk_text = result['text']
-            # Limitar cada chunk a 600 caracteres para mantener más contexto (aumentado de 500)
-            # Esto ayuda especialmente si los chunks fueron creados con tamaño anterior
-            if len(chunk_text) > 600:
+            # Limitar cada chunk a 800 caracteres (aumentado para Railway con más memoria)
+            # Esto permite mantener más contexto completo por chunk
+            if len(chunk_text) > 800:
                 # Truncar en un punto completo si es posible
-                truncated = chunk_text[:600]
+                truncated = chunk_text[:800]
                 last_period = truncated.rfind('.')
-                if last_period > 450:
+                if last_period > 600:
                     chunk_text = truncated[:last_period + 1]
                 else:
                     chunk_text = truncated + "..."
