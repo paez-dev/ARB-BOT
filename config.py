@@ -39,82 +39,31 @@ class Config:
     MIN_INPUT_LENGTH = 3
     AUTO_WARMUP_ENABLED = os.getenv('AUTO_WARMUP_ENABLED', 'false').lower() == 'true'
     
-    # Modelos disponibles (todos gratuitos)
-    AVAILABLE_MODELS = {
-        'distilgpt2': {
-            'name': 'DistilGPT-2',
-            'provider': 'huggingface',
-            'description': 'Modelo ligero y rápido (básico, respuestas limitadas)',
+    # Proveedores de API disponibles (solo APIs, no modelos locales)
+    AVAILABLE_API_PROVIDERS = {
+        'groq': {
+            'name': 'Groq',
+            'description': 'Gratis, MUY rápido, modelos Llama 3.1 (RECOMENDADO)',
             'free': True,
-            'size': '~250MB',
+            'default_model': 'llama-3.1-8b-instant',
+            'models': ['llama-3.1-8b-instant', 'llama-3.1-70b-versatile', 'mixtral-8x7b-32768'],
+            'recommended': True
+        },
+        'huggingface': {
+            'name': 'Hugging Face',
+            'description': 'Gratis, muchos modelos disponibles',
+            'free': True,
+            'default_model': 'microsoft/DialoGPT-medium',
+            'models': ['microsoft/DialoGPT-medium', 'meta-llama/Llama-3.1-8B-Instruct'],
             'recommended': False
         },
-        'gpt2': {
-            'name': 'GPT-2',
-            'provider': 'huggingface',
-            'description': 'Modelo original GPT-2 - Mejor calidad que DistilGPT-2',
+        'gemini': {
+            'name': 'Google Gemini',
+            'description': 'Gratis, buena calidad, límites generosos',
             'free': True,
-            'size': '~500MB',
-            'recommended': True
-        },
-        'microsoft/DialoGPT-small': {
-            'name': 'DialoGPT Small',
-            'provider': 'huggingface',
-            'description': 'Entrenado para conversaciones - Mejor para preguntas/respuestas',
-            'free': True,
-            'size': '~250MB',
-            'recommended': True
-        },
-        'microsoft/DialoGPT-medium': {
-            'name': 'DialoGPT Medium',
-            'provider': 'huggingface',
-            'description': 'DialoGPT más grande - Mejor calidad de respuestas',
-            'free': True,
-            'size': '~500MB',
-            'recommended': True
-        },
-        'facebook/blenderbot-small-90M': {
-            'name': 'BlenderBot Small',
-            'provider': 'huggingface',
-            'description': 'Entrenado para chatbots - Respuestas más coherentes',
-            'free': True,
-            'size': '~350MB',
-            'recommended': True
-        },
-        'PlanTL-GOB-ES/gpt2-base-bne': {
-            'name': 'GPT-2 Español (BNE)',
-            'provider': 'huggingface',
-            'description': 'GPT-2 entrenado en español - Mejor para español',
-            'free': True,
-            'size': '~500MB',
-            'recommended': True,
-            'spanish': True
-        },
-        'microsoft/DialoGPT-large': {
-            'name': 'DialoGPT Large',
-            'provider': 'huggingface',
-            'description': 'DialoGPT más grande - Máxima calidad de respuestas',
-            'free': True,
-            'size': '~1.5GB',
-            'recommended': False,
-            'note': 'Requiere más RAM, puede ser lento en Railway Hobby'
-        },
-        'facebook/blenderbot-400M-distill': {
-            'name': 'BlenderBot 400M',
-            'provider': 'huggingface',
-            'description': 'BlenderBot más grande - Excelente para chatbots',
-            'free': True,
-            'size': '~800MB',
-            'recommended': True
-        },
-        'bigscience/bloom-560m': {
-            'name': 'BLOOM 560M',
-            'provider': 'huggingface',
-            'description': 'Modelo multilingüe - Incluye español y muchos otros idiomas',
-            'free': True,
-            'size': '~1.1GB',
-            'recommended': False,
-            'multilingual': True
+            'default_model': 'gemini-pro',
+            'models': ['gemini-pro', 'gemini-pro-vision'],
+            'recommended': False
         }
     }
     
