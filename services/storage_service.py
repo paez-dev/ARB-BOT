@@ -119,9 +119,32 @@ class StorageService:
                 return f.read()
         return None
     
+    def _delete_from_supabase(self, file_path: str) -> bool:
+        """Eliminar archivo de Supabase Storage"""
+        try:
+            filename = os.path.basename(file_path)
+            url = f"{self.supabase_url}/storage/v1/object/{self.bucket_name}/{filename}"
+            
+            headers = {
+                'Authorization': f'Bearer {self.supabase_key}'
+            }
+            
+            response = requests.delete(url, headers=headers, timeout=10)
+            # 200 = eliminado, 404 = no existía (está bien)
+            if response.status_code in [200, 404]:
+                logger.info(f"Archivo eliminado de Supabase (o no existía): {filename}")
+                return True
+            else:
+                logger.warning(f"No se pudo eliminar archivo de Supabase: {response.status_code}")
+                return False
+        except Exception as e:
+            logger.warning(f"Error eliminando archivo de Supabase: {str(e)}")
+            return False
+    
     def save_index(self, index_data: dict, embeddings_data: bytes, file_path: str):
         """
         Guardar índice RAG en Supabase o localmente
+        IMPORTANTE: Elimina el índice viejo antes de guardar el nuevo para evitar conflictos
         
         Args:
             index_data: Datos del índice (JSON)
@@ -132,28 +155,57 @@ class StorageService:
             import json
             
             if self.use_supabase:
+                # IMPORTANTE: Eliminar índice viejo antes de guardar el nuevo
+                logger.info("🗑️ Eliminando índice viejo de Supabase antes de guardar el nuevo...")
+                embeddings_path = file_path.replace('.json', '_embeddings.npy')
+                
+                # Eliminar ambos archivos (índice y embeddings)
+                deleted_index = self._delete_from_supabase(file_path)
+                deleted_embeddings = self._delete_from_supabase(embeddings_path)
+                
+                if deleted_index or deleted_embeddings:
+                    logger.info("✅ Índice viejo eliminado (o no existía)")
+                else:
+                    logger.warning("⚠️ No se pudo eliminar índice viejo, pero continuando...")
+                
                 # Intentar guardar índice JSON en Supabase
                 try:
                     index_json = json.dumps(index_data, ensure_ascii=False).encode('utf-8')
+                    logger.info(f"💾 Guardando nuevo índice en Supabase: {len(index_data.get('documents', []))} documentos")
+                    
                     self._upload_to_supabase(
                         file_path,
                         index_json,
                         'application/json'
                     )
+                    logger.info("✅ Índice JSON guardado en Supabase")
                     
                     # Guardar embeddings
-                    embeddings_path = file_path.replace('.json', '_embeddings.npy')
+                    logger.info(f"💾 Guardando embeddings en Supabase: {len(embeddings_data)} bytes")
                     self._upload_to_supabase(
                         embeddings_path,
                         embeddings_data,
                         'application/octet-stream'
                     )
-                    logger.info("Índice guardado en Supabase")
+                    logger.info("✅ Embeddings guardados en Supabase")
+                    logger.info("✅ Índice completo guardado exitosamente en Supabase")
                 except Exception as supabase_error:
                     # Si falla (por ejemplo, tipos MIME no permitidos), guardar localmente
-                    logger.warning(f"No se pudo guardar índice en Supabase: {supabase_error}. Guardando localmente...")
+                    logger.warning(f"❌ No se pudo guardar índice en Supabase: {supabase_error}. Guardando localmente...")
                     self._save_index_local(index_data, embeddings_data, file_path)
             else:
+                # Guardar localmente - también eliminar viejo si existe
+                if os.path.exists(file_path):
+                    logger.info("🗑️ Eliminando índice viejo local antes de guardar el nuevo...")
+                    try:
+                        os.remove(file_path)
+                        embeddings_path = file_path.replace('.json', '_embeddings.npy')
+                        if os.path.exists(embeddings_path):
+                            os.remove(embeddings_path)
+                        logger.info("✅ Índice viejo eliminado localmente")
+                    except Exception as e:
+                        logger.warning(f"⚠️ No se pudo eliminar índice viejo local: {e}")
+                
                 # Guardar localmente
                 self._save_index_local(index_data, embeddings_data, file_path)
         except Exception as e:
