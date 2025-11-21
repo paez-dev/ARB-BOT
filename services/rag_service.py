@@ -16,7 +16,7 @@ class RAGService:
     Usa LlamaIndex con Supabase pgvector (100% gratuito, persistente)
     """
     
-    def __init__(self, embeddings_model='paraphrase-multilingual-MiniLM-L12-v2'):
+    def __init__(self, embeddings_model='sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'):
         """
         Inicializar servicio RAG con LlamaIndex y Supabase
         
@@ -129,7 +129,7 @@ class RAGService:
         try:
             from llama_index.core import VectorStoreIndex, StorageContext
             from llama_index.core.settings import Settings
-            from llama_index.vector_stores.simple import SimpleVectorStore
+            from llama_index.core.vector_stores import SimpleVectorStore
             from llama_index.embeddings.huggingface import HuggingFaceEmbedding
             
             logger.info("🔧 Inicializando LlamaIndex en memoria (fallback)...")
@@ -159,6 +159,30 @@ class RAGService:
             self.vector_store = vector_store
             logger.info("✅ LlamaIndex inicializado en memoria (sin persistencia)")
             
+        except ImportError as import_error:
+            # Si SimpleVectorStore no está disponible, intentar sin vector store
+            logger.warning(f"⚠️ SimpleVectorStore no disponible ({import_error}), creando índice sin vector store...")
+            try:
+                from llama_index.core import VectorStoreIndex
+                from llama_index.core.settings import Settings
+                from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+                
+                embed_model = HuggingFaceEmbedding(
+                    model_name=self.embeddings_model_name
+                )
+                Settings.embed_model = embed_model
+                
+                # Crear índice sin vector store (solo en memoria)
+                self.index = VectorStoreIndex(nodes=[])
+                self.query_engine = self.index.as_query_engine(
+                    similarity_top_k=10,
+                    response_mode="compact"
+                )
+                self.vector_store = None
+                logger.info("✅ LlamaIndex inicializado en memoria (sin vector store)")
+            except Exception as e2:
+                logger.error(f"❌ Error en fallback alternativo: {e2}")
+                raise
         except Exception as e:
             logger.error(f"❌ Error en fallback a memoria: {e}")
             raise

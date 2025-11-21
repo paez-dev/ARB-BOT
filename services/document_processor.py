@@ -41,7 +41,7 @@ class DocumentProcessor:
                 # Usar el mismo modelo de embeddings que RAGService
                 # Nota: El modelo debe estar disponible en Hugging Face
                 embedding_model = HuggingFaceEmbedding(
-                    model_name="paraphrase-multilingual-MiniLM-L12-v2"
+                    model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
                 )
                 # SemanticSplitter agrupa por similitud semántica
                 self.semantic_splitter = SemanticSplitterNodeParser(
