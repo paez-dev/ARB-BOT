@@ -107,11 +107,8 @@ class RAGService:
                 )
                 logger.info("✅ Nuevo índice creado en Supabase")
             
-            # Crear query engine
-            self.query_engine = self.index.as_query_engine(
-                similarity_top_k=10,
-                response_mode="compact"
-            )
+            # No crear query engine (requiere LLM), usaremos retriever directamente en search()
+            self.query_engine = None
             
             logger.info("✅ LlamaIndex inicializado correctamente con Supabase")
             
@@ -150,17 +147,8 @@ class RAGService:
                 storage_context=storage_context
             )
             
-            # Crear query engine sin LLM (solo búsqueda, no generación)
-            try:
-                self.query_engine = self.index.as_query_engine(
-                    similarity_top_k=10,
-                    response_mode="compact",
-                    llm=None  # No usar LLM, solo búsqueda
-                )
-            except Exception:
-                # Si falla, crear sin query engine (solo usaremos search directamente)
-                self.query_engine = None
-                logger.warning("⚠️ Query engine no disponible, usando búsqueda directa")
+            # No crear query engine (requiere LLM), usaremos retriever directamente en search()
+            self.query_engine = None
             
             self.vector_store = vector_store
             logger.info("✅ LlamaIndex inicializado en memoria (sin persistencia)")
@@ -180,10 +168,8 @@ class RAGService:
                 
                 # Crear índice sin vector store (solo en memoria)
                 self.index = VectorStoreIndex(nodes=[])
-                self.query_engine = self.index.as_query_engine(
-                    similarity_top_k=10,
-                    response_mode="compact"
-                )
+                # No crear query engine (requiere LLM), usaremos retriever directamente
+                self.query_engine = None
                 self.vector_store = None
                 logger.info("✅ LlamaIndex inicializado en memoria (sin vector store)")
             except Exception as e2:
