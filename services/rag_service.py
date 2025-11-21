@@ -61,8 +61,11 @@ class RAGService:
                     # Necesitamos la contraseña de la base de datos
                     db_password = os.getenv('SUPABASE_DB_PASSWORD', '')
                     if db_password:
+                        # Codificar password para URL (manejar caracteres especiales como $, @, etc.)
+                        from urllib.parse import quote_plus
+                        password_encoded = quote_plus(db_password)
                         # Construir connection string
-                        supabase_db_url = f"postgresql://postgres:{db_password}@db.{host}:5432/postgres"
+                        supabase_db_url = f"postgresql://postgres:{password_encoded}@db.{host}:5432/postgres"
                         logger.info(f"🔗 Connection string construida: postgresql://postgres:***@db.{host}:5432/postgres")
                     else:
                         logger.error("❌ Se necesita SUPABASE_DB_URL o SUPABASE_DB_PASSWORD para conectar a PostgreSQL")
