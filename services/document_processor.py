@@ -308,9 +308,9 @@ class DocumentProcessor:
                 section_text = section['text']
                 section_article = section.get('article')
                 
-                # Log progreso cada 5 secciones o cada 30 segundos
+                # Log progreso cada 10 secciones o cada 60 segundos (reducir logging para velocidad)
                 elapsed = time.time() - start_time
-                if (section_idx + 1) % 5 == 0 or section_idx == 0 or elapsed > 30:
+                if (section_idx + 1) % 10 == 0 or section_idx == 0 or (elapsed > 60 and (section_idx + 1) % 5 == 0):
                     logger.info(f"📄 Procesando sección {section_idx + 1}/{len(optimized_sections)} (Art. {section_article or 'N/A'}, {len(section_text)} chars) - Tiempo: {elapsed:.1f}s")
                 
                 # Estrategia híbrida optimizada para velocidad y calidad:
@@ -582,11 +582,9 @@ class DocumentProcessor:
     
     def _split_section_basic(self, text: str, source: str, article: Optional[str], start_id: int) -> List[Dict]:
         """
-        Dividir una sección usando método básico mejorado que respeta estructura semántica.
-        Este método es rápido pero mantiene alta calidad al respetar:
-        - Párrafos completos
-        - Oraciones completas
-        - Estructura del documento
+        Dividir una sección usando método básico optimizado para velocidad.
+        Respeta párrafos completos y mantiene overlap para contexto.
+        Optimizado para ser muy rápido mientras mantiene calidad.
         
         Args:
             text: Texto de la sección
@@ -605,8 +603,19 @@ class DocumentProcessor:
         if not text:
             return chunks
         
-        # Dividir por párrafos (respeta estructura natural)
-        paragraphs = re.split(r'\n\s*\n+', text)
+        # Si el texto es muy pequeño, devolverlo como un solo chunk
+        if len(text) <= self.chunk_size:
+            chunks.append({
+                'id': chunk_id,
+                'text': text,
+                'source': source,
+                'chunk_index': chunk_id,
+                'article': article
+            })
+            return chunks
+        
+        # Dividir por párrafos (más rápido que dividir por oraciones)
+        paragraphs = text.split('\n\n')
         current_chunk = ""
         
         for para in paragraphs:
@@ -614,53 +623,36 @@ class DocumentProcessor:
             if not para or len(para) < 10:
                 continue
             
-            # Si el párrafo es muy largo, dividirlo por oraciones
-            if len(para) > self.chunk_size:
-                # Dividir párrafo largo por oraciones
-                sentences = re.split(r'([.!?]\s+)', para)
-                temp_para = ""
+            # Si el párrafo es extremadamente largo, dividirlo por líneas
+            if len(para) > self.chunk_size * 2:
+                # Dividir párrafo muy largo en chunks más pequeños
+                lines = para.split('\n')
+                temp_chunk = current_chunk
                 
-                for i in range(0, len(sentences), 2):
-                    sentence = sentences[i] + (sentences[i+1] if i+1 < len(sentences) else '')
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
                     
-                    # Si agregar esta oración excede el tamaño, guardar chunk actual
-                    if len(current_chunk) + len(temp_para) + len(sentence) + 3 > self.chunk_size:
-                        if current_chunk and temp_para:
-                            combined = current_chunk + "\n\n" + temp_para if current_chunk else temp_para
+                    if len(temp_chunk) + len(line) + 1 > self.chunk_size:
+                        if temp_chunk:
                             chunks.append({
                                 'id': chunk_id,
-                                'text': combined.strip(),
+                                'text': temp_chunk.strip(),
                                 'source': source,
                                 'chunk_index': chunk_id,
                                 'article': article
                             })
                             chunk_id += 1
-                            
-                            # Overlap: últimos caracteres del chunk anterior
-                            overlap = combined[-self.chunk_overlap:] if len(combined) > self.chunk_overlap else ""
-                            current_chunk = overlap + "\n\n" + sentence if overlap else sentence
-                            temp_para = ""
+                            # Overlap simple
+                            overlap = temp_chunk[-self.chunk_overlap:] if len(temp_chunk) > self.chunk_overlap else ""
+                            temp_chunk = overlap + "\n" + line if overlap else line
                         else:
-                            if temp_para:
-                                chunks.append({
-                                    'id': chunk_id,
-                                    'text': temp_para.strip(),
-                                    'source': source,
-                                    'chunk_index': chunk_id,
-                                    'article': article
-                                })
-                                chunk_id += 1
-                                overlap = temp_para[-self.chunk_overlap:] if len(temp_para) > self.chunk_overlap else ""
-                                current_chunk = overlap + "\n\n" + sentence if overlap else sentence
-                                temp_para = ""
-                            else:
-                                current_chunk = sentence
+                            temp_chunk = line
                     else:
-                        temp_para += sentence
+                        temp_chunk += "\n" + line if temp_chunk else line
                 
-                # Agregar resto del párrafo al chunk actual
-                if temp_para:
-                    current_chunk += "\n\n" + temp_para if current_chunk else temp_para
+                current_chunk = temp_chunk
             else:
                 # Párrafo normal: agregar al chunk actual
                 if len(current_chunk) + len(para) + 2 > self.chunk_size:
