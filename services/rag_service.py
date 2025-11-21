@@ -32,7 +32,8 @@ class RAGService:
     def _initialize_llamaindex(self):
         """Inicializar LlamaIndex con Supabase como vector store"""
         try:
-            from llama_index.core import VectorStoreIndex, Settings, StorageContext
+            from llama_index.core import VectorStoreIndex, StorageContext
+            from llama_index.core.settings import Settings
             from llama_index.vector_stores.supabase import SupabaseVectorStore
             from llama_index.embeddings.huggingface import HuggingFaceEmbedding
             import os
@@ -59,7 +60,7 @@ class RAGService:
                     # Necesitamos la contraseña de la base de datos
                     db_password = os.getenv('SUPABASE_DB_PASSWORD', '')
                     if db_password:
-                        supabase_db_url = f"postgresql://postgres:{db_password}@{host}:5432/postgres"
+                        supabase_db_url = f"postgresql://postgres:{db_password}@db.{host}:5432/postgres"
                     else:
                         logger.error("❌ Se necesita SUPABASE_DB_URL o SUPABASE_DB_PASSWORD para conectar a PostgreSQL")
                         self._initialize_in_memory()
@@ -71,10 +72,11 @@ class RAGService:
             
             logger.info("🔧 Inicializando LlamaIndex con Supabase pgvector...")
             
-            # Configurar embeddings
-            Settings.embed_model = HuggingFaceEmbedding(
+            # Configurar embeddings (nueva API de LlamaIndex 0.10.0)
+            embed_model = HuggingFaceEmbedding(
                 model_name=self.embeddings_model_name
             )
+            Settings.embed_model = embed_model
             
             # Crear vector store de Supabase
             self.vector_store = SupabaseVectorStore(
@@ -125,17 +127,18 @@ class RAGService:
     def _initialize_in_memory(self):
         """Inicializar LlamaIndex en memoria (fallback)"""
         try:
-            from llama_index.core import VectorStoreIndex, Settings
+            from llama_index.core import VectorStoreIndex, StorageContext
+            from llama_index.core.settings import Settings
             from llama_index.vector_stores.simple import SimpleVectorStore
             from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-            from llama_index.core import StorageContext
             
             logger.info("🔧 Inicializando LlamaIndex en memoria (fallback)...")
             
-            # Configurar embeddings
-            Settings.embed_model = HuggingFaceEmbedding(
+            # Configurar embeddings (nueva API de LlamaIndex 0.10.0)
+            embed_model = HuggingFaceEmbedding(
                 model_name=self.embeddings_model_name
             )
+            Settings.embed_model = embed_model
             
             # Crear vector store simple en memoria
             vector_store = SimpleVectorStore()
