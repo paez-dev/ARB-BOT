@@ -49,6 +49,36 @@ class RAGService:
                 self._initialize_in_memory()
                 return
             
+            # Si SUPABASE_DB_URL está configurada, codificar el password si tiene caracteres especiales
+            if supabase_db_url:
+                # Verificar si el password necesita codificación (tiene caracteres especiales sin codificar)
+                # Formato: postgresql://postgres:PASSWORD@host:port/db
+                if '@' in supabase_db_url and '://' in supabase_db_url:
+                    try:
+                        from urllib.parse import urlparse, urlunparse, quote
+                        parsed = urlparse(supabase_db_url)
+                        # Si el password tiene caracteres especiales sin codificar, codificarlo
+                        if parsed.password and ('$' in parsed.password or '@' in parsed.password or '#' in parsed.password):
+                            # Reconstruir URL con password codificado
+                            encoded_password = quote(parsed.password, safe='')
+                            # Reconstruir netloc con password codificado
+                            netloc = f"{parsed.username}:{encoded_password}@{parsed.hostname}"
+                            if parsed.port:
+                                netloc += f":{parsed.port}"
+                            # Reconstruir URL completa
+                            supabase_db_url = urlunparse((
+                                parsed.scheme,
+                                netloc,
+                                parsed.path,
+                                parsed.params,
+                                parsed.query,
+                                parsed.fragment
+                            ))
+                            logger.info("🔐 Password codificado automáticamente en SUPABASE_DB_URL")
+                    except Exception as encode_error:
+                        logger.warning(f"⚠️ No se pudo codificar password automáticamente: {encode_error}")
+                        logger.warning("💡 Si tu password tiene caracteres especiales ($, @, #), codifícalos manualmente en la URL")
+            
             if not supabase_db_url:
                 # Intentar construir la connection string desde SUPABASE_URL
                 # Formato: postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres
