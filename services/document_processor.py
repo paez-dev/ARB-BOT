@@ -291,36 +291,35 @@ class DocumentProcessor:
                 sections = self._split_into_large_sections(text, max_size=150000)  # ~150k caracteres por sección
                 logger.info(f"✅ Documento dividido en {len(sections)} secciones grandes")
             
-            # Paso 2: Aplicar SemanticSplitter a cada sección
+            # Paso 1.5: Combinar secciones pequeñas para optimizar procesamiento
+            logger.info("🔍 Paso 1.5: Combinando secciones pequeñas para optimizar...")
+            optimized_sections = self._combine_small_sections(sections, min_size=5000)
+            logger.info(f"✅ Secciones optimizadas: {len(sections)} → {len(optimized_sections)} secciones")
+            
+            # Paso 2: Aplicar SemanticSplitter solo a secciones grandes
             all_chunks = []
             chunk_id = 0
             start_time = time.time()
             
-            logger.info("🔍 Paso 2: Aplicando chunking semántico a cada sección...")
+            logger.info("🔍 Paso 2: Aplicando chunking semántico a secciones grandes...")
             
-            for section_idx, section in enumerate(sections):
+            for section_idx, section in enumerate(optimized_sections):
                 section_text = section['text']
                 section_article = section.get('article')
                 
-                # Log progreso cada 10 secciones
-                if (section_idx + 1) % 10 == 0 or section_idx == 0:
-                    elapsed = time.time() - start_time
-                    logger.info(f"📄 Procesando sección {section_idx + 1}/{len(sections)} (Art. {section_article or 'N/A'}) - Tiempo: {elapsed:.1f}s")
+                # Log progreso cada 5 secciones o cada 30 segundos
+                elapsed = time.time() - start_time
+                if (section_idx + 1) % 5 == 0 or section_idx == 0 or elapsed > 30:
+                    logger.info(f"📄 Procesando sección {section_idx + 1}/{len(optimized_sections)} (Art. {section_article or 'N/A'}, {len(section_text)} chars) - Tiempo: {elapsed:.1f}s")
                 
-                # Si la sección es muy pequeña, agregarla directamente sin SemanticSplitter
-                if len(section_text.strip()) < 200:
-                    chunk = {
-                        'id': chunk_id,
-                        'text': section_text.strip(),
-                        'source': source,
-                        'chunk_index': chunk_id,
-                        'article': section_article
-                    }
-                    all_chunks.append(chunk)
-                    chunk_id += 1
+                # Si la sección es pequeña, usar chunking básico (más rápido)
+                if len(section_text.strip()) < 5000:
+                    basic_chunks = self._split_section_basic(section_text, source, section_article, chunk_id)
+                    all_chunks.extend(basic_chunks)
+                    chunk_id += len(basic_chunks)
                     continue
                 
-                # Aplicar SemanticSplitter a esta sección
+                # Aplicar SemanticSplitter solo a secciones grandes
                 try:
                     llama_doc = LlamaDocument(text=section_text, metadata={'source': source, 'article': section_article})
                     nodes = self.semantic_splitter.get_nodes_from_documents([llama_doc])
@@ -434,7 +433,86 @@ class DocumentProcessor:
             logger.info("⚠️ Pocas secciones detectadas. Dividiendo por párrafos grandes...")
             sections = self._split_into_large_sections(text, max_size=100000)
         
+        # Si hay demasiadas secciones pequeñas, combinarlas
+        if len(sections) > 100:
+            logger.info(f"⚠️ Muchas secciones detectadas ({len(sections)}). Se combinarán automáticamente en el siguiente paso.")
+        
         return sections
+    
+    def _combine_small_sections(self, sections: List[Dict], min_size: int = 5000) -> List[Dict]:
+        """
+        Combinar secciones pequeñas en secciones más grandes para optimizar el procesamiento.
+        Esto reduce el número de llamadas a SemanticSplitter y mejora el rendimiento.
+        
+        Args:
+            sections: Lista de secciones originales
+            min_size: Tamaño mínimo objetivo para cada sección combinada
+        
+        Returns:
+            Lista de secciones optimizadas
+        """
+        if not sections:
+            return sections
+        
+        optimized = []
+        current_combined = []
+        current_size = 0
+        current_article = None
+        
+        for section in sections:
+            section_text = section['text']
+            section_article = section.get('article')
+            section_size = len(section_text)
+            
+            # Si la sección actual es muy grande, guardarla sola
+            if section_size >= min_size * 2:
+                # Guardar combinación anterior si existe
+                if current_combined:
+                    combined_text = '\n\n'.join([s['text'] for s in current_combined]).strip()
+                    optimized.append({
+                        'text': combined_text,
+                        'article': current_article,
+                        'start_idx': current_combined[0].get('start_idx', 0)
+                    })
+                    current_combined = []
+                    current_size = 0
+                
+                # Agregar sección grande sola
+                optimized.append(section)
+                continue
+            
+            # Combinar secciones pequeñas
+            if current_size + section_size < min_size * 1.5:  # Combinar hasta ~1.5x min_size
+                current_combined.append(section)
+                current_size += section_size
+                # Usar el artículo de la primera sección o el más común
+                if current_article is None:
+                    current_article = section_article
+            else:
+                # Guardar combinación actual
+                if current_combined:
+                    combined_text = '\n\n'.join([s['text'] for s in current_combined]).strip()
+                    optimized.append({
+                        'text': combined_text,
+                        'article': current_article,
+                        'start_idx': current_combined[0].get('start_idx', 0)
+                    })
+                
+                # Empezar nueva combinación
+                current_combined = [section]
+                current_size = section_size
+                current_article = section_article
+        
+        # Agregar última combinación
+        if current_combined:
+            combined_text = '\n\n'.join([s['text'] for s in current_combined]).strip()
+            optimized.append({
+                'text': combined_text,
+                'article': current_article,
+                'start_idx': current_combined[0].get('start_idx', 0)
+            })
+        
+        return optimized
     
     def _split_into_large_sections(self, text: str, max_size: int = 150000) -> List[Dict]:
         """
