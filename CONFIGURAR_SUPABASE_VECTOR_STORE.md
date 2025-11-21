@@ -95,20 +95,45 @@ postgresql://postgres:[PASSWORD]@db.[PROJECT_ID].supabase.co:5432/postgres
 
 Agrega estas variables a tu archivo `.env` o en Railway:
 
-### Opción 1: Connection String Completa (Recomendado)
+### Opción 1: Connection Pooler (RECOMENDADO para Railway) ⭐
+
+**El Connection Pooler es mejor para conexiones desde servidores cloud como Railway:**
+
+1. Ve a Supabase → **Settings** → **Database**
+2. Busca **"Connection pooling"** o **"Connection string"**
+3. Selecciona **"Session mode"** o **"Transaction mode"**
+4. Copia la connection string del **pooler**, se verá así:
+
+```
+postgresql://postgres.xxxxx:[PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres
+```
+
+**O construye manualmente:**
+- Formato: `postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres`
+- **Puerto**: `6543` (pooler) en lugar de `5432` (directo)
+- **Host**: `aws-0-[REGION].pooler.supabase.com` en lugar de `db.xxxxx.supabase.co`
+
+**Ejemplo:**
+```
+SUPABASE_DB_URL=postgresql://postgres.ympekltzqzlsbdgbzbpz:TU_PASSWORD@aws-0-us-west-1.pooler.supabase.com:6543/postgres
+```
+
+### Opción 2: Connection String Directa (Puede fallar desde Railway)
 
 ```bash
 SUPABASE_DB_URL=postgresql://postgres:TU_PASSWORD@db.xxxxx.supabase.co:5432/postgres
 ```
 
-### Opción 2: Password Separada (El sistema construye la URL)
+**⚠️ Nota**: La conexión directa puede fallar con "Network is unreachable" desde Railway debido a restricciones de red. Usa el pooler (Opción 1).
+
+### Opción 3: Password Separada (El sistema construye la URL)
 
 ```bash
 SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_DB_PASSWORD=tu_password_de_base_de_datos
 ```
 
-**Nota**: Si usas la Opción 2, el sistema intentará construir la URL automáticamente desde `SUPABASE_URL`.
+**Nota**: Si usas la Opción 3, el sistema intentará construir la URL automáticamente desde `SUPABASE_URL` (usará conexión directa).
 
 ## 🔧 Paso 4: Verificar Configuración
 
