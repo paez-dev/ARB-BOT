@@ -60,23 +60,60 @@ ALTER COLUMN vec TYPE vector(384);
 
 ## 🔍 Verificar Dimensiones Correctas
 
-Después de corregir, verifica que las tablas tengan las dimensiones correctas:
+### Paso 1: Verificar qué tablas existen
+
+Primero, verifica qué tablas relacionadas con vectores existen:
 
 ```sql
--- Verificar dimensiones de la tabla
+-- Ver todas las tablas que contienen 'arbot' o 'vector'
 SELECT 
+    table_schema,
+    table_name
+FROM information_schema.tables 
+WHERE (table_name LIKE '%arbot%' OR table_name LIKE '%vector%')
+AND table_type = 'BASE TABLE'
+ORDER BY table_schema, table_name;
+```
+
+### Paso 2: Verificar dimensiones de las tablas encontradas
+
+Una vez que sepas el nombre exacto de la tabla y el schema, ejecuta:
+
+```sql
+-- Reemplaza 'vecs' y 'arbot_documents' con los valores reales de tu tabla
+SELECT 
+    table_schema,
     table_name,
     column_name,
     data_type,
     (SELECT atttypmod FROM pg_attribute 
-     WHERE attrelid = (SELECT oid FROM pg_class WHERE relname = table_name) 
+     WHERE attrelid = (SELECT oid FROM pg_class WHERE relname = table_name AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = table_schema))
      AND attname = column_name) as dimensions
 FROM information_schema.columns 
-WHERE table_schema = 'vecs' 
+WHERE table_schema IN ('vecs', 'public')  -- Verifica ambos schemas comunes
+AND column_name = 'vec'
+AND (table_name LIKE '%arbot%' OR table_name LIKE '%vector%');
+```
+
+### Paso 3: Verificar dimensiones de forma más simple
+
+Si la tabla existe, puedes verificar directamente:
+
+```sql
+-- Ver estructura de la tabla (reemplaza con el nombre real de tu tabla)
+SELECT 
+    column_name,
+    data_type,
+    character_maximum_length
+FROM information_schema.columns 
+WHERE table_name = 'arbot_documents'  -- o el nombre que encontraste
 AND column_name = 'vec';
 ```
 
-Deberías ver `384` en la columna `dimensions`.
+**Nota**: Si no encuentras ninguna tabla, significa que:
+- ✅ Las tablas fueron eliminadas correctamente
+- ✅ O nunca existieron
+- ✅ Puedes proceder a subir tu documento y se crearán automáticamente con las dimensiones correctas (384)
 
 ## 📊 Modelos y sus Dimensiones
 
