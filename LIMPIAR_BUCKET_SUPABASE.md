@@ -19,6 +19,28 @@ Después de migrar a **LlamaIndex con Supabase pgvector**, estos archivos en el 
 - No se necesitan archivos manuales
 - La persistencia es automática y más eficiente
 
+## 🔧 Actualizar Tipos MIME del Bucket
+
+Ya no necesitas estos tipos MIME en el bucket:
+- ❌ `application/json` (solo se usaba para índices antiguos)
+- ❌ `application/octet-stream` (solo se usaba para embeddings antiguos)
+
+**Tipos MIME actuales:**
+```
+application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain, application/json, application/octet-stream
+```
+
+**Tipos MIME actualizados (sin los obsoletos):**
+```
+application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain
+```
+
+**Cómo actualizar:**
+1. Ve a Supabase → Storage → `documents` → **Settings** (⚙️)
+2. Edita **"Allowed MIME types"**
+3. Reemplaza con: `application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain`
+4. Guarda los cambios
+
 ## 🗑️ Cómo Eliminar los Archivos Antiguos
 
 ### Opción 1: Desde la Interfaz de Supabase (Recomendado)
