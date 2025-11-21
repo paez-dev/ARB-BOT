@@ -90,7 +90,11 @@ class DocumentProcessor:
             # Dividir en chunks (usar LlamaIndex si está disponible)
             logger.info("Dividiendo texto en chunks...")
             if LLAMAINDEX_AVAILABLE and self.semantic_splitter:
-                chunks = self._split_with_llamaindex(text, file_path)
+                try:
+                    chunks = self._split_with_llamaindex(text, file_path)
+                except Exception as e:
+                    logger.warning(f"Error usando SemanticSplitter ({e}), usando chunking básico...")
+                    chunks = self._split_into_chunks(text, file_path)
             else:
                 chunks = self._split_into_chunks(text, file_path)
             
@@ -251,6 +255,49 @@ class DocumentProcessor:
             # Intentar con otra codificación
             with open(file_path, 'r', encoding='latin-1') as file:
                 return file.read()
+    
+    def _split_with_llamaindex(self, text: str, source: str) -> List[Dict]:
+        """
+        Dividir texto usando LlamaIndex SemanticSplitter (chunking semántico avanzado)
+        
+        Args:
+            text: Texto completo
+            source: Fuente del documento
+        
+        Returns:
+            Lista de chunks con metadata
+        """
+        try:
+            from llama_index.core.schema import Document as LlamaDocument
+            
+            # Crear documento de LlamaIndex
+            llama_doc = LlamaDocument(text=text, metadata={'source': source})
+            
+            # Usar SemanticSplitter para dividir
+            nodes = self.semantic_splitter.get_nodes_from_documents([llama_doc])
+            
+            # Convertir nodes a formato de chunks
+            chunks = []
+            for idx, node in enumerate(nodes):
+                # Extraer número de artículo si existe
+                article = self._extract_article_number(node.text)
+                
+                chunk = {
+                    'id': idx,
+                    'text': node.text,
+                    'source': source,
+                    'chunk_index': idx,
+                    'article': article
+                }
+                chunks.append(chunk)
+            
+            logger.info(f"Chunks creados con SemanticSplitter: {len(chunks)} chunks")
+            return chunks
+            
+        except Exception as e:
+            logger.error(f"Error en _split_with_llamaindex: {e}")
+            # Fallback a chunking básico
+            return self._split_into_chunks(text, source)
     
     def _split_into_chunks(self, text: str, source: str) -> List[Dict]:
         """
