@@ -57,18 +57,26 @@ class RAGService:
                 # Extraer host de SUPABASE_URL (ej: https://xxxxx.supabase.co -> xxxxx.supabase.co)
                 if 'supabase.co' in supabase_url:
                     host = supabase_url.replace('https://', '').replace('http://', '').split('/')[0]
+                    logger.info(f"📋 Host extraído: {host}")
                     # Necesitamos la contraseña de la base de datos
                     db_password = os.getenv('SUPABASE_DB_PASSWORD', '')
                     if db_password:
+                        # Construir connection string
                         supabase_db_url = f"postgresql://postgres:{db_password}@db.{host}:5432/postgres"
+                        logger.info(f"🔗 Connection string construida: postgresql://postgres:***@db.{host}:5432/postgres")
                     else:
                         logger.error("❌ Se necesita SUPABASE_DB_URL o SUPABASE_DB_PASSWORD para conectar a PostgreSQL")
+                        logger.error("💡 Configura SUPABASE_DB_PASSWORD en Railway con tu password de base de datos")
                         self._initialize_in_memory()
                         return
                 else:
-                    logger.error("❌ No se pudo construir SUPABASE_DB_URL desde SUPABASE_URL")
+                    logger.error(f"❌ No se pudo construir SUPABASE_DB_URL desde SUPABASE_URL: {supabase_url}")
                     self._initialize_in_memory()
                     return
+            else:
+                # Log parcial de la connection string (ocultar password)
+                safe_url = supabase_db_url.split('@')[1] if '@' in supabase_db_url else '***'
+                logger.info(f"🔗 Usando SUPABASE_DB_URL: postgresql://postgres:***@{safe_url}")
             
             logger.info("🔧 Inicializando LlamaIndex con Supabase pgvector...")
             
@@ -117,7 +125,26 @@ class RAGService:
             logger.error("💡 Instala: pip install llama-index-vector-stores-supabase llama-index-embeddings-huggingface")
             raise
         except Exception as e:
-            logger.error(f"❌ Error inicializando LlamaIndex con Supabase: {e}")
+            error_msg = str(e)
+            logger.error(f"❌ Error inicializando LlamaIndex con Supabase: {error_msg}")
+            
+            # Mensajes de ayuda según el tipo de error
+            if "Network is unreachable" in error_msg or "connection" in error_msg.lower():
+                logger.error("💡 Posibles causas:")
+                logger.error("   1. La connection string está mal formada")
+                logger.error("   2. El password de la base de datos es incorrecto")
+                logger.error("   3. Supabase tiene restricciones de red (verifica Network Restrictions)")
+                logger.error("   4. El host 'db.xxxxx.supabase.co' no es accesible desde Railway")
+                logger.error("💡 Solución: Verifica SUPABASE_DB_URL o SUPABASE_DB_PASSWORD en Railway")
+            elif "authentication failed" in error_msg.lower() or "password" in error_msg.lower():
+                logger.error("💡 Error de autenticación:")
+                logger.error("   1. Verifica que SUPABASE_DB_PASSWORD sea correcto")
+                logger.error("   2. Puedes resetear el password en Supabase → Settings → Database")
+            elif "does not exist" in error_msg.lower() or "extension" in error_msg.lower():
+                logger.error("💡 Error de base de datos:")
+                logger.error("   1. Verifica que pgvector esté habilitado en Supabase")
+                logger.error("   2. Ejecuta: CREATE EXTENSION IF NOT EXISTS vector;")
+            
             logger.warning("⚠️ Fallback a almacenamiento en memoria...")
             self._initialize_in_memory()
     
