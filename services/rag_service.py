@@ -150,11 +150,17 @@ class RAGService:
                 storage_context=storage_context
             )
             
-            # Crear query engine
-            self.query_engine = self.index.as_query_engine(
-                similarity_top_k=10,
-                response_mode="compact"
-            )
+            # Crear query engine sin LLM (solo búsqueda, no generación)
+            try:
+                self.query_engine = self.index.as_query_engine(
+                    similarity_top_k=10,
+                    response_mode="compact",
+                    llm=None  # No usar LLM, solo búsqueda
+                )
+            except Exception:
+                # Si falla, crear sin query engine (solo usaremos search directamente)
+                self.query_engine = None
+                logger.warning("⚠️ Query engine no disponible, usando búsqueda directa")
             
             self.vector_store = vector_store
             logger.info("✅ LlamaIndex inicializado en memoria (sin persistencia)")
@@ -240,31 +246,27 @@ class RAGService:
             Lista de chunks relevantes con scores
         """
         try:
-            if self.index is None or self.query_engine is None:
+            if self.index is None:
                 logger.warning("No hay índice disponible en el sistema RAG")
                 return []
             
-            # Actualizar top_k del query engine
-            self.query_engine = self.index.as_query_engine(
-                similarity_top_k=top_k,
-                response_mode="compact"
-            )
+            # Usar retriever directamente en lugar de query engine (no requiere LLM)
+            retriever = self.index.as_retriever(similarity_top_k=top_k)
             
             # Realizar búsqueda
-            response = self.query_engine.query(query)
+            nodes = retriever.retrieve(query)
             
-            # Extraer resultados de la respuesta
+            # Extraer resultados
             results = []
-            if hasattr(response, 'source_nodes'):
-                for i, node in enumerate(response.source_nodes[:top_k]):
-                    result = {
-                        'text': node.text,
-                        'source': node.metadata.get('source', 'unknown'),
-                        'similarity': float(node.score) if hasattr(node, 'score') and node.score else 0.8,
-                        'rank': i + 1,
-                        'metadata': node.metadata
-                    }
-                    results.append(result)
+            for i, node in enumerate(nodes[:top_k]):
+                result = {
+                    'text': node.text,
+                    'source': node.metadata.get('source', 'unknown') if hasattr(node, 'metadata') else 'unknown',
+                    'similarity': float(node.score) if hasattr(node, 'score') and node.score is not None else 0.8,
+                    'rank': i + 1,
+                    'metadata': node.metadata if hasattr(node, 'metadata') else {}
+                }
+                results.append(result)
             
             logger.info(f"🔍 Búsqueda completada: {len(results)} resultados encontrados")
             if results:
