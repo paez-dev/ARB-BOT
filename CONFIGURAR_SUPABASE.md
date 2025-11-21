@@ -26,7 +26,7 @@
    - **Name:** `documents`
    - **Public bucket:** ✅ **SÍ** (marcar como público)
    - **File size limit:** 50 MB (o el que prefieras)
-   - **Allowed MIME types:** `application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/json,application/octet-stream`
+   - **Allowed MIME types:** `application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain`
 4. Haz clic en **"Create bucket"**
 
 ### Paso 4: Obtener API Keys
@@ -96,19 +96,15 @@ SUPABASE_KEY=tu-anon-key-aqui
 - Ve a Storage → Policies
 - Crea una política que permita lectura/escritura pública
 
-### Error: "400 Client Error: Bad Request" al guardar índice RAG
-- **Causa:** El bucket no permite los tipos MIME necesarios para guardar el índice
-- **Solución:**
-  1. Ve a Supabase → Storage → `documents` → **Bucket details** (o edita el bucket)
-  2. En **"Allowed MIME types"**, asegúrate de tener:
-     ```
-     application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/json,application/octet-stream
-     ```
-  3. Si ya tienes el bucket creado, puedes editarlo:
-     - Ve a Storage → `documents` → **Settings** (⚙️)
-     - Edita **"Allowed MIME types"** y agrega: `application/json,application/octet-stream`
-     - Guarda los cambios
-  4. **Nota:** El sistema guardará localmente como respaldo si Supabase falla, pero es mejor configurarlo correctamente
+### Limpiar archivos de índices antiguos (RAG)
+- **Nota:** Si migraste de FAISS a LlamaIndex, puedes eliminar estos archivos del bucket:
+  - `rag_index.json` (ya no se usa)
+  - `rag_index_embeddings.npy` (ya no se usa)
+- **Cómo eliminarlos:**
+  1. Ve a Supabase → Storage → `documents`
+  2. Busca archivos que empiecen con `rag_index`
+  3. Elimínalos manualmente (ya no se necesitan)
+  4. **Los vectores ahora se guardan en pgvector (PostgreSQL), no en archivos**
 
 ---
 
