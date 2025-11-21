@@ -277,7 +277,21 @@ class RAGService:
             logger.info(f"✅ {len(documents)} documentos agregados al índice de LlamaIndex")
             
         except Exception as e:
-            logger.error(f"❌ Error agregando documentos: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"❌ Error agregando documentos: {error_msg}")
+            
+            # Detectar error de dimensiones específico
+            if "expected" in error_msg and "dimensions" in error_msg and "not" in error_msg:
+                logger.error("🔴 ERROR DE DIMENSIONES DETECTADO")
+                logger.error("💡 La tabla en Supabase tiene dimensiones incorrectas")
+                logger.error("💡 Solución:")
+                logger.error("   1. Ve a Supabase → SQL Editor")
+                logger.error("   2. Ejecuta: DROP TABLE IF EXISTS vecs.arbot_documents CASCADE;")
+                logger.error("   3. Ejecuta: DROP TABLE IF EXISTS vecs.arbot_vectors CASCADE;")
+                logger.error("   4. Reinicia la aplicación")
+                logger.error("   5. Vuelve a subir el documento")
+                logger.error("📖 Ver CORREGIR_DIMENSIONES_VECTORES.md para más detalles")
+            
             raise
     
     def search(self, query: str, top_k: int = 10) -> List[Dict]:
