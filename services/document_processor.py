@@ -39,6 +39,7 @@ class DocumentProcessor:
         if LLAMAINDEX_AVAILABLE:
             try:
                 # Usar el mismo modelo de embeddings que RAGService
+                # Nota: El modelo debe estar disponible en Hugging Face
                 embedding_model = HuggingFaceEmbedding(
                     model_name="paraphrase-multilingual-MiniLM-L12-v2"
                 )
@@ -48,6 +49,7 @@ class DocumentProcessor:
                     breakpoint_percentile_threshold=95,  # Umbral para dividir
                     embed_model=embedding_model
                 )
+                logger.info("✅ SemanticSplitter inicializado correctamente")
                 logger.info("✅ SemanticSplitter inicializado para chunking inteligente")
             except Exception as e:
                 logger.warning(f"⚠️ No se pudo inicializar SemanticSplitter: {e}. Usando chunking básico.")
