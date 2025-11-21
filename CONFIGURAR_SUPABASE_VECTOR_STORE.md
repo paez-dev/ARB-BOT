@@ -34,20 +34,55 @@ SELECT * FROM pg_extension WHERE extname = 'vector';
 
 ## 🔧 Paso 2: Obtener Connection String de PostgreSQL
 
-1. Ve a **Settings** → **Database** en tu proyecto de Supabase
-2. Busca la sección **Connection string**
-3. Selecciona **URI** (no Session mode)
-4. Copia la connection string, se verá así:
+Hay varias formas de obtener la connection string. Prueba estas opciones:
 
+### Opción A: Desde Settings → Database
+
+1. Ve a tu proyecto en Supabase: https://supabase.com/dashboard
+2. En el menú lateral, ve a **Settings** (⚙️) → **Database**
+3. Busca la sección **"Connection string"** o **"Connection pooling"**
+4. Si ves **"URI"** o **"Connection string"**, cópiala
+5. Si no la ves, ve a la **Opción B** o **C** abajo
+
+### Opción B: Construir la Connection String Manualmente
+
+Si no encuentras la connection string lista, puedes construirla:
+
+1. Ve a **Settings** → **Database**
+2. Busca **"Connection info"** o **"Database settings"**
+3. Necesitarás estos datos:
+   - **Host**: `db.xxxxx.supabase.co` (reemplaza `xxxxx` con tu ID de proyecto)
+   - **Port**: `5432` (siempre)
+   - **Database**: `postgres` (siempre)
+   - **User**: `postgres` (siempre)
+   - **Password**: Tu contraseña de base de datos
+
+4. La connection string se construye así:
+   ```
+   postgresql://postgres:TU_PASSWORD@db.xxxxx.supabase.co:5432/postgres
+   ```
+
+### Opción C: Obtener Password y Construir URL
+
+1. Ve a **Settings** → **Database**
+2. Busca **"Database password"** o **"Reset database password"**
+3. Si no conoces tu password:
+   - Haz clic en **"Reset database password"**
+   - Copia la nueva contraseña (guárdala bien)
+4. Para obtener el **Host**:
+   - Ve a **Settings** → **API**
+   - Tu **Project URL** es: `https://xxxxx.supabase.co`
+   - El **Host** de la DB es: `db.xxxxx.supabase.co` (agrega `db.` al inicio)
+
+5. Construye la connection string:
+   ```
+   postgresql://postgres:TU_PASSWORD@db.xxxxx.supabase.co:5432/postgres
+   ```
+
+**Ejemplo completo:**
 ```
-postgresql://postgres:[YOUR-PASSWORD]@db.xxxxx.supabase.co:5432/postgres
+postgresql://postgres:mi_password_segura@db.abcdefghijklmnop.supabase.co:5432/postgres
 ```
-
-**⚠️ IMPORTANTE**: Reemplaza `[YOUR-PASSWORD]` con tu contraseña real de la base de datos.
-
-Si no conoces tu contraseña:
-- Ve a **Settings** → **Database** → **Database password**
-- Si no la tienes, puedes resetearla
 
 ## 🔧 Paso 3: Configurar Variables de Entorno
 
