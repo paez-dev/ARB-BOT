@@ -272,21 +272,41 @@ class RAGService:
                 documents.append(doc)
             
             # Agregar documentos al índice (LlamaIndex maneja embeddings automáticamente)
-            # Usar insert en lugar de add para no recrear el índice completo
-            # Procesar en pequeños grupos para evitar timeouts
+            # Intentar usar insert_batch si está disponible (más eficiente)
             import time
             start_time = time.time()
             
-            for idx, doc in enumerate(documents):
-                try:
-                    self.index.insert(doc)
-                    # Log cada 5 documentos para monitorear progreso
-                    if (idx + 1) % 5 == 0:
-                        elapsed = time.time() - start_time
-                        logger.debug(f"   Insertados {idx + 1}/{len(documents)} documentos - Tiempo: {elapsed:.1f}s")
-                except Exception as insert_error:
-                    logger.warning(f"⚠️ Error insertando documento {idx + 1}: {insert_error}. Continuando...")
-                    continue
+            try:
+                # Intentar insertar todos los documentos de una vez (más eficiente)
+                # LlamaIndex puede procesar múltiples documentos en batch
+                if hasattr(self.index, 'insert_batch'):
+                    self.index.insert_batch(documents)
+                    logger.info(f"✅ {len(documents)} documentos agregados en batch al índice de LlamaIndex")
+                else:
+                    # Fallback: insertar uno por uno pero en grupos más pequeños
+                    # Insertar de 3 en 3 para balancear velocidad y memoria
+                    group_size = 3
+                    for i in range(0, len(documents), group_size):
+                        group = documents[i:i + group_size]
+                        for doc in group:
+                            try:
+                                self.index.insert(doc)
+                            except Exception as insert_error:
+                                logger.warning(f"⚠️ Error insertando documento: {insert_error}. Continuando...")
+                                continue
+                        # Log cada grupo
+                        if (i + group_size) % 9 == 0 or i + group_size >= len(documents):
+                            elapsed = time.time() - start_time
+                            logger.debug(f"   Insertados {min(i + group_size, len(documents))}/{len(documents)} documentos - Tiempo: {elapsed:.1f}s")
+            except Exception as batch_error:
+                # Si batch falla, intentar uno por uno
+                logger.warning(f"⚠️ Error en batch insert, intentando uno por uno: {batch_error}")
+                for idx, doc in enumerate(documents):
+                    try:
+                        self.index.insert(doc)
+                    except Exception as insert_error:
+                        logger.warning(f"⚠️ Error insertando documento {idx + 1}: {insert_error}. Continuando...")
+                        continue
             
             elapsed = time.time() - start_time
             logger.info(f"✅ {len(documents)} documentos agregados al índice de LlamaIndex (Tiempo: {elapsed:.1f}s)")

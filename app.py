@@ -631,9 +631,9 @@ def upload_document():
                     'hint': 'El sistema puede estar sin memoria. Intenta más tarde o con un documento más pequeño.'
                 }), 500
             
-            # Procesar en lotes más pequeños para evitar timeouts
-            # Reducir batch_size para que cada lote sea más rápido
-            batch_size = 10  # Reducido de 20 a 10 para evitar timeouts
+            # Procesar en lotes muy pequeños para evitar timeouts
+            # Cada inserción en Supabase tarda ~10s, así que reducimos el batch_size
+            batch_size = 5  # Reducido a 5 para evitar timeouts (cada lote ~50s en lugar de ~100s)
             total_batches = (len(chunks) - 1) // batch_size + 1
             logger.info(f"Procesando {len(chunks)} chunks en {total_batches} lotes de {batch_size}...")
             
