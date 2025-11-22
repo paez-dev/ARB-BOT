@@ -332,7 +332,7 @@ class RAGService:
             nodes = retriever.retrieve(query)
             
             # Extraer resultados
-                results = []
+            results = []
             for i, node in enumerate(nodes[:top_k]):
                 # Convertir score a float de forma segura
                 try:
