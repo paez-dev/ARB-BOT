@@ -8,6 +8,7 @@ from datetime import datetime
 import os
 import logging
 import threading
+import uuid
 
 from config import config
 from models.api_model import APIModel
@@ -44,6 +45,22 @@ document_processor = DocumentProcessor()
 ai_model = None
 content_generator = None
 rag_service = None
+
+# Sistema de procesamiento asíncrono para documentos grandes
+upload_jobs = {}  # Almacenar estado de jobs: {job_id: {'status': 'processing'|'completed'|'error', 'progress': 0-100, 'message': str, ...}}
+upload_jobs_lock = threading.Lock()  # Lock para acceso thread-safe
+
+# Sistema de procesamiento asíncrono para documentos grandes
+import uuid
+from datetime import datetime
+upload_jobs = {}  # Almacenar estado de jobs de procesamiento: {job_id: {'status': 'processing'|'completed'|'error', 'progress': 0-100, 'message': str, 'error': str}}
+upload_jobs_lock = threading.Lock()  # Lock para acceso thread-safe
+
+# Sistema de procesamiento asíncrono para documentos grandes
+import uuid
+from datetime import datetime
+upload_jobs = {}  # Almacenar estado de jobs de procesamiento
+upload_jobs_lock = threading.Lock()  # Lock para acceso thread-safe
 
 def _load_services(load_rag: bool = False):
     """
@@ -535,6 +552,138 @@ def check_admin_auth():
         'authenticated': session.get('admin_authenticated', False)
     })
 
+def _process_document_async(job_id: str, filepath: str, filename: str, file_content: bytes):
+    """
+    Procesar documento en background (thread separado)
+    
+    Args:
+        job_id: ID único del job
+        filepath: Ruta al archivo guardado
+        filename: Nombre del archivo
+        file_content: Contenido del archivo (para subir a Supabase)
+    """
+    try:
+        with upload_jobs_lock:
+            upload_jobs[job_id] = {
+                'status': 'processing',
+                'progress': 0,
+                'message': 'Iniciando procesamiento del documento...',
+                'filename': filename,
+                'started_at': datetime.now().isoformat(),
+                'error': None
+            }
+        
+        logger.info(f"🔄 [Job {job_id}] Iniciando procesamiento asíncrono de {filename}")
+        
+        # Paso 1: Guardar en Supabase (si está configurado)
+        try:
+            with upload_jobs_lock:
+                upload_jobs[job_id]['progress'] = 5
+                upload_jobs[job_id]['message'] = 'Guardando archivo en Supabase...'
+            
+            from services.storage_service import StorageService
+            storage = StorageService()
+            if storage.use_supabase:
+                content_type = 'application/pdf' if filename.endswith('.pdf') else \
+                             'application/vnd.openxmlformats-officedocument.wordprocessingml.document' if filename.endswith('.docx') else \
+                             'text/plain'
+                storage.upload_file(filepath, file_content, content_type)
+                logger.info(f"🔄 [Job {job_id}] Archivo guardado en Supabase")
+        except Exception as storage_error:
+            logger.warning(f"⚠️ [Job {job_id}] Error guardando en Supabase: {storage_error}")
+        
+        # Paso 2: Procesar documento (extraer texto y chunks)
+        try:
+            with upload_jobs_lock:
+                upload_jobs[job_id]['progress'] = 10
+                upload_jobs[job_id]['message'] = 'Extrayendo texto del documento...'
+            
+            max_pages = None
+            chunks = document_processor.process_document(filepath, max_pages=max_pages)
+            
+            if not chunks or len(chunks) == 0:
+                raise ValueError("No se pudo extraer contenido del documento")
+            
+            with upload_jobs_lock:
+                upload_jobs[job_id]['progress'] = 30
+                upload_jobs[job_id]['message'] = f'Documento procesado: {len(chunks)} chunks extraídos. Agregando al sistema RAG...'
+            
+            logger.info(f"🔄 [Job {job_id}] Documento procesado: {len(chunks)} chunks")
+        except Exception as process_error:
+            logger.error(f"❌ [Job {job_id}] Error procesando documento: {process_error}")
+            with upload_jobs_lock:
+                upload_jobs[job_id]['status'] = 'error'
+                upload_jobs[job_id]['error'] = str(process_error)
+                upload_jobs[job_id]['message'] = f'Error procesando documento: {str(process_error)}'
+            try:
+                os.remove(filepath)
+            except:
+                pass
+            return
+        
+        # Paso 3: Agregar al sistema RAG en lotes
+        try:
+            rag = get_rag_service()
+        except Exception as rag_error:
+            logger.error(f"❌ [Job {job_id}] Error cargando servicio RAG: {rag_error}")
+            with upload_jobs_lock:
+                upload_jobs[job_id]['status'] = 'error'
+                upload_jobs[job_id]['error'] = f'Error cargando sistema RAG: {str(rag_error)}'
+                upload_jobs[job_id]['message'] = 'Error cargando sistema de búsqueda'
+            return
+        
+        batch_size = 5
+        total_batches = (len(chunks) - 1) // batch_size + 1
+        
+        import time
+        import gc
+        start_time = time.time()
+        
+        for i in range(0, len(chunks), batch_size):
+            batch = chunks[i:i + batch_size]
+            batch_num = i//batch_size + 1
+            
+            try:
+                rag.add_documents(batch)
+                
+                # Actualizar progreso
+                progress = 30 + int((batch_num / total_batches) * 60)  # 30% inicial + 60% para RAG
+                with upload_jobs_lock:
+                    upload_jobs[job_id]['progress'] = min(progress, 90)
+                    upload_jobs[job_id]['message'] = f'Procesando lote {batch_num}/{total_batches} ({len(batch)} chunks)...'
+                
+                gc.collect()
+                
+            except Exception as batch_error:
+                logger.error(f"⚠️ [Job {job_id}] Error procesando lote {batch_num}: {batch_error}")
+                continue
+        
+        # Completado
+        total_docs = rag.get_stats()['total_documents']
+        elapsed = time.time() - start_time
+        
+        with upload_jobs_lock:
+            upload_jobs[job_id]['status'] = 'completed'
+            upload_jobs[job_id]['progress'] = 100
+            upload_jobs[job_id]['message'] = f'Documento procesado exitosamente. {len(chunks)} chunks agregados.'
+            upload_jobs[job_id]['chunks_added'] = len(chunks)
+            upload_jobs[job_id]['total_documents'] = total_docs
+            upload_jobs[job_id]['completed_at'] = datetime.now().isoformat()
+            upload_jobs[job_id]['duration'] = f"{elapsed:.1f}s"
+        
+        logger.info(f"✅ [Job {job_id}] Procesamiento completado: {len(chunks)} chunks en {elapsed:.1f}s")
+        
+    except Exception as e:
+        logger.error(f"❌ [Job {job_id}] Error crítico en procesamiento: {e}")
+        with upload_jobs_lock:
+            upload_jobs[job_id]['status'] = 'error'
+            upload_jobs[job_id]['error'] = str(e)
+            upload_jobs[job_id]['message'] = f'Error crítico: {str(e)}'
+        try:
+            os.remove(filepath)
+        except:
+            pass
+
 @app.route('/api/upload-document', methods=['POST'])
 def upload_document():
     """Subir y procesar documento institucional"""
@@ -571,118 +720,26 @@ def upload_document():
             with open(filepath, 'wb') as f:
                 f.write(file_content)
             
-            # También guardar en Supabase si está configurado (para persistencia)
-            try:
-                from services.storage_service import StorageService
-                storage = StorageService()
-                if storage.use_supabase:
-                    # Determinar content type
-                    content_type = 'application/pdf' if filename.endswith('.pdf') else \
-                                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' if filename.endswith('.docx') else \
-                                 'text/plain'
-                    storage.upload_file(filepath, file_content, content_type)
-                    logger.info(f"Archivo también guardado en Supabase para persistencia")
-            except ImportError:
-                pass  # Supabase no disponible, solo usar local
+            # Crear job ID único
+            job_id = str(uuid.uuid4())
             
-            logger.info(f"Procesando documento: {filename}")
-            file_size_mb = file_size / (1024 * 1024)
+            # Iniciar procesamiento en background
+            thread = threading.Thread(
+                target=_process_document_async,
+                args=(job_id, filepath, filename, file_content),
+                daemon=True
+            )
+            thread.start()
             
-            if file_size_mb > 10:
-                logger.warning(f"Archivo grande detectado: {file_size_mb:.2f} MB. El procesamiento puede tardar varios minutos.")
+            logger.info(f"📤 Documento {filename} recibido. Job ID: {job_id}. Procesamiento iniciado en background.")
             
-            # Procesar documento completo
-            # Procesar todas las páginas del documento (sin límite)
-            try:
-                max_pages = None  # Sin límite - procesar todo el documento
-                logger.info(f"Procesando documento completo ({file_size_mb:.2f} MB) - todas las páginas")
-                
-                chunks = document_processor.process_document(filepath, max_pages=max_pages)
-            except Exception as e:
-                logger.error(f"Error procesando documento: {str(e)}")
-                # Limpiar archivo si hay error
-                try:
-                    os.remove(filepath)
-                except:
-                    pass
-                return jsonify({
-                    'error': f'Error procesando documento: {str(e)}',
-                    'status': 'error',
-                    'hint': 'El documento puede ser muy grande o estar corrupto. Intenta con un archivo más pequeño o verifica que el PDF no esté protegido.'
-                }), 500
-            
-            if not chunks or len(chunks) == 0:
-                return jsonify({
-                    'error': 'No se pudo extraer contenido del documento',
-                    'status': 'error',
-                    'hint': 'El documento puede estar vacío o protegido.'
-                }), 400
-            
-            logger.info(f"Agregando {len(chunks)} chunks al sistema RAG...")
-            
-            # Agregar al sistema RAG en lotes más pequeños para evitar problemas de memoria
-            try:
-                rag = get_rag_service()
-            except Exception as rag_error:
-                logger.error(f"Error cargando servicio RAG: {str(rag_error)}")
-                return jsonify({
-                    'error': 'Error cargando sistema de búsqueda. El documento se guardó pero no se pudo procesar.',
-                    'status': 'error',
-                    'hint': 'El sistema puede estar sin memoria. Intenta más tarde o con un documento más pequeño.'
-                }), 500
-            
-            # Procesar en lotes muy pequeños para evitar timeouts
-            # Cada inserción en Supabase tarda ~10s, así que reducimos el batch_size
-            batch_size = 5  # Reducido a 5 para evitar timeouts (cada lote ~50s en lugar de ~100s)
-            total_batches = (len(chunks) - 1) // batch_size + 1
-            logger.info(f"Procesando {len(chunks)} chunks en {total_batches} lotes de {batch_size}...")
-            
-            import time
-            import gc
-            start_time = time.time()
-            batch_start_time = start_time
-            
-            for i in range(0, len(chunks), batch_size):
-                batch = chunks[i:i + batch_size]
-                batch_num = i//batch_size + 1
-                
-                try:
-                    batch_before = time.time()
-                    rag.add_documents(batch)
-                    batch_elapsed = time.time() - batch_before
-                    total_elapsed = time.time() - start_time
-                    
-                    logger.info(f"Procesado lote {batch_num}/{total_batches} ({len(batch)} chunks) - Lote: {batch_elapsed:.1f}s, Total: {total_elapsed:.1f}s")
-                    
-                    # Limpiar memoria después de cada lote
-                    gc.collect()
-                    
-                    # Advertencia si un lote tarda más de 2 minutos
-                    if batch_elapsed > 120:
-                        logger.warning(f"⚠️ Lote {batch_num} tardó {batch_elapsed:.1f}s (>2 min). Considera reducir batch_size.")
-                    
-                except Exception as batch_error:
-                    logger.error(f"Error procesando lote {batch_num}: {str(batch_error)}")
-                    # Continuar con el siguiente lote
-                    continue
-            
-            # Con Supabase pgvector, el índice se guarda automáticamente
-            # No es necesario llamar save_index() manualmente
-            total_docs = rag.get_stats()['total_documents']
-            logger.info(f"✅ {len(chunks)} chunks agregados al sistema RAG")
-            logger.info(f"   Total de documentos en el sistema: {total_docs}")
-            logger.info("ℹ️ Con Supabase pgvector, los vectores se guardan automáticamente")
-            
-            # Mensaje informativo
-            message = f'Documento {filename} procesado exitosamente (todas las páginas)'
-            
+            # Responder inmediatamente con job_id
             return jsonify({
-                'status': 'success',
-                'message': message,
-                'chunks_added': len(chunks),
-                'total_documents': rag.get_stats()['total_documents'],
-                'pages_processed': 'todas'
-            })
+                'status': 'processing',
+                'message': f'Documento {filename} recibido. Procesando en background...',
+                'job_id': job_id,
+                'filename': filename
+            }), 202  # 202 Accepted - request accepted for processing
         else:
             return jsonify({
                 'error': 'Formato de archivo no permitido',
@@ -697,6 +754,31 @@ def upload_document():
             'message': str(e),
             'status': 'error'
         }), 500
+
+@app.route('/api/upload-status/<job_id>', methods=['GET'])
+def get_upload_status(job_id):
+    """Obtener estado del procesamiento de un documento"""
+    with upload_jobs_lock:
+        job = upload_jobs.get(job_id)
+    
+    if not job:
+        return jsonify({
+            'error': 'Job no encontrado',
+            'status': 'error'
+        }), 404
+    
+    return jsonify({
+        'status': job['status'],
+        'progress': job['progress'],
+        'message': job['message'],
+        'filename': job.get('filename', 'unknown'),
+        'started_at': job.get('started_at'),
+        'completed_at': job.get('completed_at'),
+        'duration': job.get('duration'),
+        'chunks_added': job.get('chunks_added'),
+        'total_documents': job.get('total_documents'),
+        'error': job.get('error')
+    })
 
 @app.route('/api/rag-stats', methods=['GET'])
 def get_rag_stats():

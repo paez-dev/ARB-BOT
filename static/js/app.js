@@ -553,7 +553,7 @@ class ARBBot {
         formData.append('file', fileInput.files[0]);
 
         uploadStatus.style.display = 'block';
-        uploadStatus.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Procesando documento...';
+        uploadStatus.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Subiendo documento...';
 
         try {
             const response = await fetch('/api/upload-document', {
@@ -563,7 +563,12 @@ class ARBBot {
 
             const data = await response.json();
 
-            if (data.status === 'success') {
+            if (data.status === 'processing' && data.job_id) {
+                // Procesamiento asíncrono iniciado - monitorear progreso
+                this.monitorUploadProgress(data.job_id, data.filename);
+                fileInput.value = '';
+            } else if (data.status === 'success') {
+                // Respuesta inmediata (compatibilidad con versión anterior)
                 uploadStatus.innerHTML = `
                     <div class="alert alert-success">
                         ✅ ${data.message}<br>
@@ -587,6 +592,78 @@ class ARBBot {
                 </div>
             `;
         }
+    }
+
+    async monitorUploadProgress(jobId, filename) {
+        const uploadStatus = document.getElementById('uploadStatus');
+        const maxAttempts = 3600; // Máximo 1 hora (3600 intentos * 1 segundo)
+        let attempts = 0;
+        
+        const checkStatus = async () => {
+            try {
+                const response = await fetch(`/api/upload-status/${jobId}`);
+                const data = await response.json();
+                
+                if (data.status === 'completed') {
+                    uploadStatus.innerHTML = `
+                        <div class="alert alert-success">
+                            ✅ ${data.message}<br>
+                            <small>Chunks agregados: ${data.chunks_added} | Total documentos: ${data.total_documents} | Duración: ${data.duration}</small>
+                        </div>
+                    `;
+                    this.loadRAGStats();
+                } else if (data.status === 'error') {
+                    uploadStatus.innerHTML = `
+                        <div class="alert alert-danger">
+                            ❌ Error: ${data.error || data.message || 'Error desconocido'}
+                        </div>
+                    `;
+                } else if (data.status === 'processing') {
+                    // Mostrar progreso
+                    const progressBar = `
+                        <div class="progress mb-2" style="height: 25px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" 
+                                 style="width: ${data.progress}%"
+                                 aria-valuenow="${data.progress}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                ${data.progress}%
+                            </div>
+                        </div>
+                        <small>${data.message}</small>
+                    `;
+                    uploadStatus.innerHTML = progressBar;
+                    
+                    // Continuar monitoreando
+                    attempts++;
+                    if (attempts < maxAttempts) {
+                        setTimeout(checkStatus, 1000); // Verificar cada segundo
+                    } else {
+                        uploadStatus.innerHTML = `
+                            <div class="alert alert-warning">
+                                ⚠️ El procesamiento está tardando más de lo esperado. Por favor, verifica más tarde.
+                            </div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('Error verificando estado:', error);
+                attempts++;
+                if (attempts < maxAttempts) {
+                    setTimeout(checkStatus, 2000); // Reintentar en 2 segundos si hay error
+                } else {
+                    uploadStatus.innerHTML = `
+                        <div class="alert alert-warning">
+                            ⚠️ No se pudo verificar el estado del procesamiento. Por favor, verifica más tarde.
+                        </div>
+                    `;
+                }
+            }
+        };
+        
+        // Iniciar monitoreo
+        checkStatus();
     }
 
     async loadRAGStats() {
