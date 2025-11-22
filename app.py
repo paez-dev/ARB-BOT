@@ -268,7 +268,7 @@ def generate_content():
         try:
             rag = get_rag_service()
             if rag and rag.get_stats()['total_documents'] > 0:
-                context = rag.get_context_for_query(processed_input, top_k=10)
+                context = rag.get_context_for_query(processed_input, top_k=10, max_context_length=2500)
                 logger.info(f"Contexto encontrado: {len(context)} caracteres")
             else:
                 logger.info("No hay documentos cargados en RAG - generando sin contexto")
@@ -632,7 +632,9 @@ def _process_document_async(job_id: str, filepath: str, filename: str, file_cont
                 upload_jobs[job_id]['message'] = 'Error cargando sistema de búsqueda'
             return
         
-        batch_size = 5
+        # Reducir batch_size para inserción más rápida y mejor feedback
+        # Cada inserción individual tarda ~10s, así que 3 chunks = ~30s por lote
+        batch_size = 3
         total_batches = (len(chunks) - 1) // batch_size + 1
         
         import time
