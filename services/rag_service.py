@@ -120,10 +120,12 @@ class RAGService:
             Settings.embed_model = embed_model
             
             # Crear vector store de Supabase
+            # Nota: collection_name y table_name deben ser consistentes
+            # LlamaIndex usa collection_name para crear la tabla en el schema 'vecs'
             self.vector_store = SupabaseVectorStore(
                 postgres_connection_string=supabase_db_url,
-                collection_name="arbot_documents",
-                table_name="arbot_vectors"
+                collection_name="arbot_documents",  # Este es el nombre que usa para la tabla
+                table_name="arbot_documents"  # Asegurar consistencia
             )
             
             # Crear storage context
