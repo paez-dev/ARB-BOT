@@ -382,16 +382,16 @@ class RAGService:
         """
         try:
             results = self.search(query, top_k=top_k)
-        
-        if not results:
+            
+            if not results:
                 logger.warning("No se encontraron resultados relevantes")
-            return ""
-        
+                return ""
+            
             # Construir contexto desde los resultados
-        context_parts = []
+            context_parts = []
             current_length = 0
             
-        for result in results:
+            for result in results:
                 text = result['text']
                 # Limitar longitud de cada chunk individual
                 if len(text) > 800:
