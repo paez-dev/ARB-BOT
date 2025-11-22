@@ -631,27 +631,38 @@ def upload_document():
                     'hint': 'El sistema puede estar sin memoria. Intenta más tarde o con un documento más pequeño.'
                 }), 500
             
-            # Procesar en lotes pequeños para ahorrar memoria y permitir procesamiento de documentos grandes
-            batch_size = 20  # 20 chunks por lote (aumentado para Railway con más memoria)
+            # Procesar en lotes más pequeños para evitar timeouts
+            # Reducir batch_size para que cada lote sea más rápido
+            batch_size = 10  # Reducido de 20 a 10 para evitar timeouts
             total_batches = (len(chunks) - 1) // batch_size + 1
             logger.info(f"Procesando {len(chunks)} chunks en {total_batches} lotes de {batch_size}...")
             
             import time
             import gc
             start_time = time.time()
+            batch_start_time = start_time
             
             for i in range(0, len(chunks), batch_size):
                 batch = chunks[i:i + batch_size]
+                batch_num = i//batch_size + 1
+                
                 try:
+                    batch_before = time.time()
                     rag.add_documents(batch)
-                    elapsed = time.time() - start_time
-                    logger.info(f"Procesado lote {i//batch_size + 1}/{total_batches} ({len(batch)} chunks) - Tiempo: {elapsed:.1f}s")
+                    batch_elapsed = time.time() - batch_before
+                    total_elapsed = time.time() - start_time
                     
-                    # Limpiar memoria después de cada lote para documentos grandes
-                    if total_batches > 20:  # Solo para documentos con muchos lotes
-                        gc.collect()
+                    logger.info(f"Procesado lote {batch_num}/{total_batches} ({len(batch)} chunks) - Lote: {batch_elapsed:.1f}s, Total: {total_elapsed:.1f}s")
+                    
+                    # Limpiar memoria después de cada lote
+                    gc.collect()
+                    
+                    # Advertencia si un lote tarda más de 2 minutos
+                    if batch_elapsed > 120:
+                        logger.warning(f"⚠️ Lote {batch_num} tardó {batch_elapsed:.1f}s (>2 min). Considera reducir batch_size.")
+                    
                 except Exception as batch_error:
-                    logger.error(f"Error procesando lote {i//batch_size + 1}: {str(batch_error)}")
+                    logger.error(f"Error procesando lote {batch_num}: {str(batch_error)}")
                     # Continuar con el siguiente lote
                     continue
             

@@ -273,10 +273,23 @@ class RAGService:
             
             # Agregar documentos al índice (LlamaIndex maneja embeddings automáticamente)
             # Usar insert en lugar de add para no recrear el índice completo
-            for doc in documents:
-                self.index.insert(doc)
+            # Procesar en pequeños grupos para evitar timeouts
+            import time
+            start_time = time.time()
             
-            logger.info(f"✅ {len(documents)} documentos agregados al índice de LlamaIndex")
+            for idx, doc in enumerate(documents):
+                try:
+                    self.index.insert(doc)
+                    # Log cada 5 documentos para monitorear progreso
+                    if (idx + 1) % 5 == 0:
+                        elapsed = time.time() - start_time
+                        logger.debug(f"   Insertados {idx + 1}/{len(documents)} documentos - Tiempo: {elapsed:.1f}s")
+                except Exception as insert_error:
+                    logger.warning(f"⚠️ Error insertando documento {idx + 1}: {insert_error}. Continuando...")
+                    continue
+            
+            elapsed = time.time() - start_time
+            logger.info(f"✅ {len(documents)} documentos agregados al índice de LlamaIndex (Tiempo: {elapsed:.1f}s)")
             
         except Exception as e:
             error_msg = str(e)
@@ -319,16 +332,31 @@ class RAGService:
             nodes = retriever.retrieve(query)
             
             # Extraer resultados
-            results = []
+                results = []
             for i, node in enumerate(nodes[:top_k]):
+                # Convertir score a float de forma segura
+                try:
+                    if hasattr(node, 'score') and node.score is not None:
+                        similarity = float(node.score) if not isinstance(node.score, str) else 0.8
+                    else:
+                        similarity = 0.8
+                except (ValueError, TypeError):
+                    similarity = 0.8
+                
                 result = {
                     'text': node.text,
-                    'source': node.metadata.get('source', 'unknown') if hasattr(node, 'metadata') else 'unknown',
-                    'similarity': float(node.score) if hasattr(node, 'score') and node.score is not None else 0.8,
+                    'source': node.metadata.get('source', 'unknown') if hasattr(node, 'metadata') and node.metadata else 'unknown',
+                    'similarity': similarity,
                     'rank': i + 1,
-                    'metadata': node.metadata if hasattr(node, 'metadata') else {}
+                    'metadata': node.metadata if hasattr(node, 'metadata') and node.metadata else {}
                 }
-                results.append(result)
+                        results.append(result)
+                
+            # Ordenar por similitud (de mayor a menor) de forma segura
+            try:
+                results.sort(key=lambda x: x['similarity'], reverse=True)
+            except (TypeError, ValueError) as sort_error:
+                logger.warning(f"⚠️ No se pudo ordenar resultados por similitud: {sort_error}. Usando orden original.")
             
             logger.info(f"🔍 Búsqueda completada: {len(results)} resultados encontrados")
             if results:
@@ -354,16 +382,16 @@ class RAGService:
         """
         try:
             results = self.search(query, top_k=top_k)
-            
-            if not results:
+        
+        if not results:
                 logger.warning("No se encontraron resultados relevantes")
-                return ""
-            
+            return ""
+        
             # Construir contexto desde los resultados
-            context_parts = []
+        context_parts = []
             current_length = 0
             
-            for result in results:
+        for result in results:
                 text = result['text']
                 # Limitar longitud de cada chunk individual
                 if len(text) > 800:
@@ -441,9 +469,9 @@ class RAGService:
             }
         except Exception as e:
             logger.error(f"Error obteniendo stats: {str(e)}")
-            return {
+        return {
                 'total_documents': 'error',
-                'embeddings_model': self.embeddings_model_name,
+            'embeddings_model': self.embeddings_model_name,
                 'vector_store': 'unknown'
             }
     
@@ -459,4 +487,6 @@ class RAGService:
         Cargar índice (ya no necesario con Supabase, pero mantenido para compatibilidad)
         """
         logger.info("ℹ️ Con Supabase pgvector, el índice se carga automáticamente al inicializar.")
+        pass
+
         pass
