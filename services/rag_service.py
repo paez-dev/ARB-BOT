@@ -371,12 +371,12 @@ class RAGService:
             """)
             columns = [row[0] for row in cursor.fetchall()]
             has_vec = 'vec' in columns
-            has_document = 'document' in columns
+            has_content = 'content' in columns
+            has_document = 'document' in columns  # Compatibilidad con estructura antigua
             embedding_col = 'vec' if has_vec else 'embedding'
             
             # Búsqueda vectorial usando cosine distance
             # Prioridad: content column (estándar LlamaIndex) > document (antigua) > metadata->text
-            has_content = 'content' in columns
             text_column = 'content' if has_content else ('document' if has_document else None)
             
             if text_column:
