@@ -545,28 +545,36 @@ class RAGService:
                             # Intentar obtener id desde metadata
                             node_id = node.metadata.get('id') or node.metadata.get('chunk_id') or node.metadata.get('_node_id')
                         
-                        # Si tenemos un ID, consultar Supabase
-                        if node_id and self.vector_store and hasattr(self.vector_store, 'postgres_connection_string'):
-                            conn_str = self.vector_store.postgres_connection_string
-                            try:
-                                conn = psycopg2.connect(conn_str)
-                                cursor = conn.cursor()
-                                # Obtener texto desde la columna document (estructura correcta)
-                                cursor.execute("""
-                                    SELECT document
-                                    FROM vecs.arbot_documents
-                                    WHERE id = %s;
-                                """, (str(node_id),))
-                                result = cursor.fetchone()
-                                if result and result[0]:
-                                    node_text = result[0]
-                                    logger.info(f"✅ Texto recuperado desde Supabase para nodo {node_id} ({len(node_text)} caracteres)")
-            else:
-                                    logger.warning(f"⚠️ Nodo {node_id} no encontrado o sin texto en columna document")
-                                cursor.close()
-                                conn.close()
-                            except Exception as conn_error:
-                                logger.warning(f"⚠️ Error conectando a Supabase para obtener texto: {conn_error}")
+                        # Si tenemos un ID, consultar Supabase directamente
+                        if node_id:
+                            # Usar SUPABASE_DB_URL directamente (más confiable)
+                            supabase_db_url = os.getenv('SUPABASE_DB_URL')
+                            if supabase_db_url:
+                                try:
+                                    conn = psycopg2.connect(supabase_db_url)
+                                    cursor = conn.cursor()
+                                    # Obtener texto desde la columna document (estructura correcta) o metadata
+                                    cursor.execute("""
+                                        SELECT 
+                                            COALESCE(document, '') as doc_text,
+                                            metadata->>'text' as meta_text,
+                                            metadata->>'document' as meta_doc
+                                        FROM vecs.arbot_documents
+                                        WHERE id = %s;
+                                    """, (str(node_id),))
+                                    result = cursor.fetchone()
+                                    if result:
+                                        node_text = result[0] or result[1] or result[2]  # document > metadata->text > metadata->document
+                                        if node_text:
+                                            logger.info(f"✅ Texto recuperado desde Supabase para nodo {node_id} ({len(node_text)} caracteres)")
+                                        else:
+                                            logger.warning(f"⚠️ Nodo {node_id} sin texto en ninguna columna")
+                                    else:
+                                        logger.warning(f"⚠️ Nodo {node_id} no encontrado en Supabase")
+                                    cursor.close()
+                                    conn.close()
+                                except Exception as conn_error:
+                                    logger.warning(f"⚠️ Error conectando a Supabase: {conn_error}")
                     except Exception as db_error:
                         logger.warning(f"⚠️ No se pudo obtener texto desde Supabase: {db_error}")
                 
