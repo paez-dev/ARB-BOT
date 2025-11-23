@@ -375,25 +375,28 @@ class RAGService:
             embedding_col = 'vec' if has_vec else 'embedding'
             
             # Búsqueda vectorial usando cosine distance
-            # Prioridad: document column (estructura correcta) > metadata->text > metadata->document
-            if has_document:
-                # Estructura nueva con columna document
+            # Prioridad: content column (estándar LlamaIndex) > document (antigua) > metadata->text
+            has_content = 'content' in columns
+            text_column = 'content' if has_content else ('document' if has_document else None)
+            
+            if text_column:
+                # Estructura con columna de texto (content o document)
                 cursor.execute(f"""
                     SELECT 
                         id,
                         {embedding_col} <=> %s::vector as distance,
-                        COALESCE(document, '') as doc_text,
+                        COALESCE({text_column}, '') as doc_text,
                         metadata->>'text' as text_from_meta,
                         metadata->>'document' as doc_from_meta,
                         metadata
                     FROM vecs.arbot_documents
-                    WHERE (document IS NOT NULL AND document != '') 
+                    WHERE ({text_column} IS NOT NULL AND {text_column} != '') 
                        OR (metadata->>'text' IS NOT NULL AND metadata->>'text' != '')
                     ORDER BY {embedding_col} <=> %s::vector
                     LIMIT %s;
                 """, (query_embedding_str, query_embedding_str, top_k))
             else:
-                # Estructura antigua sin columna document (solo metadata)
+                # Estructura antigua sin columna de texto (solo metadata)
                 cursor.execute(f"""
                     SELECT 
                         id,
@@ -553,18 +556,42 @@ class RAGService:
                                 try:
                                     conn = psycopg2.connect(supabase_db_url)
                                     cursor = conn.cursor()
-                                    # Obtener texto desde la columna document (estructura correcta) o metadata
+                                    # Obtener texto desde la columna content (estándar) o document (antigua) o metadata
+                                    # Primero detectar qué columna existe
                                     cursor.execute("""
-                                        SELECT 
-                                            COALESCE(document, '') as doc_text,
-                                            metadata->>'text' as meta_text,
-                                            metadata->>'document' as meta_doc
-                                        FROM vecs.arbot_documents
-                                        WHERE id = %s;
-                                    """, (str(node_id),))
+                                        SELECT column_name 
+                                        FROM information_schema.columns 
+                                        WHERE table_schema = 'vecs' 
+                                        AND table_name = 'arbot_documents'
+                                        AND column_name IN ('content', 'document')
+                                        ORDER BY CASE column_name WHEN 'content' THEN 1 ELSE 2 END
+                                        LIMIT 1;
+                                    """)
+                                    col_result = cursor.fetchone()
+                                    text_col = col_result[0] if col_result else None
+                                    
+                                    if text_col:
+                                        cursor.execute(f"""
+                                            SELECT 
+                                                COALESCE({text_col}, '') as doc_text,
+                                                metadata->>'text' as meta_text,
+                                                metadata->>'document' as meta_doc
+                                            FROM vecs.arbot_documents
+                                            WHERE id = %s;
+                                        """, (str(node_id),))
+                                    else:
+                                        cursor.execute("""
+                                            SELECT 
+                                                '' as doc_text,
+                                                metadata->>'text' as meta_text,
+                                                metadata->>'document' as meta_doc
+                                            FROM vecs.arbot_documents
+                                            WHERE id = %s;
+                                        """, (str(node_id),))
+                                    
                                     result = cursor.fetchone()
                                     if result:
-                                        node_text = result[0] or result[1] or result[2]  # document > metadata->text > metadata->document
+                                        node_text = result[0] or result[1] or result[2]  # content/document > metadata->text > metadata->document
                                         if node_text:
                                             logger.info(f"✅ Texto recuperado desde Supabase para nodo {node_id} ({len(node_text)} caracteres)")
                                         else:
