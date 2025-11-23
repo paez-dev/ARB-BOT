@@ -452,17 +452,27 @@ class RAGService:
             try:
                 nodes = retriever.retrieve(query)
                 logger.info(f"🔍 LlamaIndex retornó {len(nodes)} nodos")
+                
+                # Verificar si los nodos tienen texto válido
+                nodes_with_text = [n for n in nodes if hasattr(n, 'text') and n.text]
+                if len(nodes_with_text) < len(nodes):
+                    logger.warning(f"⚠️ {len(nodes) - len(nodes_with_text)} nodos sin texto, usando búsqueda directa en Supabase...")
+                    return self._search_direct_supabase(query, top_k)
+                    
             except Exception as retrieve_error:
                 error_msg = str(retrieve_error)
                 logger.error(f"❌ Error en búsqueda RAG: {error_msg}")
                 
                 # Si el error es sobre TextNode con text=None, intentar recuperar desde Supabase directamente
-                if "TextNode" in error_msg and "none is not an allowed value" in error_msg.lower():
+                if ("TextNode" in error_msg and "none is not an allowed value" in error_msg.lower()) or \
+                   ("text" in error_msg.lower() and "none" in error_msg.lower()):
                     logger.warning("⚠️ LlamaIndex retornó nodos con text=None, intentando búsqueda directa en Supabase...")
                     # Hacer búsqueda directa en Supabase usando embeddings
                     return self._search_direct_supabase(query, top_k)
                 else:
-                    raise
+                    # Para otros errores, también intentar búsqueda directa como fallback
+                    logger.warning("⚠️ Error en LlamaIndex, intentando búsqueda directa en Supabase como fallback...")
+                    return self._search_direct_supabase(query, top_k)
             
             # Extraer resultados
             results = []
