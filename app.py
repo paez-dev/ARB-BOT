@@ -267,11 +267,34 @@ def generate_content():
         rag = None
         try:
             rag = get_rag_service()
-            if rag and rag.get_stats()['total_documents'] > 0:
-                context = rag.get_context_for_query(processed_input, top_k=10, max_context_length=2500)
-                logger.info(f"Contexto encontrado: {len(context)} caracteres")
+            if rag:
+                # Intentar obtener stats, pero no confiar completamente en él
+                try:
+                    stats = rag.get_stats()
+                    total_docs = stats.get('total_documents', 0)
+                    if isinstance(total_docs, str):
+                        total_docs = 0
+                    logger.debug(f"📊 RAG stats: {total_docs} documentos reportados")
+                except Exception as stats_error:
+                    logger.warning(f"⚠️ Error obteniendo stats RAG: {stats_error}")
+                    total_docs = 0
+                
+                # Intentar buscar contexto siempre (por si get_stats() falló pero hay documentos)
+                # Si no hay documentos, la búsqueda retornará lista vacía
+                try:
+                    context = rag.get_context_for_query(processed_input, top_k=10, max_context_length=2500)
+                    if context and len(context.strip()) > 0:
+                        logger.info(f"✅ Contexto encontrado: {len(context)} caracteres")
+                    else:
+                        if total_docs == 0:
+                            logger.info("No hay documentos cargados en RAG - generando sin contexto")
+                        else:
+                            logger.warning(f"⚠️ Hay {total_docs} documentos pero no se encontró contexto relevante para la consulta")
+                except Exception as search_error:
+                    logger.warning(f"⚠️ Error buscando contexto: {search_error}")
+                    context = ""
             else:
-                logger.info("No hay documentos cargados en RAG - generando sin contexto")
+                logger.info("No hay servicio RAG disponible - generando sin contexto")
         except Exception as e:
             logger.warning(f"Error obteniendo contexto RAG (continuando sin contexto): {str(e)}")
             context = ""

@@ -346,19 +346,19 @@ class RAGService:
                 logger.warning("No hay índice disponible en el sistema RAG")
                 return []
             
-            # Verificar que el índice tenga documentos antes de buscar
+            # Intentar buscar siempre - no confiar completamente en get_stats()
+            # Si hay documentos en Supabase, la búsqueda los encontrará aunque get_stats() falle
             try:
                 stats = self.get_stats()
                 total_docs = stats.get('total_documents', 0)
-                # Convertir 'unknown' o 'error' a 0
                 if isinstance(total_docs, str):
                     total_docs = 0
-                if total_docs == 0:
-                    logger.warning("⚠️ El índice no tiene documentos. Asegúrate de haber procesado documentos primero.")
-                    return []
-                logger.debug(f"📊 Índice tiene {total_docs} documentos")
+                if total_docs > 0:
+                    logger.debug(f"📊 get_stats() reporta {total_docs} documentos")
+                else:
+                    logger.debug("📊 get_stats() reporta 0 documentos, pero intentando búsqueda de todas formas (puede haber documentos aunque get_stats() falle)")
             except Exception as stats_error:
-                logger.debug(f"⚠️ No se pudo verificar estadísticas: {stats_error}")
+                logger.debug(f"⚠️ No se pudo verificar estadísticas: {stats_error}, pero intentando búsqueda de todas formas...")
             
             # Usar retriever directamente en lugar de query engine (no requiere LLM)
             retriever = self.index.as_retriever(similarity_top_k=top_k)
@@ -503,12 +503,17 @@ class RAGService:
                         cursor.close()
                         conn.close()
                         
-                        logger.debug(f"📊 Documentos en Supabase: {total_docs}")
+                        logger.info(f"📊 Documentos en Supabase: {total_docs}")
                     except Exception as db_error:
-                        logger.warning(f"⚠️ Error consultando Supabase: {db_error}")
+                        logger.error(f"❌ Error consultando Supabase para stats: {db_error}")
+                        logger.error(f"   Connection string: {conn_str[:50]}...")
                         # Fallback: intentar desde el índice
-                        if hasattr(self.index, '_vector_store'):
-                            total_docs = getattr(self.index._vector_store, '_collection_size', 0)
+                        try:
+                            if hasattr(self.index, '_vector_store'):
+                                total_docs = getattr(self.index._vector_store, '_collection_size', 0)
+                                logger.debug(f"   Fallback desde índice: {total_docs}")
+                        except:
+                            total_docs = 0
                 elif hasattr(self.index, '_vector_store'):
                     # Fallback para otros tipos de vector store
                     if hasattr(self.index._vector_store, '_data'):
