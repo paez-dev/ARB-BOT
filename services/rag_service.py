@@ -524,26 +524,18 @@ class RAGService:
                             try:
                                 conn = psycopg2.connect(conn_str)
                                 cursor = conn.cursor()
-                                # Intentar obtener desde metadata JSON o columna document
-                                # El texto puede estar en metadata->text, metadata->document, o columna document
+                                # Obtener texto desde la columna document (estructura correcta)
                                 cursor.execute("""
-                                    SELECT 
-                                        COALESCE(document, '') as doc_text,
-                                        metadata->>'text' as meta_text,
-                                        metadata->>'document' as meta_doc
+                                    SELECT document
                                     FROM vecs.arbot_documents
                                     WHERE id = %s;
                                 """, (str(node_id),))
                                 result = cursor.fetchone()
-                                if result:
-                                    # Priorizar: document column > metadata->text > metadata->document
-                                    node_text = (result[0] if result[0] else None) or result[1] or result[2]
-                                    if node_text:
-                                        logger.info(f"✅ Texto recuperado desde Supabase para nodo {node_id} ({len(node_text)} caracteres)")
-                                    else:
-                                        logger.warning(f"⚠️ Nodo {node_id} encontrado pero sin texto en ninguna columna")
+                                if result and result[0]:
+                                    node_text = result[0]
+                                    logger.info(f"✅ Texto recuperado desde Supabase para nodo {node_id} ({len(node_text)} caracteres)")
                                 else:
-                                    logger.warning(f"⚠️ Nodo {node_id} no encontrado en Supabase")
+                                    logger.warning(f"⚠️ Nodo {node_id} no encontrado o sin texto en columna document")
                                 cursor.close()
                                 conn.close()
                             except Exception as conn_error:
