@@ -271,50 +271,46 @@ class RAGService:
                 )
                 documents.append(doc)
             
-            # Agregar documentos al índice (LlamaIndex maneja embeddings automáticamente)
-            # Optimizado para insertar más rápido
+            # Agregar documentos al índice usando el método correcto de LlamaIndex
+            # LlamaIndex inserta documentos uno por uno, pero podemos optimizar
             import time
             start_time = time.time()
             
             try:
-                # Intentar insertar todos los documentos de una vez (más eficiente)
-                # LlamaIndex puede procesar múltiples documentos en batch
-                if hasattr(self.index, 'insert_batch'):
+                # LlamaIndex inserta documentos individualmente
+                # El método insert() es el correcto para VectorStoreIndex
+                inserted_count = 0
+                for idx, doc in enumerate(documents):
                     try:
-                        self.index.insert_batch(documents)
-                        elapsed = time.time() - start_time
-                        logger.info(f"✅ {len(documents)} documentos agregados en batch al índice de LlamaIndex (Tiempo: {elapsed:.1f}s)")
-                    except Exception as batch_error:
-                        logger.warning(f"⚠️ Error en insert_batch, intentando inserción individual: {batch_error}")
-                        # Fallback a inserción individual más rápida
-                        for idx, doc in enumerate(documents):
-                            try:
-                                self.index.insert(doc)
-                            except Exception as insert_error:
-                                logger.warning(f"⚠️ Error insertando documento {idx + 1}: {insert_error}. Continuando...")
-                                continue
-                        elapsed = time.time() - start_time
-                        logger.info(f"✅ {len(documents)} documentos agregados individualmente (Tiempo: {elapsed:.1f}s)")
-                else:
-                    # Fallback: insertar uno por uno (más lento pero funciona)
-                    for idx, doc in enumerate(documents):
-                        try:
-                            self.index.insert(doc)
-                        except Exception as insert_error:
-                            logger.warning(f"⚠️ Error insertando documento {idx + 1}: {insert_error}. Continuando...")
-                            continue
-                    elapsed = time.time() - start_time
-                    logger.info(f"✅ {len(documents)} documentos agregados individualmente (Tiempo: {elapsed:.1f}s)")
+                        self.index.insert(doc)
+                        inserted_count += 1
+                    except Exception as insert_error:
+                        logger.warning(f"⚠️ Error insertando documento {idx + 1}/{len(documents)}: {insert_error}. Continuando...")
+                        continue
+                
+                elapsed = time.time() - start_time
+                logger.info(f"✅ {inserted_count}/{len(documents)} documentos agregados al índice de LlamaIndex (Tiempo: {elapsed:.1f}s)")
+                
+                # Refrescar el índice para asegurar que los cambios se reflejen
+                # Esto es importante para que las búsquedas encuentren los nuevos documentos
+                try:
+                    # Forzar actualización del índice
+                    if hasattr(self.index, 'refresh'):
+                        self.index.refresh()
+                    elif hasattr(self.index, '_refresh'):
+                        self.index._refresh()
+                except Exception as refresh_error:
+                    logger.debug(f"⚠️ No se pudo refrescar índice (puede ser normal): {refresh_error}")
+                
+                if elapsed > 30:
+                    logger.warning(f"⚠️ Inserción lenta: {elapsed:.1f}s para {inserted_count} documentos. Esto es normal para Supabase.")
+                    
             except Exception as e:
                 error_msg = str(e)
                 logger.error(f"❌ Error agregando documentos: {error_msg}")
                 elapsed = time.time() - start_time
                 logger.error(f"   Tiempo transcurrido: {elapsed:.1f}s")
                 raise
-            
-            elapsed = time.time() - start_time
-            if elapsed > 30:
-                logger.warning(f"⚠️ Inserción lenta: {elapsed:.1f}s para {len(documents)} documentos. Considera optimizar.")
             
         except Exception as e:
             error_msg = str(e)
@@ -350,11 +346,27 @@ class RAGService:
                 logger.warning("No hay índice disponible en el sistema RAG")
                 return []
             
+            # Verificar que el índice tenga documentos antes de buscar
+            try:
+                stats = self.get_stats()
+                total_docs = stats.get('total_documents', 0)
+                # Convertir 'unknown' o 'error' a 0
+                if isinstance(total_docs, str):
+                    total_docs = 0
+                if total_docs == 0:
+                    logger.warning("⚠️ El índice no tiene documentos. Asegúrate de haber procesado documentos primero.")
+                    return []
+                logger.debug(f"📊 Índice tiene {total_docs} documentos")
+            except Exception as stats_error:
+                logger.debug(f"⚠️ No se pudo verificar estadísticas: {stats_error}")
+            
             # Usar retriever directamente en lugar de query engine (no requiere LLM)
             retriever = self.index.as_retriever(similarity_top_k=top_k)
             
             # Realizar búsqueda
+            logger.debug(f"🔍 Buscando: '{query}' (top_k={top_k})")
             nodes = retriever.retrieve(query)
+            logger.debug(f"🔍 LlamaIndex retornó {len(nodes)} nodos")
             
             # Extraer resultados
             results = []
@@ -472,20 +484,40 @@ class RAGService:
                     'vector_store': 'none'
                 }
             
-            # Obtener número de documentos del índice
+            # Obtener número de documentos desde Supabase directamente
             total_docs = 0
             try:
-                if hasattr(self.index, '_vector_store'):
-                    # Intentar obtener conteo del vector store
-                    if hasattr(self.index._vector_store, 'client'):
-                        # Supabase vector store
-                        total_docs = getattr(self.index._vector_store, '_collection_size', 0)
+                if self.vector_store and hasattr(self.vector_store, 'postgres_connection_string'):
+                    import psycopg2
+                    conn_str = self.vector_store.postgres_connection_string
+                    
+                    try:
+                        conn = psycopg2.connect(conn_str)
+                        cursor = conn.cursor()
+                        
+                        # Consultar tabla de vectores (LlamaIndex usa esta tabla)
+                        cursor.execute("SELECT COUNT(*) FROM vecs.arbot_documents;")
+                        result = cursor.fetchone()
+                        total_docs = result[0] if result else 0
+                        
+                        cursor.close()
+                        conn.close()
+                        
+                        logger.debug(f"📊 Documentos en Supabase: {total_docs}")
+                    except Exception as db_error:
+                        logger.warning(f"⚠️ Error consultando Supabase: {db_error}")
+                        # Fallback: intentar desde el índice
+                        if hasattr(self.index, '_vector_store'):
+                            total_docs = getattr(self.index._vector_store, '_collection_size', 0)
+                elif hasattr(self.index, '_vector_store'):
+                    # Fallback para otros tipos de vector store
+                    if hasattr(self.index._vector_store, '_data'):
+                        total_docs = len(self.index._vector_store._data.get('embeddings_dict', {}))
                     else:
-                        # Simple vector store
-                        if hasattr(self.index._vector_store, '_data'):
-                            total_docs = len(self.index._vector_store._data.get('embeddings_dict', {}))
-            except:
-                pass
+                        total_docs = getattr(self.index._vector_store, '_collection_size', 0)
+            except Exception as count_error:
+                logger.debug(f"⚠️ No se pudo contar documentos: {count_error}")
+                total_docs = 0
             
             # Determinar tipo de vector store
             vector_store_type = 'memory'
@@ -497,7 +529,7 @@ class RAGService:
                     vector_store_type = 'memory'
             
             return {
-                'total_documents': total_docs if total_docs > 0 else 'unknown',
+                'total_documents': total_docs,
                 'embeddings_model': self.embeddings_model_name,
                 'vector_store': vector_store_type
             }
