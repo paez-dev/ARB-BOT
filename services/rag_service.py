@@ -617,7 +617,7 @@ class RAGService:
                     'rank': i + 1,
                     'metadata': node.metadata if hasattr(node, 'metadata') and node.metadata else {}
                 }
-                    results.append(result)
+                results.append(result)
             
             # Ordenar por similitud (de mayor a menor) de forma segura
             try:
