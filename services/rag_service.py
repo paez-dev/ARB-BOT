@@ -540,10 +540,11 @@ class RAGService:
             }
         except Exception as e:
             logger.error(f"Error obteniendo stats: {str(e)}")
-        return {
-                'total_documents': 'error',
-            'embeddings_model': self.embeddings_model_name,
-                'vector_store': 'unknown'
+            return {
+                'total_documents': 0,
+                'embeddings_model': self.embeddings_model_name,
+                'vector_store': 'unknown',
+                'error': str(e)
             }
     
     def save_index(self, filepath: str):
