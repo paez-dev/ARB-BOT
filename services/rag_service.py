@@ -371,23 +371,42 @@ class RAGService:
             """)
             columns = [row[0] for row in cursor.fetchall()]
             has_vec = 'vec' in columns
+            has_document = 'document' in columns
             embedding_col = 'vec' if has_vec else 'embedding'
             
             # Búsqueda vectorial usando cosine distance
             # Prioridad: document column (estructura correcta) > metadata->text > metadata->document
-            cursor.execute(f"""
-                SELECT 
-                    id,
-                    {embedding_col} <=> %s::vector as distance,
-                    COALESCE(document, '') as doc_text,
-                    metadata->>'text' as text_from_meta,
-                    metadata->>'document' as doc_from_meta,
-                    metadata
-                FROM vecs.arbot_documents
-                WHERE document IS NOT NULL AND document != ''
-                ORDER BY {embedding_col} <=> %s::vector
-                LIMIT %s;
-            """, (query_embedding_str, query_embedding_str, top_k))
+            if has_document:
+                # Estructura nueva con columna document
+                cursor.execute(f"""
+                    SELECT 
+                        id,
+                        {embedding_col} <=> %s::vector as distance,
+                        COALESCE(document, '') as doc_text,
+                        metadata->>'text' as text_from_meta,
+                        metadata->>'document' as doc_from_meta,
+                        metadata
+                    FROM vecs.arbot_documents
+                    WHERE (document IS NOT NULL AND document != '') 
+                       OR (metadata->>'text' IS NOT NULL AND metadata->>'text' != '')
+                    ORDER BY {embedding_col} <=> %s::vector
+                    LIMIT %s;
+                """, (query_embedding_str, query_embedding_str, top_k))
+            else:
+                # Estructura antigua sin columna document (solo metadata)
+                cursor.execute(f"""
+                    SELECT 
+                        id,
+                        {embedding_col} <=> %s::vector as distance,
+                        '' as doc_text,
+                        metadata->>'text' as text_from_meta,
+                        metadata->>'document' as doc_from_meta,
+                        metadata
+                    FROM vecs.arbot_documents
+                    WHERE metadata->>'text' IS NOT NULL AND metadata->>'text' != ''
+                    ORDER BY {embedding_col} <=> %s::vector
+                    LIMIT %s;
+                """, (query_embedding_str, query_embedding_str, top_k))
             
             results = []
             for row in cursor.fetchall():
