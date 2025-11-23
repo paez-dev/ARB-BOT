@@ -338,6 +338,7 @@ class RAGService:
         try:
             import psycopg2
             from sentence_transformers import SentenceTransformer
+            from urllib.parse import quote_plus
             
             logger.info(f"🔍 Búsqueda directa en Supabase para: '{query}'")
             
@@ -346,12 +347,17 @@ class RAGService:
             query_embedding = embedder.encode(query, show_progress_bar=False)
             query_embedding_str = '[' + ','.join(map(str, query_embedding.tolist())) + ']'
             
-            # Conectar a Supabase
-            if not self.vector_store or not hasattr(self.vector_store, 'postgres_connection_string'):
-                logger.error("❌ No hay conexión a Supabase disponible")
-                return []
-            
-            conn_str = self.vector_store.postgres_connection_string
+            # Obtener conexión desde variable de entorno (más confiable)
+            supabase_db_url = os.getenv('SUPABASE_DB_URL')
+            if not supabase_db_url:
+                # Intentar desde vector_store como fallback
+                if self.vector_store and hasattr(self.vector_store, 'postgres_connection_string'):
+                    conn_str = self.vector_store.postgres_connection_string
+                else:
+                    logger.error("❌ No hay conexión a Supabase disponible (SUPABASE_DB_URL no configurada)")
+                    return []
+            else:
+                conn_str = supabase_db_url
             conn = psycopg2.connect(conn_str)
             cursor = conn.cursor()
             
@@ -368,22 +374,24 @@ class RAGService:
             embedding_col = 'vec' if has_vec else 'embedding'
             
             # Búsqueda vectorial usando cosine distance
+            # Prioridad: document column (estructura correcta) > metadata->text > metadata->document
             cursor.execute(f"""
                 SELECT 
                     id,
                     {embedding_col} <=> %s::vector as distance,
+                    COALESCE(document, '') as doc_text,
                     metadata->>'text' as text_from_meta,
                     metadata->>'document' as doc_from_meta,
-                    COALESCE(document, '') as doc_text,
                     metadata
                 FROM vecs.arbot_documents
+                WHERE document IS NOT NULL AND document != ''
                 ORDER BY {embedding_col} <=> %s::vector
                 LIMIT %s;
             """, (query_embedding_str, query_embedding_str, top_k))
             
             results = []
             for row in cursor.fetchall():
-                node_id, distance, text_from_meta, doc_from_meta, doc_text, metadata = row
+                node_id, distance, doc_text, text_from_meta, doc_from_meta, metadata = row
                 
                 # Obtener texto (prioridad: document column > metadata->text > metadata->document)
                 node_text = doc_text or text_from_meta or doc_from_meta
@@ -475,7 +483,7 @@ class RAGService:
                     return self._search_direct_supabase(query, top_k)
             
             # Extraer resultados
-            results = []
+                results = []
             for i, node in enumerate(nodes[:top_k]):
                 # Convertir score a float de forma segura
                 try:
@@ -534,7 +542,7 @@ class RAGService:
                                 if result and result[0]:
                                     node_text = result[0]
                                     logger.info(f"✅ Texto recuperado desde Supabase para nodo {node_id} ({len(node_text)} caracteres)")
-                                else:
+            else:
                                     logger.warning(f"⚠️ Nodo {node_id} no encontrado o sin texto en columna document")
                                 cursor.close()
                                 conn.close()
@@ -555,8 +563,8 @@ class RAGService:
                     'rank': i + 1,
                     'metadata': node.metadata if hasattr(node, 'metadata') and node.metadata else {}
                 }
-                results.append(result)
-                
+                    results.append(result)
+            
             # Ordenar por similitud (de mayor a menor) de forma segura
             try:
                 results.sort(key=lambda x: x['similarity'], reverse=True)
@@ -587,19 +595,19 @@ class RAGService:
         """
         try:
             results = self.search(query, top_k=top_k)
-            
-            if not results:
+        
+        if not results:
                 logger.warning("No se encontraron resultados relevantes")
-                return ""
-            
+            return ""
+        
             # Construir contexto desde los resultados
-            context_parts = []
+        context_parts = []
             current_length = 0
             
             # Asegurar que max_context_length sea int
             max_context_length = int(max_context_length) if max_context_length else 2500
             
-            for result in results:
+        for result in results:
                 # Asegurar que text sea string
                 text = str(result.get('text', ''))
                 if not text:
@@ -713,9 +721,9 @@ class RAGService:
             }
         except Exception as e:
             logger.error(f"Error obteniendo stats: {str(e)}")
-            return {
+        return {
                 'total_documents': 0,
-                'embeddings_model': self.embeddings_model_name,
+            'embeddings_model': self.embeddings_model_name,
                 'vector_store': 'unknown',
                 'error': str(e)
             }
