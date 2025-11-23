@@ -528,6 +528,11 @@ class RAGService:
                 elif 'Simple' in store_type_str:
                     vector_store_type = 'memory'
             
+            # Asegurar que total_docs sea un número entero
+            if isinstance(total_docs, str):
+                total_docs = 0
+            total_docs = int(total_docs) if total_docs else 0
+            
             return {
                 'total_documents': total_docs,
                 'embeddings_model': self.embeddings_model_name,
