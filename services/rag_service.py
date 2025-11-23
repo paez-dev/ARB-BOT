@@ -330,6 +330,90 @@ class RAGService:
             
             raise
     
+    def _search_direct_supabase(self, query: str, top_k: int = 10) -> List[Dict]:
+        """
+        Búsqueda directa en Supabase cuando LlamaIndex falla
+        Hace búsqueda vectorial directamente usando embeddings
+        """
+        try:
+            import psycopg2
+            from sentence_transformers import SentenceTransformer
+            
+            logger.info(f"🔍 Búsqueda directa en Supabase para: '{query}'")
+            
+            # Generar embedding de la query
+            embedder = SentenceTransformer(self.embeddings_model_name)
+            query_embedding = embedder.encode(query, show_progress_bar=False)
+            query_embedding_str = '[' + ','.join(map(str, query_embedding.tolist())) + ']'
+            
+            # Conectar a Supabase
+            if not self.vector_store or not hasattr(self.vector_store, 'postgres_connection_string'):
+                logger.error("❌ No hay conexión a Supabase disponible")
+                return []
+            
+            conn_str = self.vector_store.postgres_connection_string
+            conn = psycopg2.connect(conn_str)
+            cursor = conn.cursor()
+            
+            # Detectar columnas
+            cursor.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_schema = 'vecs' 
+                AND table_name = 'arbot_documents'
+                ORDER BY ordinal_position;
+            """)
+            columns = [row[0] for row in cursor.fetchall()]
+            has_vec = 'vec' in columns
+            embedding_col = 'vec' if has_vec else 'embedding'
+            
+            # Búsqueda vectorial usando cosine distance
+            cursor.execute(f"""
+                SELECT 
+                    id,
+                    {embedding_col} <=> %s::vector as distance,
+                    metadata->>'text' as text_from_meta,
+                    metadata->>'document' as doc_from_meta,
+                    COALESCE(document, '') as doc_text,
+                    metadata
+                FROM vecs.arbot_documents
+                ORDER BY {embedding_col} <=> %s::vector
+                LIMIT %s;
+            """, (query_embedding_str, query_embedding_str, top_k))
+            
+            results = []
+            for row in cursor.fetchall():
+                node_id, distance, text_from_meta, doc_from_meta, doc_text, metadata = row
+                
+                # Obtener texto (prioridad: document column > metadata->text > metadata->document)
+                node_text = doc_text or text_from_meta or doc_from_meta
+                
+                if not node_text:
+                    logger.warning(f"⚠️ Nodo {node_id} sin texto recuperable")
+                    continue
+                
+                # Convertir distancia a similitud (1 - distancia)
+                similarity = max(0.0, 1.0 - float(distance)) if distance is not None else 0.5
+                
+                result = {
+                    'text': node_text,
+                    'source': metadata.get('file_name', 'unknown') if metadata else 'unknown',
+                    'similarity': similarity,
+                    'rank': len(results) + 1,
+                    'metadata': metadata if metadata else {}
+                }
+                results.append(result)
+            
+            cursor.close()
+            conn.close()
+            
+            logger.info(f"✅ Búsqueda directa completada: {len(results)} resultados")
+            return results
+            
+        except Exception as e:
+            logger.error(f"❌ Error en búsqueda directa Supabase: {e}")
+            return []
+    
     def search(self, query: str, top_k: int = 10) -> List[Dict]:
         """
         Buscar documentos relevantes usando LlamaIndex
@@ -364,9 +448,21 @@ class RAGService:
             retriever = self.index.as_retriever(similarity_top_k=top_k)
             
             # Realizar búsqueda
-            logger.debug(f"🔍 Buscando: '{query}' (top_k={top_k})")
-            nodes = retriever.retrieve(query)
-            logger.debug(f"🔍 LlamaIndex retornó {len(nodes)} nodos")
+            logger.info(f"🔍 Buscando: '{query}' (top_k={top_k})")
+            try:
+                nodes = retriever.retrieve(query)
+                logger.info(f"🔍 LlamaIndex retornó {len(nodes)} nodos")
+            except Exception as retrieve_error:
+                error_msg = str(retrieve_error)
+                logger.error(f"❌ Error en búsqueda RAG: {error_msg}")
+                
+                # Si el error es sobre TextNode con text=None, intentar recuperar desde Supabase directamente
+                if "TextNode" in error_msg and "none is not an allowed value" in error_msg.lower():
+                    logger.warning("⚠️ LlamaIndex retornó nodos con text=None, intentando búsqueda directa en Supabase...")
+                    # Hacer búsqueda directa en Supabase usando embeddings
+                    return self._search_direct_supabase(query, top_k)
+                else:
+                    raise
             
             # Extraer resultados
             results = []
@@ -380,9 +476,79 @@ class RAGService:
                 except (ValueError, TypeError):
                     similarity = 0.8
                 
+                # Obtener texto del nodo - PRIORIDAD: metadata primero, luego Supabase directo
+                node_text = None
+                
+                # 1. Intentar desde node.text (puede ser None si no hay columna document)
+                if hasattr(node, 'text') and node.text:
+                    node_text = node.text
+                    logger.debug(f"✅ Texto obtenido desde node.text")
+                
+                # 2. Intentar desde metadata del nodo
+                if not node_text and hasattr(node, 'metadata') and node.metadata:
+                    node_text = node.metadata.get('text') or node.metadata.get('document')
+                    if node_text:
+                        logger.debug(f"✅ Texto obtenido desde node.metadata")
+                
+                # 3. Si aún no hay texto, consultar directamente a Supabase usando el id del nodo
+                if not node_text:
+                    try:
+                        import psycopg2
+                        # Obtener node_id del nodo - LlamaIndex puede usar diferentes atributos
+                        node_id = None
+                        if hasattr(node, 'node_id'):
+                            node_id = node.node_id
+                        elif hasattr(node, 'id_'):
+                            node_id = node.id_
+                        elif hasattr(node, 'id'):
+                            node_id = node.id
+                        elif hasattr(node, 'ref_doc_id'):
+                            node_id = node.ref_doc_id
+                        elif hasattr(node, 'metadata') and node.metadata:
+                            # Intentar obtener id desde metadata
+                            node_id = node.metadata.get('id') or node.metadata.get('chunk_id') or node.metadata.get('_node_id')
+                        
+                        # Si tenemos un ID, consultar Supabase
+                        if node_id and self.vector_store and hasattr(self.vector_store, 'postgres_connection_string'):
+                            conn_str = self.vector_store.postgres_connection_string
+                            try:
+                                conn = psycopg2.connect(conn_str)
+                                cursor = conn.cursor()
+                                # Intentar obtener desde metadata JSON o columna document
+                                # El texto puede estar en metadata->text, metadata->document, o columna document
+                                cursor.execute("""
+                                    SELECT 
+                                        COALESCE(document, '') as doc_text,
+                                        metadata->>'text' as meta_text,
+                                        metadata->>'document' as meta_doc
+                                    FROM vecs.arbot_documents
+                                    WHERE id = %s;
+                                """, (str(node_id),))
+                                result = cursor.fetchone()
+                                if result:
+                                    # Priorizar: document column > metadata->text > metadata->document
+                                    node_text = (result[0] if result[0] else None) or result[1] or result[2]
+                                    if node_text:
+                                        logger.info(f"✅ Texto recuperado desde Supabase para nodo {node_id} ({len(node_text)} caracteres)")
+                                    else:
+                                        logger.warning(f"⚠️ Nodo {node_id} encontrado pero sin texto en ninguna columna")
+                                else:
+                                    logger.warning(f"⚠️ Nodo {node_id} no encontrado en Supabase")
+                                cursor.close()
+                                conn.close()
+                            except Exception as conn_error:
+                                logger.warning(f"⚠️ Error conectando a Supabase para obtener texto: {conn_error}")
+                    except Exception as db_error:
+                        logger.warning(f"⚠️ No se pudo obtener texto desde Supabase: {db_error}")
+                
+                # 4. Si aún no hay texto, usar un fallback
+                if not node_text:
+                    node_text = node.metadata.get('file_name', 'Documento sin texto') if hasattr(node, 'metadata') and node.metadata else 'Sin texto disponible'
+                    logger.warning(f"⚠️ Nodo sin texto recuperable, usando fallback: {node_text[:50]}...")
+                
                 result = {
-                    'text': node.text,
-                    'source': node.metadata.get('source', 'unknown') if hasattr(node, 'metadata') and node.metadata else 'unknown',
+                    'text': node_text,
+                    'source': node.metadata.get('source', node.metadata.get('file_name', 'unknown')) if hasattr(node, 'metadata') and node.metadata else 'unknown',
                     'similarity': similarity,
                     'rank': i + 1,
                     'metadata': node.metadata if hasattr(node, 'metadata') and node.metadata else {}
