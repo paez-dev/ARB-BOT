@@ -243,11 +243,19 @@ class RAGService:
     
     def add_documents(self, chunks: List[Dict]):
         """
-        Agregar documentos al sistema RAG usando LlamaIndex
+        ⚠️ DESHABILITADO EN PRODUCCIÓN
+        
+        Este método NO debe usarse en Railway.
+        Los documentos deben procesarse en Google Colab y subirse directamente a Supabase.
+        
+        Ver: INGESTA_FINAL_RAG.ipynb para procesar documentos.
         
         Args:
-            chunks: Lista de chunks de documentos
+            chunks: Lista de chunks de documentos (NO USAR EN PRODUCCIÓN)
         """
+        logger.warning("⚠️ add_documents() llamado en producción. Este método está deshabilitado.")
+        logger.warning("💡 Los documentos deben procesarse en Google Colab, no en Railway.")
+        return
         try:
             if not chunks:
                 logger.warning("No hay chunks para agregar")
@@ -432,10 +440,8 @@ class RAGService:
             
             for row in cursor.fetchall():
                 node_id, text_content, metadata, similarity = row
-                # ✅ COMPATIBILIDAD: Soporta 'file' (INGESTA_FINAL_RAG) y 'source'/'file_name' (INGESTA_DOCUMENTOS_COLAB)
-                source = 'unknown'
-                if metadata:
-                    source = metadata.get('source') or metadata.get('file_name') or metadata.get('file') or 'unknown'
+                # ✅ FORMATO ESTÁNDAR: Usa 'file' como en INGESTA_FINAL_RAG.ipynb
+                source = metadata.get('file', 'unknown') if metadata else 'unknown'
                 text_results.append({
                     'text': text_content,
                     'source': source,
@@ -492,10 +498,8 @@ class RAGService:
                     
                     # Evitar duplicados con resultados de texto
                     if not any(r['text'] == text_content for r in text_results):
-                        # ✅ COMPATIBILIDAD: Soporta 'file' (INGESTA_FINAL_RAG) y 'source'/'file_name' (INGESTA_DOCUMENTOS_COLAB)
-                        source = 'unknown'
-                        if metadata:
-                            source = metadata.get('source') or metadata.get('file_name') or metadata.get('file') or 'unknown'
+                        # ✅ FORMATO ESTÁNDAR: Usa 'file' como en INGESTA_FINAL_RAG.ipynb
+                        source = metadata.get('file', 'unknown') if metadata else 'unknown'
                         vector_results.append({
                             'text': text_content,
                             'source': source,
@@ -613,8 +617,8 @@ class RAGService:
                 
                 result = {
                     'text': node_text,
-                    # ✅ COMPATIBILIDAD: Soporta 'file' (INGESTA_FINAL_RAG) y 'source'/'file_name' (INGESTA_DOCUMENTOS_COLAB)
-                    'source': (metadata.get('source') or metadata.get('file_name') or metadata.get('file') or 'unknown') if metadata else 'unknown',
+                    # ✅ FORMATO ESTÁNDAR: Usa 'file' como en INGESTA_FINAL_RAG.ipynb
+                    'source': metadata.get('file', 'unknown') if metadata else 'unknown',
                     'similarity': similarity,
                     'rank': len(results) + 1,
                     'metadata': metadata if metadata else {}
@@ -786,10 +790,10 @@ class RAGService:
                     node_text = node.metadata.get('file_name', 'Documento sin texto') if hasattr(node, 'metadata') and node.metadata else 'Sin texto disponible'
                     logger.warning(f"⚠️ Nodo sin texto recuperable, usando fallback: {node_text[:50]}...")
                 
-                # ✅ COMPATIBILIDAD: Soporta 'file' (INGESTA_FINAL_RAG) y 'source'/'file_name' (INGESTA_DOCUMENTOS_COLAB)
+                # ✅ FORMATO ESTÁNDAR: Usa 'file' como en INGESTA_FINAL_RAG.ipynb
                 source = 'unknown'
                 if hasattr(node, 'metadata') and node.metadata:
-                    source = node.metadata.get('source') or node.metadata.get('file_name') or node.metadata.get('file') or 'unknown'
+                    source = node.metadata.get('file', 'unknown')
                 
                 result = {
                     'text': node_text,
