@@ -6,30 +6,30 @@
 -- 1. Buscar TODAS las menciones del artículo 52
 SELECT 
     id,
-    LEFT(content, 300) as preview,
-    LENGTH(content) as longitud,
+    LEFT(text, 300) as preview,
+    LENGTH(text) as longitud,
     CASE 
-        WHEN content ILIKE 'Artículo 52%' THEN '✅ Empieza con Artículo 52'
-        WHEN content ILIKE '%Artículo 52%' THEN '✅ Contiene Artículo 52'
-        WHEN content ILIKE '%art. 52%' THEN '✅ Contiene art. 52'
+        WHEN text ILIKE 'Artículo 52%' THEN '✅ Empieza con Artículo 52'
+        WHEN text ILIKE '%Artículo 52%' THEN '✅ Contiene Artículo 52'
+        WHEN text ILIKE '%art. 52%' THEN '✅ Contiene art. 52'
         ELSE '⚠️ Menciona 52'
     END as tipo_mencio,
     metadata->>'file_name' as archivo
 FROM vecs.arbot_documents
 WHERE 
-    content ILIKE '%52%' AND (
-        content ILIKE '%artículo 52%' OR
-        content ILIKE '%art. 52%' OR
-        content ILIKE '%articulo 52%' OR
-        content ILIKE '%Artículo 52%' OR
-        content ILIKE '%ARTÍCULO 52%' OR
-        content ILIKE '%Art. 52%'
+    text ILIKE '%52%' AND (
+        text ILIKE '%artículo 52%' OR
+        text ILIKE '%art. 52%' OR
+        text ILIKE '%articulo 52%' OR
+        text ILIKE '%Artículo 52%' OR
+        text ILIKE '%ARTÍCULO 52%' OR
+        text ILIKE '%Art. 52%'
     )
 ORDER BY 
     CASE 
-        WHEN content ILIKE 'Artículo 52%' THEN 1
-        WHEN content ILIKE '%Artículo 52%' THEN 2
-        WHEN content ILIKE '%art. 52%' THEN 3
+        WHEN text ILIKE 'Artículo 52%' THEN 1
+        WHEN text ILIKE '%Artículo 52%' THEN 2
+        WHEN text ILIKE '%art. 52%' THEN 3
         ELSE 4
     END,
     LENGTH(content) DESC;
@@ -49,8 +49,8 @@ SELECT
 FROM (
     SELECT 
         CASE 
-            WHEN content ~* 'Artículo\s+(\d+)' THEN 
-                (regexp_match(content, 'Artículo\s+(\d+)', 'i'))[1]
+            WHEN text ~* 'Artículo\s+(\d+)' THEN 
+                (regexp_match(text, 'Artículo\s+(\d+)', 'i'))[1]
             ELSE 'No detectado'
         END as numero_articulo
     FROM vecs.arbot_documents
@@ -67,7 +67,7 @@ LIMIT 60;
 -- 4. Ver chunks que deberían tener metadata article pero no la tienen
 SELECT 
     id,
-    LEFT(content, 200) as preview,
+    LEFT(text, 200) as preview,
     CASE 
         WHEN content ~* '^Artículo\s+(\d+)' THEN 
             (regexp_match(content, '^Artículo\s+(\d+)', 'i'))[1]

@@ -6,19 +6,19 @@
 -- 1. Buscar el artículo 52 específicamente
 SELECT 
     id,
-    LEFT(content, 200) as preview,
-    LENGTH(content) as longitud,
+    LEFT(text, 200) as preview,
+    LENGTH(text) as longitud,
     metadata->>'file_name' as archivo,
     metadata->>'article' as articulo_metadata
 FROM vecs.arbot_documents
 WHERE 
     -- Buscar en el texto
     (
-        content ILIKE '%artículo 52%' OR
-        content ILIKE '%art. 52%' OR
-        content ILIKE '%articulo 52%' OR
-        content ILIKE '%Artículo 52%' OR
-        content ILIKE '%ARTÍCULO 52%'
+        text ILIKE '%artículo 52%' OR
+        text ILIKE '%art. 52%' OR
+        text ILIKE '%articulo 52%' OR
+        text ILIKE '%Artículo 52%' OR
+        text ILIKE '%ARTÍCULO 52%'
     )
     -- O buscar en metadata
     OR (
@@ -32,7 +32,7 @@ ORDER BY
         WHEN content ILIKE '%Artículo 52%' THEN 3
         ELSE 4
     END,
-    LENGTH(content) DESC
+    LENGTH(text) DESC
 LIMIT 10;
 
 -- 2. Contar cuántos chunks mencionan el artículo 52
