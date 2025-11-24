@@ -4,979 +4,235 @@ Sistema de búsqueda y recuperación de información de documentos
 Usa LlamaIndex con Supabase pgvector para persistencia
 """
 
-import os
-import logging
-from typing import List, Dict, Optional
+#!/usr/bin/env python3
+"""
+rag_service.py
+Servicio RAG (Supabase pgvector) para ARB-BOT.
 
-logger = logging.getLogger(__name__)
+Funcionalidades:
+- conexión segura a Supabase (via SUPABASE_DB_URL)
+- generación de embeddings para queries (Sentence-Transformers)
+- búsqueda vectorial eficiente usando ORDER BY vec <-> query_vector
+- creación de contexto concatenado
+- stats básicos
+"""
+
+import os
+import json
+import logging
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+
+import psycopg2
+from psycopg2.extras import RealDictCursor, execute_values
+from sentence_transformers import SentenceTransformer
+
+logger = logging.getLogger("services.rag_service")
+logger.setLevel(logging.INFO)
+
+# Default config (override with env vars)
+DEFAULT_SCHEMA = "vecs"
+DEFAULT_TABLE = "arbot_documents"
+EMBEDDING_MODEL = os.getenv("EMBEDDINGS_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+VECTOR_DIM = int(os.getenv("VECTOR_DIM", "384"))
+
 
 class RAGService:
-    """
-    Servicio RAG para buscar información relevante en documentos
-    Usa LlamaIndex con Supabase pgvector (100% gratuito, persistente)
-    """
-    
-    def __init__(self, embeddings_model='sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'):
-        """
-        Inicializar servicio RAG con LlamaIndex y Supabase
-        
-        Args:
-            embeddings_model: Modelo de embeddings (gratuito de sentence-transformers)
-        """
-        self.embeddings_model_name = embeddings_model
-        self.vector_store = None
-        self.index = None
-        self.query_engine = None
-        self._initialize_llamaindex()
-    
-    def _initialize_llamaindex(self):
-        """Inicializar LlamaIndex con Supabase como vector store"""
+    def __init__(self):
+        logger.info("🚀 Inicializando RAGService...")
+        self.db_url = os.getenv("SUPABASE_DB_URL")
+        self.supabase_url = os.getenv("SUPABASE_URL")
+        self.supabase_key = os.getenv("SUPABASE_KEY")
+
+        if not self.db_url:
+            logger.error("SUPABASE_DB_URL no configurado. Revisa variables de entorno.")
+            raise RuntimeError("SUPABASE_DB_URL required")
+
+        if not self.supabase_key or not self.supabase_url:
+            logger.warning("SUPABASE_URL o SUPABASE_KEY no configurados — la app puede seguir, pero algunas funciones podrían quedar limitadas.")
+
+        self.schema = os.getenv("SCHEMA", DEFAULT_SCHEMA)
+        self.table = os.getenv("TABLE", DEFAULT_TABLE)
+        self.vector_dim = int(os.getenv("VECTOR_DIM", VECTOR_DIM))
+
+        # Embeddings model (for query embeddings)
+        logger.info(f"🧠 Cargando modelo de embeddings: {EMBEDDING_MODEL}")
+        self.embedding_model = SentenceTransformer(EMBEDDING_MODEL)
+
+        # DB connection
+        logger.info("🔗 Conectando a la base de datos (Supabase Postgres)...")
+        self.conn = self._connect_db()
+        logger.info("🟩 Conectado a Supabase (Postgres).")
+
+        # Quick sanity check
+        self._ensure_table_exists()
+        self._test_documents_loaded()
+
+    def _connect_db(self):
         try:
-            from llama_index.core import VectorStoreIndex, StorageContext
-            from llama_index.core.settings import Settings
-            from llama_index.vector_stores.supabase import SupabaseVectorStore
-            from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-            import os
-            
-            # Obtener configuración de Supabase
-            supabase_url = os.getenv('SUPABASE_URL', '')
-            supabase_key = os.getenv('SUPABASE_KEY', '')
-            supabase_db_url = os.getenv('SUPABASE_DB_URL', '')
-            
-            if not supabase_url or not supabase_key:
-                logger.warning("⚠️ SUPABASE_URL o SUPABASE_KEY no configurados. Usando almacenamiento en memoria.")
-                # Fallback a almacenamiento en memoria
-                self._initialize_in_memory()
-                return
-            
-            # Si SUPABASE_DB_URL está configurada, codificar el password si tiene caracteres especiales
-            if supabase_db_url:
-                # Verificar si el password necesita codificación (tiene caracteres especiales sin codificar)
-                # Formato: postgresql://postgres:PASSWORD@host:port/db
-                if '@' in supabase_db_url and '://' in supabase_db_url:
-                    try:
-                        from urllib.parse import urlparse, urlunparse, quote
-                        parsed = urlparse(supabase_db_url)
-                        # Si el password tiene caracteres especiales sin codificar, codificarlo
-                        if parsed.password and ('$' in parsed.password or '@' in parsed.password or '#' in parsed.password):
-                            # Reconstruir URL con password codificado
-                            encoded_password = quote(parsed.password, safe='')
-                            # Reconstruir netloc con password codificado
-                            netloc = f"{parsed.username}:{encoded_password}@{parsed.hostname}"
-                            if parsed.port:
-                                netloc += f":{parsed.port}"
-                            # Reconstruir URL completa
-                            supabase_db_url = urlunparse((
-                                parsed.scheme,
-                                netloc,
-                                parsed.path,
-                                parsed.params,
-                                parsed.query,
-                                parsed.fragment
-                            ))
-                            logger.info("🔐 Password codificado automáticamente en SUPABASE_DB_URL")
-                    except Exception as encode_error:
-                        logger.warning(f"⚠️ No se pudo codificar password automáticamente: {encode_error}")
-                        logger.warning("💡 Si tu password tiene caracteres especiales ($, @, #), codifícalos manualmente en la URL")
-            
-            if not supabase_db_url:
-                # Intentar construir la connection string desde SUPABASE_URL
-                # Formato: postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres
-                # Necesitamos extraer el host de SUPABASE_URL
-                logger.warning("⚠️ SUPABASE_DB_URL no configurado. Intentando construir desde SUPABASE_URL...")
-                # Extraer host de SUPABASE_URL (ej: https://xxxxx.supabase.co -> xxxxx.supabase.co)
-                if 'supabase.co' in supabase_url:
-                    host = supabase_url.replace('https://', '').replace('http://', '').split('/')[0]
-                    logger.info(f"📋 Host extraído: {host}")
-                    # Necesitamos la contraseña de la base de datos
-                    db_password = os.getenv('SUPABASE_DB_PASSWORD', '')
-                    if db_password:
-                        # Codificar password para URL (manejar caracteres especiales como $, @, etc.)
-                        from urllib.parse import quote_plus
-                        password_encoded = quote_plus(db_password)
-                        # Construir connection string
-                        supabase_db_url = f"postgresql://postgres:{password_encoded}@db.{host}:5432/postgres"
-                        logger.info(f"🔗 Connection string construida: postgresql://postgres:***@db.{host}:5432/postgres")
-                    else:
-                        logger.error("❌ Se necesita SUPABASE_DB_URL o SUPABASE_DB_PASSWORD para conectar a PostgreSQL")
-                        logger.error("💡 Configura SUPABASE_DB_PASSWORD en Railway con tu password de base de datos")
-                        self._initialize_in_memory()
-                        return
-                else:
-                    logger.error(f"❌ No se pudo construir SUPABASE_DB_URL desde SUPABASE_URL: {supabase_url}")
-                    self._initialize_in_memory()
-                    return
-            else:
-                # Log parcial de la connection string (ocultar password)
-                safe_url = supabase_db_url.split('@')[1] if '@' in supabase_db_url else '***'
-                logger.info(f"🔗 Usando SUPABASE_DB_URL: postgresql://postgres:***@{safe_url}")
-            
-            logger.info("🔧 Inicializando LlamaIndex con Supabase pgvector...")
-            
-            # Configurar embeddings (nueva API de LlamaIndex 0.10.0)
-            embed_model = HuggingFaceEmbedding(
-                model_name=self.embeddings_model_name
-            )
-            Settings.embed_model = embed_model
-            
-            # Crear vector store de Supabase
-            # Nota: collection_name y table_name deben ser consistentes
-            # LlamaIndex usa collection_name para crear la tabla en el schema 'vecs'
-            self.vector_store = SupabaseVectorStore(
-                postgres_connection_string=supabase_db_url,
-                collection_name="arbot_documents",  # Este es el nombre que usa para la tabla
-                table_name="arbot_documents"  # Asegurar consistencia
-            )
-            
-            # Crear storage context
-            storage_context = StorageContext.from_defaults(
-                vector_store=self.vector_store
-            )
-            
-            # Crear o cargar índice
-            try:
-                # Intentar cargar índice existente
-                self.index = VectorStoreIndex.from_vector_store(
-                    vector_store=self.vector_store,
-                    storage_context=storage_context
-                )
-                logger.info("✅ Índice cargado desde Supabase")
-            except Exception as load_error:
-                # Si no existe, crear uno nuevo
-                logger.info(f"ℹ️ No se encontró índice existente en Supabase, se creará uno nuevo: {load_error}")
-                self.index = VectorStoreIndex(
-                    nodes=[],
-                    storage_context=storage_context
-                )
-                logger.info("✅ Nuevo índice creado en Supabase")
-            
-            # No crear query engine (requiere LLM), usaremos retriever directamente en search()
-            self.query_engine = None
-            
-            logger.info("✅ LlamaIndex inicializado correctamente con Supabase")
-            
-        except ImportError as e:
-            logger.error(f"❌ Error importando LlamaIndex: {e}")
-            logger.error("💡 Instala: pip install llama-index-vector-stores-supabase llama-index-embeddings-huggingface")
+            conn = psycopg2.connect(self.db_url)
+            conn.autocommit = True
+            return conn
+        except Exception as e:
+            logger.error("🟥 No fue posible conectar a Supabase Postgres.")
+            logger.exception(e)
             raise
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"❌ Error inicializando LlamaIndex con Supabase: {error_msg}")
-            
-            # Mensajes de ayuda según el tipo de error
-            if "Network is unreachable" in error_msg or "connection" in error_msg.lower():
-                logger.error("💡 Posibles causas:")
-                logger.error("   1. La connection string está mal formada")
-                logger.error("   2. El password de la base de datos es incorrecto")
-                logger.error("   3. Supabase tiene restricciones de red (verifica Network Restrictions)")
-                logger.error("   4. El host 'db.xxxxx.supabase.co' no es accesible desde Railway")
-                logger.error("💡 Solución: Verifica SUPABASE_DB_URL o SUPABASE_DB_PASSWORD en Railway")
-            elif "authentication failed" in error_msg.lower() or "password" in error_msg.lower():
-                logger.error("💡 Error de autenticación:")
-                logger.error("   1. Verifica que SUPABASE_DB_PASSWORD sea correcto")
-                logger.error("   2. Puedes resetear el password en Supabase → Settings → Database")
-            elif "does not exist" in error_msg.lower() or "extension" in error_msg.lower():
-                logger.error("💡 Error de base de datos:")
-                logger.error("   1. Verifica que pgvector esté habilitado en Supabase")
-                logger.error("   2. Ejecuta: CREATE EXTENSION IF NOT EXISTS vector;")
-            
-            logger.warning("⚠️ Fallback a almacenamiento en memoria...")
-            self._initialize_in_memory()
-    
-    def _initialize_in_memory(self):
-        """Inicializar LlamaIndex en memoria (fallback)"""
+
+    def _ensure_table_exists(self):
+        """Verifica que la tabla exista y tenga columnas mínimas."""
         try:
-            from llama_index.core import VectorStoreIndex, StorageContext
-            from llama_index.core.settings import Settings
-            from llama_index.core.vector_stores import SimpleVectorStore
-            from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-            
-            logger.info("🔧 Inicializando LlamaIndex en memoria (fallback)...")
-            
-            # Configurar embeddings (nueva API de LlamaIndex 0.10.0)
-            embed_model = HuggingFaceEmbedding(
-                model_name=self.embeddings_model_name
-            )
-            Settings.embed_model = embed_model
-            
-            # Crear vector store simple en memoria
-            vector_store = SimpleVectorStore()
-            storage_context = StorageContext.from_defaults(vector_store=vector_store)
-            
-            # Crear índice vacío
-            self.index = VectorStoreIndex(
-                nodes=[],
-                storage_context=storage_context
-            )
-            
-            # No crear query engine (requiere LLM), usaremos retriever directamente en search()
-            self.query_engine = None
-            
-            self.vector_store = vector_store
-            logger.info("✅ LlamaIndex inicializado en memoria (sin persistencia)")
-            
-        except ImportError as import_error:
-            # Si SimpleVectorStore no está disponible, intentar sin vector store
-            logger.warning(f"⚠️ SimpleVectorStore no disponible ({import_error}), creando índice sin vector store...")
-            try:
-                from llama_index.core import VectorStoreIndex
-                from llama_index.core.settings import Settings
-                from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-                
-                embed_model = HuggingFaceEmbedding(
-                    model_name=self.embeddings_model_name
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT column_name, data_type
+                    FROM information_schema.columns
+                    WHERE table_schema = %s AND table_name = %s
+                    """,
+                    (self.schema, self.table),
                 )
-                Settings.embed_model = embed_model
-                
-                # Crear índice sin vector store (solo en memoria)
-                self.index = VectorStoreIndex(nodes=[])
-                # No crear query engine (requiere LLM), usaremos retriever directamente
-                self.query_engine = None
-                self.vector_store = None
-                logger.info("✅ LlamaIndex inicializado en memoria (sin vector store)")
-            except Exception as e2:
-                logger.error(f"❌ Error en fallback alternativo: {e2}")
-                raise
+                cols = {r["column_name"]: r["data_type"] for r in cur.fetchall()}
+                if "text" not in cols or "vec" not in cols:
+                    logger.error(f"La tabla {self.schema}.{self.table} no tiene las columnas esperadas (text, vec). Columnas encontradas: {list(cols.keys())}")
+                    raise RuntimeError("Invalid table schema for RAG. Expected columns: text, vec")
         except Exception as e:
-            logger.error(f"❌ Error en fallback a memoria: {e}")
+            logger.exception("Error verificando esquema de tabla.")
             raise
-    
-    def add_documents(self, chunks: List[Dict]):
-        """
-        ⚠️ DESHABILITADO EN PRODUCCIÓN
-        
-        Este método NO debe usarse en Railway.
-        Los documentos deben procesarse en Google Colab y subirse directamente a Supabase.
-        
-        Ver: INGESTA_FINAL_RAG.ipynb para procesar documentos.
-        
-        Args:
-            chunks: Lista de chunks de documentos (NO USAR EN PRODUCCIÓN)
-        """
-        logger.warning("⚠️ add_documents() llamado en producción. Este método está deshabilitado.")
-        logger.warning("💡 Los documentos deben procesarse en Google Colab, no en Railway.")
-        return
+
+    def _test_documents_loaded(self):
+        """Cuenta documentos para informar estado."""
         try:
-            if not chunks:
-                logger.warning("No hay chunks para agregar")
-                return
-            
-            logger.info(f"📄 Agregando {len(chunks)} chunks al sistema RAG con LlamaIndex...")
-            
-            from llama_index.core import Document
-            
-            # Convertir chunks a documentos de LlamaIndex
-            documents = []
-            skipped_empty = 0
-            for chunk in chunks:
-                chunk_text = chunk.get('text', '').strip()
-                
-                # Validar que el chunk tenga texto válido
-                if not chunk_text:
-                    skipped_empty += 1
-                    logger.warning(f"⚠️ Chunk {chunk.get('id', 'unknown')} sin texto, omitiendo...")
-                    continue
-                
-                doc = Document(
-                    text=chunk_text,
-                    metadata={
-                        'source': chunk.get('source', 'unknown'),
-                        'chunk_id': chunk.get('id', 0),
-                        'chunk_index': chunk.get('chunk_index', 0),
-                        'article': chunk.get('article', None),
-                        'file_name': chunk.get('source', 'unknown')  # Asegurar file_name para búsqueda
-                    }
-                )
-                documents.append(doc)
-            
-            if skipped_empty > 0:
-                logger.warning(f"⚠️ {skipped_empty} chunks sin texto fueron omitidos")
-            
-            if not documents:
-                logger.error("❌ No hay documentos válidos para agregar (todos estaban vacíos)")
-                return
-            
-            # Agregar documentos al índice usando el método correcto de LlamaIndex
-            # LlamaIndex inserta documentos uno por uno, pero podemos optimizar
-            import time
-            start_time = time.time()
-            
-            try:
-                # LlamaIndex inserta documentos individualmente
-                # El método insert() es el correcto para VectorStoreIndex
-                inserted_count = 0
-                for idx, doc in enumerate(documents):
-                    try:
-                        # Validar que el documento tenga texto antes de insertar
-                        if not doc.text or not doc.text.strip():
-                            logger.warning(f"⚠️ Documento {idx + 1}/{len(documents)} sin texto, omitiendo inserción")
-                            continue
-                        
-                        self.index.insert(doc)
-                        inserted_count += 1
-                        
-                        # Log cada 10 documentos para no saturar
-                        if inserted_count % 10 == 0:
-                            logger.debug(f"📄 {inserted_count} documentos insertados...")
-                            
-                    except Exception as insert_error:
-                        error_msg = str(insert_error)
-                        logger.warning(f"⚠️ Error insertando documento {idx + 1}/{len(documents)}: {error_msg}")
-                        
-                        # Si el error es sobre texto NULL, es crítico
-                        if "text" in error_msg.lower() and ("null" in error_msg.lower() or "none" in error_msg.lower()):
-                            logger.error(f"🔴 ERROR CRÍTICO: Documento con text=None detectado en inserción")
-                            logger.error(f"   Documento: {doc.metadata.get('source', 'unknown')}")
-                            logger.error(f"   Texto length: {len(doc.text) if doc.text else 0}")
-                        
-                        continue
-                
-                elapsed = time.time() - start_time
-                logger.info(f"✅ {inserted_count}/{len(documents)} documentos agregados al índice de LlamaIndex (Tiempo: {elapsed:.1f}s)")
-                
-                # Refrescar el índice para asegurar que los cambios se reflejen
-                # Esto es importante para que las búsquedas encuentren los nuevos documentos
-                try:
-                    # Forzar actualización del índice
-                    if hasattr(self.index, 'refresh'):
-                        self.index.refresh()
-                    elif hasattr(self.index, '_refresh'):
-                        self.index._refresh()
-                except Exception as refresh_error:
-                    logger.debug(f"⚠️ No se pudo refrescar índice (puede ser normal): {refresh_error}")
-                
-                if elapsed > 30:
-                    logger.warning(f"⚠️ Inserción lenta: {elapsed:.1f}s para {inserted_count} documentos. Esto es normal para Supabase.")
-                    
-            except Exception as e:
-                error_msg = str(e)
-                logger.error(f"❌ Error agregando documentos: {error_msg}")
-                elapsed = time.time() - start_time
-                logger.error(f"   Tiempo transcurrido: {elapsed:.1f}s")
-                raise
-            
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"❌ Error agregando documentos: {error_msg}")
-            
-            # Detectar error de dimensiones específico
-            if "expected" in error_msg and "dimensions" in error_msg and "not" in error_msg:
-                logger.error("🔴 ERROR DE DIMENSIONES DETECTADO")
-                logger.error("💡 La tabla en Supabase tiene dimensiones incorrectas")
-                logger.error("💡 Solución:")
-                logger.error("   1. Ve a Supabase → SQL Editor")
-                logger.error("   2. Ejecuta: DROP TABLE IF EXISTS vecs.arbot_documents CASCADE;")
-                logger.error("   3. Ejecuta: DROP TABLE IF EXISTS vecs.arbot_vectors CASCADE;")
-                logger.error("   4. Reinicia la aplicación")
-                logger.error("   5. Vuelve a subir el documento")
-                logger.error("📖 Ver CORREGIR_DIMENSIONES_VECTORES.md para más detalles")
-            
-            raise
-    
-    def _search_hybrid(self, query: str, article_num: str, top_k: int = 10) -> List[Dict]:
-        """
-        Búsqueda híbrida para artículos específicos: combina búsqueda por texto y vectorial
-        
-        Args:
-            query: Query original del usuario
-            article_num: Número de artículo detectado
-            top_k: Número de resultados
-        
-        Returns:
-            Lista de resultados combinados
-        """
-        try:
-            import psycopg2
-            from sentence_transformers import SentenceTransformer
-            from urllib.parse import quote_plus
-            
-            logger.info(f"🔍 Búsqueda híbrida para artículo {article_num}")
-            
-            # Obtener conexión
-            supabase_db_url = os.getenv('SUPABASE_DB_URL')
-            if not supabase_db_url:
-                if self.vector_store and hasattr(self.vector_store, 'postgres_connection_string'):
-                    conn_str = self.vector_store.postgres_connection_string
+            with self.conn.cursor() as cur:
+                cur.execute(f"SELECT COUNT(*) FROM {self.schema}.{self.table}")
+                cnt = cur.fetchone()[0]
+                if cnt == 0:
+                    logger.warning(f"⚠️ Tabla {self.schema}.{self.table} está vacía (0 rows).")
                 else:
-                    logger.error("❌ No hay conexión a Supabase disponible")
-                    return []
-            else:
-                conn_str = supabase_db_url
-            
-            conn = psycopg2.connect(conn_str)
-            cursor = conn.cursor()
-            
-            # Paso 1: Búsqueda por texto (prioritaria para artículos específicos)
-            text_results = []
-                cursor.execute("""
-                SELECT 
-                    id,
-                    text,
-                    metadata,
-                    1.0 as similarity  -- Máxima similitud para coincidencias exactas
-                FROM vecs.arbot_documents
-                WHERE (
-                    text ILIKE %s OR
-                    text ILIKE %s OR
-                    text ILIKE %s
-                )
-                AND text IS NOT NULL AND text != ''
-                ORDER BY 
-                    CASE 
-                        WHEN text ILIKE %s THEN 1
-                        WHEN text ILIKE %s THEN 2
-                        ELSE 3
-                    END,
-                    LENGTH(text) DESC
-                LIMIT %s;
-            """, (
-                f'Artículo {article_num}%',
-                f'%Artículo {article_num}%',
-                f'%art. {article_num}%',
-                f'Artículo {article_num}%',
-                f'%Artículo {article_num}%',
-                top_k * 2  # Obtener más resultados para combinar
-            ))
-            
-            for row in cursor.fetchall():
-                node_id, text_content, metadata, similarity = row
-                # ✅ FORMATO ESTÁNDAR: Usa 'file' como en INGESTA_FINAL_RAG.ipynb
-                source = metadata.get('file', 'unknown') if metadata else 'unknown'
-                text_results.append({
-                    'text': text_content,
-                    'source': source,
-                    'similarity': similarity,
-                    'rank': len(text_results) + 1,
-                    'metadata': metadata if metadata else {},
-                    'search_type': 'text_match'
-                })
-            
-            logger.info(f"📄 Búsqueda por texto: {len(text_results)} resultados")
-            
-            # Paso 2: Búsqueda vectorial (complementaria)
-            if len(text_results) < top_k:
-                # Generar embedding de la query
-                embedder = SentenceTransformer(self.embeddings_model_name)
-                query_embedding = embedder.encode(query, show_progress_bar=False)
-                query_embedding_str = '[' + ','.join(map(str, query_embedding.tolist())) + ']'
-                
-                # Detectar columnas
-                cursor.execute("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_schema = 'vecs' 
-                    AND table_name = 'arbot_documents'
-                    AND column_name IN ('vec', 'embedding');
-                """)
-                vec_cols = [row[0] for row in cursor.fetchall()]
-                embedding_col = 'vec' if 'vec' in vec_cols else 'embedding'
-                
-                # Búsqueda vectorial
-                cursor.execute(f"""
-                    SELECT 
-                        id,
-                        {embedding_col} <=> %s::vector as distance,
-                        text,
-                        metadata
-                    FROM vecs.arbot_documents
-                    WHERE text IS NOT NULL AND text != ''
-                    AND (text ILIKE %s OR text ILIKE %s)  -- Filtrar por artículo
-                    ORDER BY {embedding_col} <=> %s::vector
-                    LIMIT %s;
-                """, (
-                    query_embedding_str,
-                    f'%artículo {article_num}%',
-                    f'%art. {article_num}%',
-                    query_embedding_str,
-                    top_k
-                ))
-                
-                vector_results = []
-                for row in cursor.fetchall():
-                    node_id, distance, text_content, metadata = row
-                    similarity = max(0.0, 1.0 - float(distance)) if distance is not None else 0.5
-                    
-                    # Evitar duplicados con resultados de texto
-                    if not any(r['text'] == text_content for r in text_results):
-                        # ✅ FORMATO ESTÁNDAR: Usa 'file' como en INGESTA_FINAL_RAG.ipynb
-                        source = metadata.get('file', 'unknown') if metadata else 'unknown'
-                        vector_results.append({
-                            'text': text_content,
-                            'source': source,
-                            'similarity': similarity * 0.8,  # Penalizar un poco vs texto exacto
-                            'rank': len(text_results) + len(vector_results) + 1,
-                            'metadata': metadata if metadata else {},
-                            'search_type': 'vector'
-                        })
-                
-                logger.info(f"🔮 Búsqueda vectorial: {len(vector_results)} resultados adicionales")
-                
-                # Combinar resultados
-                all_results = text_results + vector_results
-            else:
-                all_results = text_results
-            
-            # Ordenar por similitud y limitar
-            all_results.sort(key=lambda x: x['similarity'], reverse=True)
-            final_results = all_results[:top_k]
-            
-            # Re-ordenar ranks
-            for i, result in enumerate(final_results):
-                result['rank'] = i + 1
-            
-            cursor.close()
-            conn.close()
-            
-            logger.info(f"✅ Búsqueda híbrida completada: {len(final_results)} resultados finales")
-            return final_results
-            
+                    logger.info(f"📚 {cnt} documentos vectores disponibles en {self.schema}.{self.table}")
         except Exception as e:
-            logger.error(f"❌ Error en búsqueda híbrida: {e}")
-            # Fallback a búsqueda directa normal
-            return self._search_direct_supabase(query, top_k)
-    
-    def _search_direct_supabase(self, query: str, top_k: int = 10) -> List[Dict]:
-        """
-        Búsqueda directa en Supabase cuando LlamaIndex falla
-        Hace búsqueda vectorial directamente usando embeddings
-        """
-        try:
-            import psycopg2
-            from sentence_transformers import SentenceTransformer
-            from urllib.parse import quote_plus
-            
-            logger.info(f"🔍 Búsqueda directa en Supabase para: '{query}'")
-            
-            # Generar embedding de la query
-            embedder = SentenceTransformer(self.embeddings_model_name)
-            query_embedding = embedder.encode(query, show_progress_bar=False)
-            query_embedding_str = '[' + ','.join(map(str, query_embedding.tolist())) + ']'
-            
-            # Obtener conexión desde variable de entorno (más confiable)
-            supabase_db_url = os.getenv('SUPABASE_DB_URL')
-            if not supabase_db_url:
-                # Intentar desde vector_store como fallback
-                if self.vector_store and hasattr(self.vector_store, 'postgres_connection_string'):
-                    conn_str = self.vector_store.postgres_connection_string
-                else:
-                    logger.error("❌ No hay conexión a Supabase disponible (SUPABASE_DB_URL no configurada)")
-                    return []
-            else:
-                conn_str = supabase_db_url
-            conn = psycopg2.connect(conn_str)
-            cursor = conn.cursor()
-            
-            # Detectar columnas
-            cursor.execute("""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_schema = 'vecs' 
-                AND table_name = 'arbot_documents'
-                ORDER BY ordinal_position;
-            """)
-            columns = [row[0] for row in cursor.fetchall()]
-            has_vec = 'vec' in columns
-            embedding_col = 'vec' if has_vec else 'embedding'
-            
-            logger.debug(f"📋 Columnas detectadas: {columns}")
-            logger.debug(f"📋 Usando columna de embedding: {embedding_col}")
-            
-            # Búsqueda vectorial usando cosine distance
-            # Usar solo columna 'content' (estándar)
-            cursor.execute(f"""
-                SELECT 
-                    id,
-                    {embedding_col} <=> %s::vector as distance,
-                    COALESCE(text, '') as doc_text,
-                    metadata->>'text' as text_from_meta,
-                    metadata
-                FROM vecs.arbot_documents
-                WHERE (text IS NOT NULL AND text != '') 
-                   OR (metadata->>'text' IS NOT NULL AND metadata->>'text' != '')
-                ORDER BY {embedding_col} <=> %s::vector
-                LIMIT %s;
-            """, (query_embedding_str, query_embedding_str, top_k))
-            
-            results = []
-            for row in cursor.fetchall():
-                node_id, distance, doc_text, text_from_meta, metadata = row
-                
-                # Obtener texto (prioridad: text column > metadata->text)
-                node_text = doc_text or text_from_meta
-                
-                if not node_text:
-                    logger.warning(f"⚠️ Nodo {node_id} sin texto recuperable (doc_text={bool(doc_text)}, text_from_meta={bool(text_from_meta)}, doc_from_meta={bool(doc_from_meta)})")
-                    continue
-                
-                # Convertir distancia a similitud (1 - distancia)
-                similarity = max(0.0, 1.0 - float(distance)) if distance is not None else 0.5
-                
-                # Log del texto recuperado (primeros 100 caracteres)
-                text_preview = node_text[:100].replace('\n', ' ') if node_text else ''
-                logger.debug(f"📄 Resultado {len(results) + 1}: id={node_id}, similitud={similarity:.3f}, texto_len={len(node_text)}, preview='{text_preview}...'")
-                
-                result = {
-                    'text': node_text,
-                    # ✅ FORMATO ESTÁNDAR: Usa 'file' como en INGESTA_FINAL_RAG.ipynb
-                    'source': metadata.get('file', 'unknown') if metadata else 'unknown',
-                    'similarity': similarity,
-                    'rank': len(results) + 1,
-                    'metadata': metadata if metadata else {}
-                }
-                results.append(result)
-            
-            cursor.close()
-            conn.close()
-            
-            logger.info(f"✅ Búsqueda directa completada: {len(results)} resultados")
-            return results
-            
-        except Exception as e:
-            logger.error(f"❌ Error en búsqueda directa Supabase: {e}")
+            logger.warning("No se pudo contar documentos (continuando).")
+            logger.debug(e)
+
+    def embed_text(self, text: str) -> List[float]:
+        """Genera embedding (lista de floats) para un texto (query)."""
+        if not text:
             return []
-    
-    def search(self, query: str, top_k: int = 10) -> List[Dict]:
+        arr = self.embedding_model.encode([text], show_progress_bar=False, convert_to_numpy=False)
+        # arr is list of numpy arrays if convert_to_numpy=False; ensure list[float]
+        emb = list(map(float, arr[0])) if hasattr(arr[0], "__iter__") else [float(arr[0])]
+        if len(emb) != self.vector_dim:
+            logger.debug(f"Advertencia: embedding generado dim={len(emb)} != VECTOR_DIM={self.vector_dim}")
+        return emb
+
+    def _vec_literal(self, emb: List[float]) -> str:
+        """Convierte embedding a literal PostgreSQL vector: '[0.1,0.2,...]'"""
+        return "[" + ",".join(map(str, emb)) + "]"
+
+    def search_similar_chunks(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """
-        Buscar documentos relevantes usando LlamaIndex
-        
-        Args:
-            query: Pregunta o consulta del usuario
-            top_k: Número de resultados a retornar
-        
-        Returns:
-            Lista de chunks relevantes con scores
+        Busca chunks similares en la tabla usando pgvector <-> distance operator.
+        Retorna lista de dicts: {text, metadata, distance(optional)}
         """
-        try:
-            if self.index is None:
-                logger.warning("No hay índice disponible en el sistema RAG")
-                return []
-            
-            # Detectar si la query es sobre un artículo específico
-            # Patrones: "artículo 52", "art. 52", "artículo X", etc.
-            import re
-            article_pattern = re.compile(r'(?i)(?:art[ií]culo|art\.?)\s+(\d+)', re.IGNORECASE)
-            article_match = article_pattern.search(query)
-            
-            # Si se pregunta por un artículo específico, usar búsqueda híbrida
-            if article_match:
-                article_num = article_match.group(1)
-                logger.info(f"🔍 Detectada búsqueda de artículo específico: {article_num}")
-                # Usar búsqueda híbrida (texto + vectorial)
-                return self._search_hybrid(query, article_num, top_k)
-            
-            # Intentar buscar siempre - no confiar completamente en get_stats()
-            # Si hay documentos en Supabase, la búsqueda los encontrará aunque get_stats() falle
-            try:
-                stats = self.get_stats()
-                total_docs = stats.get('total_documents', 0)
-                if isinstance(total_docs, str):
-                    total_docs = 0
-                if total_docs > 0:
-                    logger.debug(f"📊 get_stats() reporta {total_docs} documentos")
-                else:
-                    logger.debug("📊 get_stats() reporta 0 documentos, pero intentando búsqueda de todas formas (puede haber documentos aunque get_stats() falle)")
-            except Exception as stats_error:
-                logger.debug(f"⚠️ No se pudo verificar estadísticas: {stats_error}, pero intentando búsqueda de todas formas...")
-            
-            # Usar retriever directamente en lugar de query engine (no requiere LLM)
-            retriever = self.index.as_retriever(similarity_top_k=top_k)
-            
-            # Realizar búsqueda
-            logger.info(f"🔍 Buscando: '{query}' (top_k={top_k})")
-            try:
-                nodes = retriever.retrieve(query)
-                logger.info(f"🔍 LlamaIndex retornó {len(nodes)} nodos")
-                
-                # Verificar si los nodos tienen texto válido
-                nodes_with_text = [n for n in nodes if hasattr(n, 'text') and n.text]
-                if len(nodes_with_text) < len(nodes):
-                    logger.warning(f"⚠️ {len(nodes) - len(nodes_with_text)} nodos sin texto, usando búsqueda directa en Supabase...")
-                    return self._search_direct_supabase(query, top_k)
-                    
-            except Exception as retrieve_error:
-                error_msg = str(retrieve_error)
-                logger.error(f"❌ Error en búsqueda RAG: {error_msg}")
-                
-                # Si el error es sobre TextNode con text=None, intentar recuperar desde Supabase directamente
-                if ("TextNode" in error_msg and "none is not an allowed value" in error_msg.lower()) or \
-                   ("text" in error_msg.lower() and "none" in error_msg.lower()):
-                    logger.warning("⚠️ LlamaIndex retornó nodos con text=None, intentando búsqueda directa en Supabase...")
-                    # Hacer búsqueda directa en Supabase usando embeddings
-                    return self._search_direct_supabase(query, top_k)
-                else:
-                    # Para otros errores, también intentar búsqueda directa como fallback
-                    logger.warning("⚠️ Error en LlamaIndex, intentando búsqueda directa en Supabase como fallback...")
-                    return self._search_direct_supabase(query, top_k)
-            
-            # Extraer resultados
-            results = []
-            for i, node in enumerate(nodes[:top_k]):
-                # Convertir score a float de forma segura
-                try:
-                    if hasattr(node, 'score') and node.score is not None:
-                        similarity = float(node.score) if not isinstance(node.score, str) else 0.8
-                    else:
-                        similarity = 0.8
-                except (ValueError, TypeError):
-                    similarity = 0.8
-                
-                # Obtener texto del nodo - PRIORIDAD: metadata primero, luego Supabase directo
-                node_text = None
-                
-                # 1. Intentar desde node.text
-                if hasattr(node, 'text') and node.text:
-                    node_text = node.text
-                    logger.debug(f"✅ Texto obtenido desde node.text")
-                
-                # 2. Intentar desde metadata del nodo
-                if not node_text and hasattr(node, 'metadata') and node.metadata:
-                    node_text = node.metadata.get('text')
-                    if node_text:
-                        logger.debug(f"✅ Texto obtenido desde node.metadata")
-                
-                # 3. Si aún no hay texto, consultar directamente a Supabase usando el id del nodo
-                if not node_text:
-                    try:
-                        import psycopg2
-                        # Obtener node_id del nodo - LlamaIndex puede usar diferentes atributos
-                        node_id = None
-                        if hasattr(node, 'node_id'):
-                            node_id = node.node_id
-                        elif hasattr(node, 'id_'):
-                            node_id = node.id_
-                        elif hasattr(node, 'id'):
-                            node_id = node.id
-                        elif hasattr(node, 'ref_doc_id'):
-                            node_id = node.ref_doc_id
-                        elif hasattr(node, 'metadata') and node.metadata:
-                            # Intentar obtener id desde metadata
-                            node_id = node.metadata.get('id') or node.metadata.get('chunk_id') or node.metadata.get('_node_id')
-                        
-                        # Si tenemos un ID, consultar Supabase directamente
-                        if node_id:
-                            # Usar SUPABASE_DB_URL directamente (más confiable)
-                            supabase_db_url = os.getenv('SUPABASE_DB_URL')
-                            if supabase_db_url:
-                                try:
-                                    conn = psycopg2.connect(supabase_db_url)
-                                    cursor = conn.cursor()
-                                    # Obtener texto desde la columna text (estándar LlamaIndex)
-                                    cursor.execute("""
-                                        SELECT 
-                                            COALESCE(text, '') as doc_text,
-                                            metadata->>'text' as meta_text
-                                        FROM vecs.arbot_documents
-                                        WHERE id = %s;
-                                    """, (str(node_id),))
-                                    
-                                    result = cursor.fetchone()
-                                    if result:
-                                        node_text = result[0] or result[1]  # text > metadata->text
-                                        if node_text:
-                                            logger.info(f"✅ Texto recuperado desde Supabase para nodo {node_id} ({len(node_text)} caracteres)")
-                                        else:
-                                            logger.warning(f"⚠️ Nodo {node_id} sin texto en ninguna columna")
-                                    else:
-                                        logger.warning(f"⚠️ Nodo {node_id} no encontrado en Supabase")
-                                    cursor.close()
-                                    conn.close()
-                                except Exception as conn_error:
-                                    logger.warning(f"⚠️ Error conectando a Supabase: {conn_error}")
-                    except Exception as db_error:
-                        logger.warning(f"⚠️ No se pudo obtener texto desde Supabase: {db_error}")
-                
-                # 4. Si aún no hay texto, usar un fallback
-                if not node_text:
-                    node_text = node.metadata.get('file_name', 'Documento sin texto') if hasattr(node, 'metadata') and node.metadata else 'Sin texto disponible'
-                    logger.warning(f"⚠️ Nodo sin texto recuperable, usando fallback: {node_text[:50]}...")
-                
-                # ✅ FORMATO ESTÁNDAR: Usa 'file' como en INGESTA_FINAL_RAG.ipynb
-                source = 'unknown'
-                if hasattr(node, 'metadata') and node.metadata:
-                    source = node.metadata.get('file', 'unknown')
-                
-                result = {
-                    'text': node_text,
-                    'source': source,
-                    'similarity': similarity,
-                    'rank': i + 1,
-                    'metadata': node.metadata if hasattr(node, 'metadata') and node.metadata else {}
-                }
-                results.append(result)
-            
-            # Ordenar por similitud (de mayor a menor) de forma segura
-            try:
-                results.sort(key=lambda x: x['similarity'], reverse=True)
-            except (TypeError, ValueError) as sort_error:
-                logger.warning(f"⚠️ No se pudo ordenar resultados por similitud: {sort_error}. Usando orden original.")
-            
-            logger.info(f"🔍 Búsqueda completada: {len(results)} resultados encontrados")
-            if results:
-                logger.info(f"   Mejor match: similitud={results[0]['similarity']:.2f}, preview={results[0]['text'][:100]}...")
-            
-            return results
-            
-        except Exception as e:
-            logger.error(f"❌ Error en búsqueda RAG: {str(e)}")
+        if not query or not query.strip():
             return []
-    
-    def get_context_for_query(self, query: str, top_k: int = 10, max_context_length: int = 2500) -> str:
+
+        emb = self.embed_text(query)
+        if not emb:
+            return []
+
+        vec_literal = self._vec_literal(emb)
+        sql = f"""
+            SELECT text, metadata, (vec <-> %s::vector) AS distance
+            FROM {self.schema}.{self.table}
+            ORDER BY distance
+            LIMIT %s;
         """
-        Obtener contexto relevante para una consulta
-        
-        Args:
-            query: Pregunta del usuario
-            top_k: Número de chunks a recuperar
-            max_context_length: Longitud máxima del contexto
-        
-        Returns:
-            Contexto formateado
-        """
+
         try:
-            results = self.search(query, top_k=top_k)
-            
-            if not results:
-                logger.warning("No se encontraron resultados relevantes")
-                return ""
-            
-            # Construir contexto desde los resultados
-            context_parts = []
-            current_length = 0
-            
-            # Asegurar que max_context_length sea int
-            max_context_length = int(max_context_length) if max_context_length else 2500
-            
-            for result in results:
-                # Asegurar que text sea string
-                text = str(result.get('text', ''))
-                if not text:
-                    continue
-                
-                # Limitar longitud de cada chunk individual
-                if len(text) > 800:
-                    text = text[:800] + "..."
-                
-                # Asegurar que todas las comparaciones sean con int
-                text_len = int(len(text))
-                if current_length + text_len > max_context_length:
-                    break
-                
-                context_parts.append(text)
-                current_length += text_len
-            
-            full_context = " ".join(context_parts)
-            
-            # Truncar si es necesario
-            if len(full_context) > max_context_length:
-                full_context = full_context[:max_context_length]
-                # Truncar en un punto completo si es posible
-                last_period = full_context.rfind('.')
-                if last_period > max_context_length * 0.8:
-                    full_context = full_context[:last_period + 1]
-            
-            logger.info(f"✅ Contexto final completo: {len(full_context)} caracteres")
-            if len(full_context) == 0:
-                logger.warning("⚠️ Contexto vacío - el modelo no tendrá información del manual")
-            
-            return full_context
-            
-        except Exception as e:
-            logger.error(f"❌ Error obteniendo contexto: {str(e)}")
-            return ""
-    
-    def get_stats(self) -> Dict:
-        """
-        Obtener estadísticas del sistema RAG
-        
-        Returns:
-            Diccionario con estadísticas
-        """
-        try:
-            if self.index is None:
-                return {
-                    'total_documents': 0,
-                    'embeddings_model': self.embeddings_model_name,
-                    'vector_store': 'none'
-                }
-            
-            # Obtener número de documentos desde Supabase directamente
-            total_docs = 0
-            try:
-                if self.vector_store and hasattr(self.vector_store, 'postgres_connection_string'):
-                    import psycopg2
-                    conn_str = self.vector_store.postgres_connection_string
-                    
-                    try:
-                        conn = psycopg2.connect(conn_str)
-                        cursor = conn.cursor()
-                        
-                        # Consultar tabla de vectores (LlamaIndex usa esta tabla)
-                        cursor.execute("SELECT COUNT(*) FROM vecs.arbot_documents;")
-                        result = cursor.fetchone()
-                        total_docs = result[0] if result else 0
-                        
-                        cursor.close()
-                        conn.close()
-                        
-                        logger.info(f"📊 Documentos en Supabase: {total_docs}")
-                    except Exception as db_error:
-                        logger.error(f"❌ Error consultando Supabase para stats: {db_error}")
-                        logger.error(f"   Connection string: {conn_str[:50]}...")
-                        # Fallback: intentar desde el índice
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(sql, (vec_literal, top_k))
+                rows = cur.fetchall()
+                results = []
+                for r in rows:
+                    # metadata puede venir como JSON/str
+                    meta = r["metadata"]
+                    if isinstance(meta, str):
                         try:
-                            if hasattr(self.index, '_vector_store'):
-                                total_docs = getattr(self.index._vector_store, '_collection_size', 0)
-                                logger.debug(f"   Fallback desde índice: {total_docs}")
-                        except:
-                            total_docs = 0
-                elif hasattr(self.index, '_vector_store'):
-                    # Fallback para otros tipos de vector store
-                    if hasattr(self.index._vector_store, '_data'):
-                        total_docs = len(self.index._vector_store._data.get('embeddings_dict', {}))
-                    else:
-                        total_docs = getattr(self.index._vector_store, '_collection_size', 0)
-            except Exception as count_error:
-                logger.debug(f"⚠️ No se pudo contar documentos: {count_error}")
-                total_docs = 0
-            
-            # Determinar tipo de vector store
-            vector_store_type = 'memory'
-            if self.vector_store is not None:
-                store_type_str = str(type(self.vector_store))
-                if 'Supabase' in store_type_str:
-                    vector_store_type = 'supabase'
-                elif 'Simple' in store_type_str:
-                    vector_store_type = 'memory'
-            
-            # Asegurar que total_docs sea un número entero
-            if isinstance(total_docs, str):
-                total_docs = 0
-            total_docs = int(total_docs) if total_docs else 0
-            
-            return {
-                'total_documents': total_docs,
-                'embeddings_model': self.embeddings_model_name,
-                'vector_store': vector_store_type
-            }
+                            meta = json.loads(meta)
+                        except Exception:
+                            pass
+                    results.append({
+                        "text": r["text"],
+                        "metadata": meta,
+                        "distance": float(r.get("distance", 0.0))
+                    })
+                logger.info(f"🔎 Encontrados {len(results)} chunks (top_k={top_k})")
+                return results
         except Exception as e:
-            logger.error(f"Error obteniendo stats: {str(e)}")
-            return {
-                'total_documents': 0,
-                'embeddings_model': self.embeddings_model_name,
-                'vector_store': 'unknown',
-                'error': str(e)
-            }
-    
-    def save_index(self, filepath: str):
+            logger.exception("Error en búsqueda vectorial en Supabase.")
+            return []
+
+    def get_context_for_query(self, query: str, top_k: int = 5, max_context_length: int = 3000) -> str:
         """
-        Guardar índice (ya no necesario con Supabase, pero mantenido para compatibilidad)
+        Devuelve el contexto concatenado (texto) de los mejores chunks.
+        max_context_length en caracteres.
         """
-        logger.info("ℹ️ Con Supabase pgvector, el índice se guarda automáticamente. No se requiere guardar manualmente.")
-        pass
-    
-    def load_index(self, filepath: str):
-        """
-        Cargar índice (ya no necesario con Supabase, pero mantenido para compatibilidad)
-        """
-        logger.info("ℹ️ Con Supabase pgvector, el índice se carga automáticamente al inicializar.")
-        pass
+        hits = self.search_similar_chunks(query, top_k=top_k)
+        if not hits:
+            return ""
+
+        context_parts = []
+        length = 0
+        for h in hits:
+            txt = h.get("text", "")
+            if not txt:
+                continue
+            # avoid huge context: truncate each chunk if necessary
+            if length + len(txt) > max_context_length:
+                # take remaining
+                remaining = max_context_length - length
+                if remaining > 0:
+                    context_parts.append(txt[:remaining])
+                    length += remaining
+                break
+            context_parts.append(txt)
+            length += len(txt)
+
+        context = "\n\n".join(context_parts).strip()
+        logger.info(f"📎 Context length: {len(context)} chars (from {len(context_parts)} chunks)")
+        return context
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Retorna estadísticas simples sobre la tabla/vector store."""
+        stats = {
+            "service": "supabase_pgvector",
+            "schema": self.schema,
+            "table": self.table,
+            "total_documents": "unknown",
+            "embeddings_model": EMBEDDING_MODEL,
+        }
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(f"SELECT COUNT(*) FROM {self.schema}.{self.table}")
+                stats["total_documents"] = int(cur.fetchone()[0])
+        except Exception as e:
+            logger.warning("No se pudo obtener stats de la tabla.")
+            stats["total_documents"] = 0
+        return stats
+
+    def close(self):
+        try:
+            if self.conn:
+                self.conn.close()
+        except Exception:
+            pass
+
+
+# Si se importa y se quiere un singleton simple:
+_rag_instance: Optional[RAGService] = None
+
+
+def get_rag_instance() -> RAGService:
+    global _rag_instance
+    if _rag_instance is None:
+        _rag_instance = RAGService()
+    return _rag_instance
