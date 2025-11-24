@@ -11,12 +11,12 @@
 DROP TABLE IF EXISTS vecs.arbot_documents CASCADE;
 
 -- Paso 2: Crear tabla con estructura correcta
--- Estructura optimizada: id, vec, content, metadata
+-- Estructura estándar LlamaIndex: id, vec, text, metadata
 CREATE TABLE IF NOT EXISTS vecs.arbot_documents (
     id TEXT PRIMARY KEY,
     vec vector(384),              -- Embedding vector (384 dimensiones)
-    content TEXT NOT NULL,         -- Texto del chunk (COLUMNA ESTÁNDAR)
-    metadata JSONB                 -- Metadatos (title, chapter, article, page, keywords, etc.)
+    text TEXT NOT NULL,           -- Texto del chunk (ESTÁNDAR LlamaIndex)
+    metadata JSONB                -- Metadatos (title, chapter, article, page, keywords, etc.)
 );
 
 -- Paso 3: Crear índice vectorial para búsquedas eficientes (ivfflat)
@@ -30,10 +30,10 @@ CREATE INDEX IF NOT EXISTS arbot_documents_metadata_idx
 ON vecs.arbot_documents 
 USING GIN (metadata);
 
--- Paso 5: Crear índice para búsquedas de texto en content (opcional, mejora búsquedas híbridas)
-CREATE INDEX IF NOT EXISTS arbot_documents_content_idx 
+-- Paso 5: Crear índice para búsquedas de texto en text (opcional, mejora búsquedas híbridas)
+CREATE INDEX IF NOT EXISTS arbot_documents_text_idx 
 ON vecs.arbot_documents 
-USING gin (to_tsvector('spanish', content));
+USING gin (to_tsvector('spanish', text));
 
 -- Paso 6: Verificar estructura de la tabla
 SELECT 
@@ -57,7 +57,7 @@ AND tablename = 'arbot_documents';
 -- ✅ Tabla recreada correctamente con estructura:
 --    - id: TEXT (PRIMARY KEY)
 --    - vec: vector(384) (Embedding vector)
---    - content: TEXT NOT NULL (Texto del chunk - ESTÁNDAR)
+--    - text: TEXT NOT NULL (Texto del chunk - ESTÁNDAR LlamaIndex)
 --    - metadata: JSONB (Metadatos: title, chapter, article, page, keywords, etc.)
 --
 -- ✅ Índices creados:

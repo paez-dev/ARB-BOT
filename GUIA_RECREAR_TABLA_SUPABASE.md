@@ -26,7 +26,7 @@ DROP TABLE IF EXISTS vecs.arbot_documents CASCADE;
 CREATE TABLE IF NOT EXISTS vecs.arbot_documents (
     id TEXT PRIMARY KEY,
     vec vector(384),
-    content TEXT NOT NULL,
+    text TEXT NOT NULL,
     metadata JSONB
 );
 
@@ -40,9 +40,9 @@ CREATE INDEX IF NOT EXISTS arbot_documents_metadata_idx
 ON vecs.arbot_documents 
 USING GIN (metadata);
 
-CREATE INDEX IF NOT EXISTS arbot_documents_content_idx 
+CREATE INDEX IF NOT EXISTS arbot_documents_text_idx 
 ON vecs.arbot_documents 
-USING gin (to_tsvector('spanish', content));
+USING gin (to_tsvector('spanish', text));
 ```
 
 ### 3. Verificar Estructura
@@ -63,7 +63,7 @@ ORDER BY ordinal_position;
 **Resultado esperado:**
 - `id` (TEXT)
 - `vec` (USER-DEFINED, vector)
-- `content` (TEXT)
+- `text` (TEXT)
 - `metadata` (JSONB)
 
 ## ✅ Estructura Final
@@ -72,7 +72,7 @@ ORDER BY ordinal_position;
 vecs.arbot_documents
 ├── id (TEXT, PRIMARY KEY)
 ├── vec (vector(384)) - Embedding vector
-├── content (TEXT) - Texto del chunk
+├── text (TEXT) - Texto del chunk (estándar LlamaIndex)
 └── metadata (JSONB) - Metadatos completos
     ├── source: Nombre del archivo
     ├── title: TÍTULO I, TÍTULO II, etc.

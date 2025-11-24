@@ -400,26 +400,26 @@ class RAGService:
             
             # Paso 1: Búsqueda por texto (prioritaria para artículos específicos)
             text_results = []
-            cursor.execute("""
+                cursor.execute("""
                 SELECT 
                     id,
-                    content,
+                    text,
                     metadata,
                     1.0 as similarity  -- Máxima similitud para coincidencias exactas
                 FROM vecs.arbot_documents
                 WHERE (
-                    content ILIKE %s OR
-                    content ILIKE %s OR
-                    content ILIKE %s
+                    text ILIKE %s OR
+                    text ILIKE %s OR
+                    text ILIKE %s
                 )
-                AND content IS NOT NULL AND content != ''
+                AND text IS NOT NULL AND text != ''
                 ORDER BY 
                     CASE 
-                        WHEN content ILIKE %s THEN 1
-                        WHEN content ILIKE %s THEN 2
+                        WHEN text ILIKE %s THEN 1
+                        WHEN text ILIKE %s THEN 2
                         ELSE 3
                     END,
-                    LENGTH(content) DESC
+                    LENGTH(text) DESC
                 LIMIT %s;
             """, (
                 f'Artículo {article_num}%',
@@ -431,10 +431,10 @@ class RAGService:
             ))
             
             for row in cursor.fetchall():
-                node_id, content_text, metadata, similarity = row
+                node_id, text_content, metadata, similarity = row
                 text_results.append({
-                    'text': content_text,
-                    'source': metadata.get('file_name', 'unknown') if metadata else 'unknown',
+                    'text': text_content,
+                    'source': metadata.get('source', metadata.get('file_name', 'unknown')) if metadata else 'unknown',
                     'similarity': similarity,
                     'rank': len(text_results) + 1,
                     'metadata': metadata if metadata else {},
@@ -466,11 +466,11 @@ class RAGService:
                     SELECT 
                         id,
                         {embedding_col} <=> %s::vector as distance,
-                        content,
+                        text,
                         metadata
                     FROM vecs.arbot_documents
-                    WHERE content IS NOT NULL AND content != ''
-                    AND (content ILIKE %s OR content ILIKE %s)  -- Filtrar por artículo
+                    WHERE text IS NOT NULL AND text != ''
+                    AND (text ILIKE %s OR text ILIKE %s)  -- Filtrar por artículo
                     ORDER BY {embedding_col} <=> %s::vector
                     LIMIT %s;
                 """, (
@@ -483,14 +483,14 @@ class RAGService:
                 
                 vector_results = []
                 for row in cursor.fetchall():
-                    node_id, distance, content_text, metadata = row
+                    node_id, distance, text_content, metadata = row
                     similarity = max(0.0, 1.0 - float(distance)) if distance is not None else 0.5
                     
                     # Evitar duplicados con resultados de texto
-                    if not any(r['text'] == content_text for r in text_results):
+                    if not any(r['text'] == text_content for r in text_results):
                         vector_results.append({
-                            'text': content_text,
-                            'source': metadata.get('file_name', 'unknown') if metadata else 'unknown',
+                            'text': text_content,
+                            'source': metadata.get('source', metadata.get('file_name', 'unknown')) if metadata else 'unknown',
                             'similarity': similarity * 0.8,  # Penalizar un poco vs texto exacto
                             'rank': len(text_results) + len(vector_results) + 1,
                             'metadata': metadata if metadata else {},
@@ -575,11 +575,11 @@ class RAGService:
                 SELECT 
                     id,
                     {embedding_col} <=> %s::vector as distance,
-                    COALESCE(content, '') as doc_text,
+                    COALESCE(text, '') as doc_text,
                     metadata->>'text' as text_from_meta,
                     metadata
                 FROM vecs.arbot_documents
-                WHERE (content IS NOT NULL AND content != '') 
+                WHERE (text IS NOT NULL AND text != '') 
                    OR (metadata->>'text' IS NOT NULL AND metadata->>'text' != '')
                 ORDER BY {embedding_col} <=> %s::vector
                 LIMIT %s;
@@ -589,7 +589,7 @@ class RAGService:
             for row in cursor.fetchall():
                 node_id, distance, doc_text, text_from_meta, metadata = row
                 
-                # Obtener texto (prioridad: content column > metadata->text)
+                # Obtener texto (prioridad: text column > metadata->text)
                 node_text = doc_text or text_from_meta
                 
                 if not node_text:
@@ -747,10 +747,10 @@ class RAGService:
                                 try:
                                     conn = psycopg2.connect(supabase_db_url)
                                     cursor = conn.cursor()
-                                    # Obtener texto desde la columna content (estándar)
+                                    # Obtener texto desde la columna text (estándar LlamaIndex)
                                     cursor.execute("""
                                         SELECT 
-                                            COALESCE(content, '') as doc_text,
+                                            COALESCE(text, '') as doc_text,
                                             metadata->>'text' as meta_text
                                         FROM vecs.arbot_documents
                                         WHERE id = %s;
@@ -758,7 +758,7 @@ class RAGService:
                                     
                                     result = cursor.fetchone()
                                     if result:
-                                        node_text = result[0] or result[1]  # content > metadata->text
+                                        node_text = result[0] or result[1]  # text > metadata->text
                                         if node_text:
                                             logger.info(f"✅ Texto recuperado desde Supabase para nodo {node_id} ({len(node_text)} caracteres)")
                                         else:

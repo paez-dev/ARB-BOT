@@ -16,11 +16,11 @@
 DROP TABLE IF EXISTS vecs.arbot_documents CASCADE;
 
 -- Crear tabla con estructura correcta
--- Estructura optimizada: id, vec, content, metadata
+-- Estructura estándar LlamaIndex: id, vec, text, metadata
 CREATE TABLE vecs.arbot_documents (
     id TEXT PRIMARY KEY,
     vec vector(384),              -- Vector de embeddings (384 dimensiones)
-    content TEXT NOT NULL,         -- Texto del chunk (COLUMNA ESTÁNDAR)
+    text TEXT NOT NULL,           -- Texto del chunk (ESTÁNDAR LlamaIndex)
     metadata JSONB                -- Metadatos (title, chapter, article, page, keywords, etc.)
 );
 
@@ -36,15 +36,15 @@ ON vecs.arbot_documents
 USING GIN (metadata);
 
 -- Crear índice para búsquedas por texto (opcional, pero útil)
-CREATE INDEX IF NOT EXISTS arbot_documents_content_idx 
+CREATE INDEX IF NOT EXISTS arbot_documents_text_idx 
 ON vecs.arbot_documents 
-USING gin (to_tsvector('spanish', content));
+USING gin (to_tsvector('spanish', text));
 
 -- Comentarios en la tabla y columnas
 COMMENT ON TABLE vecs.arbot_documents IS 'Tabla para almacenar documentos vectorizados para RAG con LlamaIndex';
 COMMENT ON COLUMN vecs.arbot_documents.id IS 'Identificador único del chunk (formato: nombre_archivo_chunk_index)';
 COMMENT ON COLUMN vecs.arbot_documents.vec IS 'Vector de embeddings de 384 dimensiones (sentence-transformers)';
-COMMENT ON COLUMN vecs.arbot_documents.content IS 'Texto completo del chunk (ESTÁNDAR)';
+COMMENT ON COLUMN vecs.arbot_documents.text IS 'Texto completo del chunk (ESTÁNDAR LlamaIndex)';
 COMMENT ON COLUMN vecs.arbot_documents.metadata IS 'Metadatos adicionales: file_name, page, chunk_index, etc.';
 
 -- Verificar que la tabla se creó correctamente
@@ -62,7 +62,7 @@ ORDER BY ordinal_position;
 DO $$
 BEGIN
     RAISE NOTICE '✅ Tabla vecs.arbot_documents recreada correctamente con estructura para LlamaIndex';
-    RAISE NOTICE '📋 Columnas: id, vec, content, metadata';
+    RAISE NOTICE '📋 Columnas: id, vec, text, metadata';
     RAISE NOTICE '🔍 Índices creados: vectorial, metadata GIN, texto full-text';
 END $$;
 
