@@ -432,9 +432,13 @@ class RAGService:
             
             for row in cursor.fetchall():
                 node_id, text_content, metadata, similarity = row
+                # ✅ COMPATIBILIDAD: Soporta 'file' (INGESTA_FINAL_RAG) y 'source'/'file_name' (INGESTA_DOCUMENTOS_COLAB)
+                source = 'unknown'
+                if metadata:
+                    source = metadata.get('source') or metadata.get('file_name') or metadata.get('file') or 'unknown'
                 text_results.append({
                     'text': text_content,
-                    'source': metadata.get('source', metadata.get('file_name', 'unknown')) if metadata else 'unknown',
+                    'source': source,
                     'similarity': similarity,
                     'rank': len(text_results) + 1,
                     'metadata': metadata if metadata else {},
@@ -488,9 +492,13 @@ class RAGService:
                     
                     # Evitar duplicados con resultados de texto
                     if not any(r['text'] == text_content for r in text_results):
+                        # ✅ COMPATIBILIDAD: Soporta 'file' (INGESTA_FINAL_RAG) y 'source'/'file_name' (INGESTA_DOCUMENTOS_COLAB)
+                        source = 'unknown'
+                        if metadata:
+                            source = metadata.get('source') or metadata.get('file_name') or metadata.get('file') or 'unknown'
                         vector_results.append({
                             'text': text_content,
-                            'source': metadata.get('source', metadata.get('file_name', 'unknown')) if metadata else 'unknown',
+                            'source': source,
                             'similarity': similarity * 0.8,  # Penalizar un poco vs texto exacto
                             'rank': len(text_results) + len(vector_results) + 1,
                             'metadata': metadata if metadata else {},
@@ -605,7 +613,8 @@ class RAGService:
                 
                 result = {
                     'text': node_text,
-                    'source': metadata.get('file_name', 'unknown') if metadata else 'unknown',
+                    # ✅ COMPATIBILIDAD: Soporta 'file' (INGESTA_FINAL_RAG) y 'source'/'file_name' (INGESTA_DOCUMENTOS_COLAB)
+                    'source': (metadata.get('source') or metadata.get('file_name') or metadata.get('file') or 'unknown') if metadata else 'unknown',
                     'similarity': similarity,
                     'rank': len(results) + 1,
                     'metadata': metadata if metadata else {}
@@ -777,9 +786,14 @@ class RAGService:
                     node_text = node.metadata.get('file_name', 'Documento sin texto') if hasattr(node, 'metadata') and node.metadata else 'Sin texto disponible'
                     logger.warning(f"⚠️ Nodo sin texto recuperable, usando fallback: {node_text[:50]}...")
                 
+                # ✅ COMPATIBILIDAD: Soporta 'file' (INGESTA_FINAL_RAG) y 'source'/'file_name' (INGESTA_DOCUMENTOS_COLAB)
+                source = 'unknown'
+                if hasattr(node, 'metadata') and node.metadata:
+                    source = node.metadata.get('source') or node.metadata.get('file_name') or node.metadata.get('file') or 'unknown'
+                
                 result = {
                     'text': node_text,
-                    'source': node.metadata.get('source', node.metadata.get('file_name', 'unknown')) if hasattr(node, 'metadata') and node.metadata else 'unknown',
+                    'source': source,
                     'similarity': similarity,
                     'rank': i + 1,
                     'metadata': node.metadata if hasattr(node, 'metadata') and node.metadata else {}
