@@ -11,25 +11,25 @@ FROM vecs.arbot_documents;
 
 -- 2. Contar chunks por archivo
 SELECT 
-    metadata->>'file_name' as archivo,
+    metadata->>'source' as archivo,
     COUNT(*) as cantidad_chunks,
-    AVG(LENGTH(content)) as promedio_caracteres,
-    MIN(LENGTH(content)) as min_caracteres,
-    MAX(LENGTH(content)) as max_caracteres,
-    SUM(LENGTH(content)) as total_caracteres
+    AVG(LENGTH(text)) as promedio_caracteres,
+    MIN(LENGTH(text)) as min_caracteres,
+    MAX(LENGTH(text)) as max_caracteres,
+    SUM(LENGTH(text)) as total_caracteres
 FROM vecs.arbot_documents
-WHERE metadata->>'file_name' IS NOT NULL
-GROUP BY metadata->>'file_name'
+WHERE metadata->>'source' IS NOT NULL
+GROUP BY metadata->>'source'
 ORDER BY cantidad_chunks DESC;
 
 -- 3. Verificar distribución de tamaños de chunks
 SELECT 
     CASE 
-        WHEN LENGTH(content) < 100 THEN 'Muy pequeño (<100)'
-        WHEN LENGTH(content) < 500 THEN 'Pequeño (100-500)'
-        WHEN LENGTH(content) < 1000 THEN 'Mediano (500-1000)'
-        WHEN LENGTH(content) < 2000 THEN 'Grande (1000-2000)'
-        WHEN LENGTH(content) < 5000 THEN 'Muy grande (2000-5000)'
+        WHEN LENGTH(text) < 100 THEN 'Muy pequeño (<100)'
+        WHEN LENGTH(text) < 500 THEN 'Pequeño (100-500)'
+        WHEN LENGTH(text) < 1000 THEN 'Mediano (500-1000)'
+        WHEN LENGTH(text) < 2000 THEN 'Grande (1000-2000)'
+        WHEN LENGTH(text) < 5000 THEN 'Muy grande (2000-5000)'
         ELSE 'Extremo (>5000)'
     END as tamano,
     COUNT(*) as cantidad,
@@ -51,9 +51,9 @@ SELECT
     'Chunks vacíos o muy pequeños' as problema,
     COUNT(*) as cantidad
 FROM vecs.arbot_documents
-WHERE content IS NULL 
-   OR content = '' 
-   OR LENGTH(content) < 50;
+WHERE text IS NULL 
+   OR text = '' 
+   OR LENGTH(text) < 50;
 
 -- 5. Verificar chunks con metadata de página
 SELECT 
@@ -74,14 +74,14 @@ GROUP BY metadata->>'file_name';
 -- 7. Ejemplo de chunks pequeños (posible problema de chunking)
 SELECT 
     id,
-    LEFT(content, 100) as preview,
-    LENGTH(content) as longitud,
-    metadata->>'file_name' as archivo,
+    LEFT(text, 100) as preview,
+    LENGTH(text) as longitud,
+    metadata->>'source' as archivo,
     metadata->>'page' as pagina,
     metadata->>'chunk_index' as indice
 FROM vecs.arbot_documents
-WHERE LENGTH(content) < 200
-ORDER BY LENGTH(content) ASC
+WHERE LENGTH(text) < 200
+ORDER BY LENGTH(text) ASC
 LIMIT 20;
 
 -- 8. Resumen: ¿Hay suficientes chunks?
@@ -99,17 +99,17 @@ SELECT
     'Chunks < 100 caracteres (posible problema)' as categoria,
     COUNT(*)::text as detalle
 FROM vecs.arbot_documents
-WHERE LENGTH(content) < 100
+WHERE LENGTH(text) < 100
 UNION ALL
 SELECT 
     'Chunks > 2000 caracteres (muy grandes)' as categoria,
     COUNT(*)::text as detalle
 FROM vecs.arbot_documents
-WHERE LENGTH(content) > 2000
+WHERE LENGTH(text) > 2000
 UNION ALL
 SELECT 
     'Promedio caracteres por chunk' as categoria,
-    ROUND(AVG(LENGTH(content)), 0)::text as detalle
+    ROUND(AVG(LENGTH(text)), 0)::text as detalle
 FROM vecs.arbot_documents;
 
 -- ⚠️ Si ves muy pocos chunks (< 100 para un PDF grande):
