@@ -259,17 +259,34 @@ class RAGService:
             
             # Convertir chunks a documentos de LlamaIndex
             documents = []
+            skipped_empty = 0
             for chunk in chunks:
+                chunk_text = chunk.get('text', '').strip()
+                
+                # Validar que el chunk tenga texto válido
+                if not chunk_text:
+                    skipped_empty += 1
+                    logger.warning(f"⚠️ Chunk {chunk.get('id', 'unknown')} sin texto, omitiendo...")
+                    continue
+                
                 doc = Document(
-                    text=chunk.get('text', ''),
+                    text=chunk_text,
                     metadata={
                         'source': chunk.get('source', 'unknown'),
                         'chunk_id': chunk.get('id', 0),
                         'chunk_index': chunk.get('chunk_index', 0),
-                        'article': chunk.get('article', None)
+                        'article': chunk.get('article', None),
+                        'file_name': chunk.get('source', 'unknown')  # Asegurar file_name para búsqueda
                     }
                 )
                 documents.append(doc)
+            
+            if skipped_empty > 0:
+                logger.warning(f"⚠️ {skipped_empty} chunks sin texto fueron omitidos")
+            
+            if not documents:
+                logger.error("❌ No hay documentos válidos para agregar (todos estaban vacíos)")
+                return
             
             # Agregar documentos al índice usando el método correcto de LlamaIndex
             # LlamaIndex inserta documentos uno por uno, pero podemos optimizar
@@ -282,10 +299,28 @@ class RAGService:
                 inserted_count = 0
                 for idx, doc in enumerate(documents):
                     try:
+                        # Validar que el documento tenga texto antes de insertar
+                        if not doc.text or not doc.text.strip():
+                            logger.warning(f"⚠️ Documento {idx + 1}/{len(documents)} sin texto, omitiendo inserción")
+                            continue
+                        
                         self.index.insert(doc)
                         inserted_count += 1
+                        
+                        # Log cada 10 documentos para no saturar
+                        if inserted_count % 10 == 0:
+                            logger.debug(f"📄 {inserted_count} documentos insertados...")
+                            
                     except Exception as insert_error:
-                        logger.warning(f"⚠️ Error insertando documento {idx + 1}/{len(documents)}: {insert_error}. Continuando...")
+                        error_msg = str(insert_error)
+                        logger.warning(f"⚠️ Error insertando documento {idx + 1}/{len(documents)}: {error_msg}")
+                        
+                        # Si el error es sobre texto NULL, es crítico
+                        if "text" in error_msg.lower() and ("null" in error_msg.lower() or "none" in error_msg.lower()):
+                            logger.error(f"🔴 ERROR CRÍTICO: Documento con text=None detectado en inserción")
+                            logger.error(f"   Documento: {doc.metadata.get('source', 'unknown')}")
+                            logger.error(f"   Texto length: {len(doc.text) if doc.text else 0}")
+                        
                         continue
                 
                 elapsed = time.time() - start_time
@@ -330,6 +365,164 @@ class RAGService:
             
             raise
     
+    def _search_hybrid(self, query: str, article_num: str, top_k: int = 10) -> List[Dict]:
+        """
+        Búsqueda híbrida para artículos específicos: combina búsqueda por texto y vectorial
+        
+        Args:
+            query: Query original del usuario
+            article_num: Número de artículo detectado
+            top_k: Número de resultados
+        
+        Returns:
+            Lista de resultados combinados
+        """
+        try:
+            import psycopg2
+            from sentence_transformers import SentenceTransformer
+            from urllib.parse import quote_plus
+            
+            logger.info(f"🔍 Búsqueda híbrida para artículo {article_num}")
+            
+            # Obtener conexión
+            supabase_db_url = os.getenv('SUPABASE_DB_URL')
+            if not supabase_db_url:
+                if self.vector_store and hasattr(self.vector_store, 'postgres_connection_string'):
+                    conn_str = self.vector_store.postgres_connection_string
+                else:
+                    logger.error("❌ No hay conexión a Supabase disponible")
+                    return []
+            else:
+                conn_str = supabase_db_url
+            
+            conn = psycopg2.connect(conn_str)
+            cursor = conn.cursor()
+            
+            # Paso 1: Búsqueda por texto (prioritaria para artículos específicos)
+            text_results = []
+            cursor.execute("""
+                SELECT 
+                    id,
+                    content,
+                    metadata,
+                    1.0 as similarity  -- Máxima similitud para coincidencias exactas
+                FROM vecs.arbot_documents
+                WHERE (
+                    content ILIKE %s OR
+                    content ILIKE %s OR
+                    content ILIKE %s
+                )
+                AND content IS NOT NULL AND content != ''
+                ORDER BY 
+                    CASE 
+                        WHEN content ILIKE %s THEN 1
+                        WHEN content ILIKE %s THEN 2
+                        ELSE 3
+                    END,
+                    LENGTH(content) DESC
+                LIMIT %s;
+            """, (
+                f'Artículo {article_num}%',
+                f'%Artículo {article_num}%',
+                f'%art. {article_num}%',
+                f'Artículo {article_num}%',
+                f'%Artículo {article_num}%',
+                top_k * 2  # Obtener más resultados para combinar
+            ))
+            
+            for row in cursor.fetchall():
+                node_id, content_text, metadata, similarity = row
+                text_results.append({
+                    'text': content_text,
+                    'source': metadata.get('file_name', 'unknown') if metadata else 'unknown',
+                    'similarity': similarity,
+                    'rank': len(text_results) + 1,
+                    'metadata': metadata if metadata else {},
+                    'search_type': 'text_match'
+                })
+            
+            logger.info(f"📄 Búsqueda por texto: {len(text_results)} resultados")
+            
+            # Paso 2: Búsqueda vectorial (complementaria)
+            if len(text_results) < top_k:
+                # Generar embedding de la query
+                embedder = SentenceTransformer(self.embeddings_model_name)
+                query_embedding = embedder.encode(query, show_progress_bar=False)
+                query_embedding_str = '[' + ','.join(map(str, query_embedding.tolist())) + ']'
+                
+                # Detectar columnas
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_schema = 'vecs' 
+                    AND table_name = 'arbot_documents'
+                    AND column_name IN ('vec', 'embedding');
+                """)
+                vec_cols = [row[0] for row in cursor.fetchall()]
+                embedding_col = 'vec' if 'vec' in vec_cols else 'embedding'
+                
+                # Búsqueda vectorial
+                cursor.execute(f"""
+                    SELECT 
+                        id,
+                        {embedding_col} <=> %s::vector as distance,
+                        content,
+                        metadata
+                    FROM vecs.arbot_documents
+                    WHERE content IS NOT NULL AND content != ''
+                    AND (content ILIKE %s OR content ILIKE %s)  -- Filtrar por artículo
+                    ORDER BY {embedding_col} <=> %s::vector
+                    LIMIT %s;
+                """, (
+                    query_embedding_str,
+                    f'%artículo {article_num}%',
+                    f'%art. {article_num}%',
+                    query_embedding_str,
+                    top_k
+                ))
+                
+                vector_results = []
+                for row in cursor.fetchall():
+                    node_id, distance, content_text, metadata = row
+                    similarity = max(0.0, 1.0 - float(distance)) if distance is not None else 0.5
+                    
+                    # Evitar duplicados con resultados de texto
+                    if not any(r['text'] == content_text for r in text_results):
+                        vector_results.append({
+                            'text': content_text,
+                            'source': metadata.get('file_name', 'unknown') if metadata else 'unknown',
+                            'similarity': similarity * 0.8,  # Penalizar un poco vs texto exacto
+                            'rank': len(text_results) + len(vector_results) + 1,
+                            'metadata': metadata if metadata else {},
+                            'search_type': 'vector'
+                        })
+                
+                logger.info(f"🔮 Búsqueda vectorial: {len(vector_results)} resultados adicionales")
+                
+                # Combinar resultados
+                all_results = text_results + vector_results
+            else:
+                all_results = text_results
+            
+            # Ordenar por similitud y limitar
+            all_results.sort(key=lambda x: x['similarity'], reverse=True)
+            final_results = all_results[:top_k]
+            
+            # Re-ordenar ranks
+            for i, result in enumerate(final_results):
+                result['rank'] = i + 1
+            
+            cursor.close()
+            conn.close()
+            
+            logger.info(f"✅ Búsqueda híbrida completada: {len(final_results)} resultados finales")
+            return final_results
+            
+        except Exception as e:
+            logger.error(f"❌ Error en búsqueda híbrida: {e}")
+            # Fallback a búsqueda directa normal
+            return self._search_direct_supabase(query, top_k)
+    
     def _search_direct_supabase(self, query: str, top_k: int = 10) -> List[Dict]:
         """
         Búsqueda directa en Supabase cuando LlamaIndex falla
@@ -371,59 +564,44 @@ class RAGService:
             """)
             columns = [row[0] for row in cursor.fetchall()]
             has_vec = 'vec' in columns
-            has_content = 'content' in columns
-            has_document = 'document' in columns  # Compatibilidad con estructura antigua
             embedding_col = 'vec' if has_vec else 'embedding'
             
-            # Búsqueda vectorial usando cosine distance
-            # Prioridad: content column (estándar LlamaIndex) > document (antigua) > metadata->text
-            text_column = 'content' if has_content else ('document' if has_document else None)
+            logger.debug(f"📋 Columnas detectadas: {columns}")
+            logger.debug(f"📋 Usando columna de embedding: {embedding_col}")
             
-            if text_column:
-                # Estructura con columna de texto (content o document)
-                cursor.execute(f"""
-                    SELECT 
-                        id,
-                        {embedding_col} <=> %s::vector as distance,
-                        COALESCE({text_column}, '') as doc_text,
-                        metadata->>'text' as text_from_meta,
-                        metadata->>'document' as doc_from_meta,
-                        metadata
-                    FROM vecs.arbot_documents
-                    WHERE ({text_column} IS NOT NULL AND {text_column} != '') 
-                       OR (metadata->>'text' IS NOT NULL AND metadata->>'text' != '')
-                    ORDER BY {embedding_col} <=> %s::vector
-                    LIMIT %s;
-                """, (query_embedding_str, query_embedding_str, top_k))
-            else:
-                # Estructura antigua sin columna de texto (solo metadata)
-                cursor.execute(f"""
-                    SELECT 
-                        id,
-                        {embedding_col} <=> %s::vector as distance,
-                        '' as doc_text,
-                        metadata->>'text' as text_from_meta,
-                        metadata->>'document' as doc_from_meta,
-                        metadata
-                    FROM vecs.arbot_documents
-                    WHERE metadata->>'text' IS NOT NULL AND metadata->>'text' != ''
-                    ORDER BY {embedding_col} <=> %s::vector
-                    LIMIT %s;
-                """, (query_embedding_str, query_embedding_str, top_k))
+            # Búsqueda vectorial usando cosine distance
+            # Usar solo columna 'content' (estándar)
+            cursor.execute(f"""
+                SELECT 
+                    id,
+                    {embedding_col} <=> %s::vector as distance,
+                    COALESCE(content, '') as doc_text,
+                    metadata->>'text' as text_from_meta,
+                    metadata
+                FROM vecs.arbot_documents
+                WHERE (content IS NOT NULL AND content != '') 
+                   OR (metadata->>'text' IS NOT NULL AND metadata->>'text' != '')
+                ORDER BY {embedding_col} <=> %s::vector
+                LIMIT %s;
+            """, (query_embedding_str, query_embedding_str, top_k))
             
             results = []
             for row in cursor.fetchall():
-                node_id, distance, doc_text, text_from_meta, doc_from_meta, metadata = row
+                node_id, distance, doc_text, text_from_meta, metadata = row
                 
-                # Obtener texto (prioridad: document column > metadata->text > metadata->document)
-                node_text = doc_text or text_from_meta or doc_from_meta
+                # Obtener texto (prioridad: content column > metadata->text)
+                node_text = doc_text or text_from_meta
                 
                 if not node_text:
-                    logger.warning(f"⚠️ Nodo {node_id} sin texto recuperable")
+                    logger.warning(f"⚠️ Nodo {node_id} sin texto recuperable (doc_text={bool(doc_text)}, text_from_meta={bool(text_from_meta)}, doc_from_meta={bool(doc_from_meta)})")
                     continue
                 
                 # Convertir distancia a similitud (1 - distancia)
                 similarity = max(0.0, 1.0 - float(distance)) if distance is not None else 0.5
+                
+                # Log del texto recuperado (primeros 100 caracteres)
+                text_preview = node_text[:100].replace('\n', ' ') if node_text else ''
+                logger.debug(f"📄 Resultado {len(results) + 1}: id={node_id}, similitud={similarity:.3f}, texto_len={len(node_text)}, preview='{text_preview}...'")
                 
                 result = {
                     'text': node_text,
@@ -459,6 +637,19 @@ class RAGService:
             if self.index is None:
                 logger.warning("No hay índice disponible en el sistema RAG")
                 return []
+            
+            # Detectar si la query es sobre un artículo específico
+            # Patrones: "artículo 52", "art. 52", "artículo X", etc.
+            import re
+            article_pattern = re.compile(r'(?i)(?:art[ií]culo|art\.?)\s+(\d+)', re.IGNORECASE)
+            article_match = article_pattern.search(query)
+            
+            # Si se pregunta por un artículo específico, usar búsqueda híbrida
+            if article_match:
+                article_num = article_match.group(1)
+                logger.info(f"🔍 Detectada búsqueda de artículo específico: {article_num}")
+                # Usar búsqueda híbrida (texto + vectorial)
+                return self._search_hybrid(query, article_num, top_k)
             
             # Intentar buscar siempre - no confiar completamente en get_stats()
             # Si hay documentos en Supabase, la búsqueda los encontrará aunque get_stats() falle
@@ -519,14 +710,14 @@ class RAGService:
                 # Obtener texto del nodo - PRIORIDAD: metadata primero, luego Supabase directo
                 node_text = None
                 
-                # 1. Intentar desde node.text (puede ser None si no hay columna document)
+                # 1. Intentar desde node.text
                 if hasattr(node, 'text') and node.text:
                     node_text = node.text
                     logger.debug(f"✅ Texto obtenido desde node.text")
                 
                 # 2. Intentar desde metadata del nodo
                 if not node_text and hasattr(node, 'metadata') and node.metadata:
-                    node_text = node.metadata.get('text') or node.metadata.get('document')
+                    node_text = node.metadata.get('text')
                     if node_text:
                         logger.debug(f"✅ Texto obtenido desde node.metadata")
                 
@@ -556,42 +747,18 @@ class RAGService:
                                 try:
                                     conn = psycopg2.connect(supabase_db_url)
                                     cursor = conn.cursor()
-                                    # Obtener texto desde la columna content (estándar) o document (antigua) o metadata
-                                    # Primero detectar qué columna existe
+                                    # Obtener texto desde la columna content (estándar)
                                     cursor.execute("""
-                                        SELECT column_name 
-                                        FROM information_schema.columns 
-                                        WHERE table_schema = 'vecs' 
-                                        AND table_name = 'arbot_documents'
-                                        AND column_name IN ('content', 'document')
-                                        ORDER BY CASE column_name WHEN 'content' THEN 1 ELSE 2 END
-                                        LIMIT 1;
-                                    """)
-                                    col_result = cursor.fetchone()
-                                    text_col = col_result[0] if col_result else None
-                                    
-                                    if text_col:
-                                        cursor.execute(f"""
-                                            SELECT 
-                                                COALESCE({text_col}, '') as doc_text,
-                                                metadata->>'text' as meta_text,
-                                                metadata->>'document' as meta_doc
-                                            FROM vecs.arbot_documents
-                                            WHERE id = %s;
-                                        """, (str(node_id),))
-                                    else:
-                                        cursor.execute("""
-                                            SELECT 
-                                                '' as doc_text,
-                                                metadata->>'text' as meta_text,
-                                                metadata->>'document' as meta_doc
-                                            FROM vecs.arbot_documents
-                                            WHERE id = %s;
-                                        """, (str(node_id),))
+                                        SELECT 
+                                            COALESCE(content, '') as doc_text,
+                                            metadata->>'text' as meta_text
+                                        FROM vecs.arbot_documents
+                                        WHERE id = %s;
+                                    """, (str(node_id),))
                                     
                                     result = cursor.fetchone()
                                     if result:
-                                        node_text = result[0] or result[1] or result[2]  # content/document > metadata->text > metadata->document
+                                        node_text = result[0] or result[1]  # content > metadata->text
                                         if node_text:
                                             logger.info(f"✅ Texto recuperado desde Supabase para nodo {node_id} ({len(node_text)} caracteres)")
                                         else:

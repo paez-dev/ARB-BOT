@@ -1,266 +1,118 @@
-# ARB-BOT - Chatbot Institucional con IA
+# 🤖 ARB-BOT - Asistente Institucional con IA
 
-## 📋 Descripción del Proyecto
+Sistema de chatbot institucional que utiliza RAG (Retrieval Augmented Generation) para responder preguntas sobre documentos legales (Manuales de Convivencia, Reglamentos, etc.) usando IA.
 
-ARB-BOT es un **chatbot institucional inteligente** desarrollado **100% con herramientas gratuitas**. Permite a padres de familia, estudiantes y personal de la institución hacer preguntas sobre:
-- Manual de convivencia
-- Reglamentos institucionales
-- Políticas y procedimientos
-- Información general de la institución
+## 🏗️ Arquitectura
 
-El sistema utiliza **RAG (Retrieval Augmented Generation)** para buscar información relevante en los documentos cargados y generar respuestas precisas basadas en ellos.
+El sistema está dividido en tres componentes principales:
 
-## 🎯 Características Principales
+1. **Google Colab** (Backoffice) - Procesamiento de documentos
+2. **Supabase** (Base de Datos) - Almacenamiento de chunks y embeddings
+3. **Railway** (Producción) - Bot en vivo que responde preguntas
 
-- ✅ **Carga de Documentos Institucionales** - Sube PDF, DOCX, TXT (manual de convivencia, reglamentos, etc.)
-- ✅ **Búsqueda Semántica (RAG)** - Encuentra información relevante en los documentos
-- ✅ **Respuestas Basadas en Documentos** - El bot responde usando solo la información cargada
-- ✅ **Múltiples Modelos de IA** - DistilGPT-2, GPT-2 (gratuitos)
-- ✅ **Interfaz Web Moderna** - Fácil de usar para padres, estudiantes y personal
-- ✅ **Historial de Conversaciones** - Guarda todas las interacciones
-- ✅ **Base de Datos Vectorial** - Búsqueda rápida y eficiente
-- ✅ **100% Gratuito** - Sin costos ocultos, todo open source
+Ver [ARQUITECTURA_SISTEMA.md](ARQUITECTURA_SISTEMA.md) para más detalles.
 
-## 🛠️ Stack Tecnológico (100% Gratuito)
+## ✨ Características
 
-### Backend
-- **Python 3.9+** - Lenguaje principal
-- **Flask** - Framework web ligero y gratuito
-- **Hugging Face Transformers** - Modelos de IA gratuitos
-- **LangChain** - Framework para aplicaciones con LLM (versión gratuita)
+- ✅ **Chunking jerárquico legal** - Respeta estructura TÍTULO → CAPÍTULO → Artículo
+- ✅ **Búsqueda híbrida** - Vectorial + por metadata (artículos específicos)
+- ✅ **Metadatos completos** - title, chapter, article, paragraph, page, keywords
+- ✅ **Respuestas precisas** - Citas exactas con referencias al documento
+- ✅ **Arquitectura optimizada** - Procesamiento en Colab, consultas en Railway
 
-### Frontend
-- **HTML5/CSS3/JavaScript** - Tecnologías web estándar
-- **Bootstrap 5** - Framework CSS gratuito
-- **Chart.js** - Librería de gráficos gratuita
+## 🚀 Inicio Rápido
 
-### IA y Procesamiento
-- **Hugging Face Transformers** - Modelos de IA gratuitos
-- **Sentence Transformers** - Embeddings para búsqueda semántica (gratuito)
-- **FAISS** - Base de datos vectorial para búsqueda rápida (gratuito)
-- **RAG (Retrieval Augmented Generation)** - Sistema de recuperación de información
+### 1. Configuración Inicial
 
-### Almacenamiento
-- **SQLite** - Base de datos para historial (gratuita)
-- **FAISS/Vector DB** - Base de datos vectorial para documentos (gratuita)
-- **File System** - Almacenamiento de documentos cargados
+1. Clona el repositorio
+2. Copia `.env.example` a `.env` y configura:
+   - `SUPABASE_DB_URL` - Connection string de Supabase
+   - `GROQ_API_KEY` - API key de Groq
+   - `EMBEDDINGS_MODEL` - Modelo de embeddings (default: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2)
 
-### Deployment
-- **Railway** - $5 crédito gratis (30 días) + $1/mes crédito después - Ver `DESPLIEGUE_RAILWAY.md`
-- **Docker** - Containerización para fácil despliegue
-- **GitHub** - Control de versiones gratuito
+### 2. Procesar Documentos (Colab)
 
-## 📁 Estructura del Proyecto
+1. Abre `INGESTA_DOCUMENTOS_COLAB.ipynb` en Google Colab
+2. Configura `SUPABASE_DB_URL` en la celda de configuración
+3. Sube tu PDF (Manual de Convivencia, Reglamento, etc.)
+4. Ejecuta el procesamiento
+5. ¡Listo! Los chunks están en Supabase
+
+Ver [GUIA_CHUNKING_JERARQUICO.md](GUIA_CHUNKING_JERARQUICO.md) para más detalles sobre el chunking.
+
+### 3. Desplegar Bot (Railway)
+
+1. Conecta tu repositorio a Railway
+2. Configura las variables de entorno
+3. Deploy automático
+4. ¡El bot está listo para responder!
+
+Ver [DESPLIEGUE_RAILWAY.md](DESPLIEGUE_RAILWAY.md) para más detalles.
+
+## 📚 Documentación
+
+- [ARQUITECTURA_SISTEMA.md](ARQUITECTURA_SISTEMA.md) - Arquitectura completa del sistema
+- [GUIA_CHUNKING_JERARQUICO.md](GUIA_CHUNKING_JERARQUICO.md) - Guía del chunking jerárquico
+- [DESPLIEGUE_RAILWAY.md](DESPLIEGUE_RAILWAY.md) - Guía de despliegue en Railway
+- [GITHUB_SETUP.md](GITHUB_SETUP.md) - Configuración de GitHub
+
+## 🔧 Tecnologías
+
+- **Backend:** Flask (Python)
+- **IA:** Groq API (Llama 3.1)
+- **RAG:** LlamaIndex + Supabase (pgvector)
+- **Embeddings:** HuggingFace (sentence-transformers)
+- **Base de Datos:** Supabase (PostgreSQL + pgvector)
+- **Despliegue:** Railway
+
+## 📊 Estructura del Proyecto
 
 ```
 ARB-BOT/
-├── README.md
-├── requirements.txt
-├── .env.example
-├── app.py                 # Aplicación Flask principal
-├── config.py              # Configuración del sistema
-├── models/
-│   ├── __init__.py
-│   └── ai_model.py        # Lógica de modelos de IA
+├── app.py                      # Aplicación Flask principal
 ├── services/
-│   ├── __init__.py
-│   ├── text_processor.py  # Procesamiento de texto
-│   └── generator.py       # Generación de contenido
-├── utils/
-│   ├── __init__.py
-│   └── helpers.py         # Funciones auxiliares
-├── database/
-│   └── db.py             # Configuración de base de datos
-├── static/
-│   ├── css/
-│   ├── js/
-│   └── images/
-└── templates/
-    ├── index.html
-    └── results.html
+│   ├── rag_service.py         # Servicio RAG (búsquedas)
+│   ├── generator.py           # Generador de respuestas
+│   └── text_processor.py      # Procesamiento de texto
+├── INGESTA_DOCUMENTOS_COLAB.ipynb  # Notebook para procesar documentos
+├── scripts/                    # Scripts SQL de utilidad
+└── templates/                  # Templates HTML
 ```
 
-## 🚀 Instalación y Uso
+## 🎯 Uso
 
-### Requisitos Previos
-- Python 3.9 o superior
-- pip (gestor de paquetes de Python)
-- Git (opcional, para clonar el repositorio)
+### Preguntas del Usuario
 
-### Pasos de Instalación
+El bot puede responder preguntas como:
+- "¿Qué dice el artículo 52?"
+- "¿Cuáles son los deberes de los estudiantes?"
+- "¿Qué es una falta grave?"
+- "¿Dónde se menciona el ciberbullying?"
 
-1. **Clonar o descargar el proyecto**
-   ```bash
-   git clone <url-del-repositorio>
-   cd ARB-BOT
-   ```
+### Búsqueda Híbrida
 
-2. **Crear entorno virtual (recomendado)**
-   ```bash
-   python -m venv venv
-   
-   # Windows
-   venv\Scripts\activate
-   
-   # Linux/Mac
-   source venv/bin/activate
-   ```
+El sistema usa búsqueda híbrida:
+1. **Por metadata** - Si pregunta "artículo 52", busca directamente en metadata
+2. **Vectorial** - Si no encuentra, busca por similitud semántica
+3. **Combinación** - Mejor resultado posible
 
-3. **Instalar dependencias**
-   ```bash
-   pip install -r requirements.txt
-   ```
+## ⚠️ Importante
 
-4. **Configurar variables de entorno**
-   ```bash
-   cp .env.example .env
-   # Editar .env con tus API keys (opcional para prototipo básico)
-   ```
+- **NO subas PDFs desde Railway** - Todo el procesamiento se hace en Colab
+- **Railway solo consulta** - No procesa documentos (optimización de recursos)
+- **Usa Colab para ingesta** - Procesa documentos en el notebook de Colab
 
-5. **Ejecutar la aplicación**
-   ```bash
-   python app.py
-   ```
+## 📝 Licencia
 
-6. **Acceder a la aplicación**
-   - Abrir navegador en: `http://localhost:5000`
-
-## 🌐 Desplegar en la Nube (Gratis)
-
-¿Quieres que tu chatbot esté disponible en internet? 
-
-### 🚂 Desplegar en Railway (Recomendado)
-- ✅ $5 crédito gratis (30 días) + $1/mes crédito después
-- ✅ No se suspende por inactividad
-- ✅ Auto-deploy desde GitHub
-- ✅ HTTPS automático
-- ✅ Muy fácil de configurar
-- 📖 Ver guía completa: **[DESPLIEGUE_RAILWAY.md](DESPLIEGUE_RAILWAY.md)**
-
-**Pasos rápidos:**
-1. Crea cuenta en Railway con crédito gratis
-2. Conecta tu repositorio de GitHub
-3. Configura variables de entorno
-4. ¡Listo! Railway desplegará automáticamente
-
-## 🔧 Configuración
-
-### Variables de Entorno
-
-El archivo `.env` puede contener las siguientes variables (todas opcionales para el prototipo básico):
-
-```env
-# API Keys (opcionales - el sistema funciona sin ellas en modo demo)
-HUGGINGFACE_API_KEY=tu_api_key_aqui
-OPENAI_API_KEY=tu_api_key_aqui
-
-# Configuración de la aplicación
-FLASK_ENV=development
-FLASK_DEBUG=True
-SECRET_KEY=tu_secret_key_aqui
-
-# Precarga de modelos (ajusta según tu plan en Railway)
-PRELOAD_MODELS_ON_STARTUP=true
-PRELOAD_RAG_ON_STARTUP=true
-
-# Supabase Storage (persistencia opcional)
-SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_KEY=tu-anon-key-aqui
-SUPABASE_BUCKET=documents
-```
-
-## 📊 Funcionalidades Completas
-
-### 1. Sistema RAG (Retrieval Augmented Generation)
-- ✅ **Carga de Documentos** - Sube manual de convivencia, reglamentos, PDFs, DOCX
-- ✅ **Procesamiento Automático** - Extrae y divide texto en chunks
-- ✅ **Embeddings** - Convierte documentos en vectores para búsqueda semántica
-- ✅ **Búsqueda Inteligente** - Encuentra información relevante para cada pregunta
-- ✅ **Respuestas Contextuales** - Genera respuestas basadas en documentos cargados
-
-### 2. Chatbot Institucional
-- ✅ **Preguntas y Respuestas** - Padres y estudiantes pueden hacer preguntas
-- ✅ **Respuestas Precisas** - Basadas únicamente en documentos institucionales
-- ✅ **Múltiples Documentos** - Soporta varios documentos simultáneamente
-- ✅ **Fuentes Citadas** - Muestra de dónde viene la información
-
-### 2. Sistema de Conversaciones
-- ✅ Historial completo de interacciones
-- ✅ Gestión de múltiples conversaciones
-- ✅ Búsqueda en historial
-- ✅ Exportación de conversaciones
-
-### 3. Interfaz de Usuario
-- ✅ Dashboard interactivo y moderno
-- ✅ Visualización en tiempo real
-- ✅ Diseño responsive (móvil y desktop)
-- ✅ Modo oscuro/claro
-- ✅ Estadísticas visuales
-
-### 4. Gestión de Modelos
-- ✅ Selección de modelo en tiempo real
-- ✅ Información de cada modelo
-- ✅ Cambio dinámico de modelo
-- ✅ Comparación de resultados
-
-### 5. Base de Datos
-- ✅ Almacenamiento persistente
-- ✅ Historial de conversaciones
-- ✅ Métricas y estadísticas
-- ✅ Backup automático
-
-## 🧠 Lógica del Sistema
-
-### Flujo Principal
-
-1. **Recepción de Input**
-   - Usuario ingresa texto/pregunta
-   - Validación y sanitización
-
-2. **Procesamiento**
-   - Análisis semántico
-   - Extracción de intención
-   - Preparación de contexto
-
-3. **Generación**
-   - Consulta a modelo de IA
-   - Generación de respuesta
-   - Post-procesamiento
-
-4. **Respuesta**
-   - Formateo de salida
-   - Presentación al usuario
-   - Almacenamiento en BD
-
-## 🔐 Seguridad y Privacidad
-
-- Validación de inputs
-- Sanitización de datos
-- Manejo seguro de API keys
-- No almacenamiento de información sensible
-
-## 📝 Notas Importantes
-
-- ✅ **Sistema completamente funcional** - Listo para usar
-- ✅ **100% Gratuito** - Sin costos ocultos
-- ✅ **Código abierto** - Todas las herramientas son open source
-- ✅ **Sin límites estrictos** - Los modelos se ejecutan localmente
-- ✅ **Privacidad total** - Todo se procesa localmente
-- ✅ **Escalable** - Fácil de expandir con más funcionalidades
+Este proyecto es de uso interno institucional.
 
 ## 🤝 Contribuciones
 
-Este es un prototipo académico. Las mejoras y sugerencias son bienvenidas.
-
-## 📄 Licencia
-
-Este proyecto es de uso educativo y demostrativo.
-
-## 👨‍💻 Autor
-
-Jean Carlos Páez Ramírez
+Para contribuir, por favor:
+1. Crea un branch para tu feature
+2. Haz commit de tus cambios
+3. Abre un Pull Request
 
 ---
 
-**Nota**: Este prototipo demuestra cómo se puede construir un sistema de IA generativa utilizando únicamente herramientas gratuitas, manteniendo la funcionalidad y demostrando la tecnología subyacente.
-
+**Desarrollado para instituciones educativas** 🎓
