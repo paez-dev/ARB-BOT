@@ -590,7 +590,7 @@ def upload_document():
         'instructions': {
             'correct_flow': 'Google Colab → Procesar PDF → Generar embeddings → Subir a Supabase',
             'bot_role': 'Railway solo consulta Supabase y genera respuestas',
-            'documentation': 'Ver INGESTA_DOCUMENTOS_COLAB.ipynb para procesar documentos'
+            'documentation': 'Ver INGESTA_FINAL_RAG.ipynb para procesar documentos'
         }
     }), 400
 

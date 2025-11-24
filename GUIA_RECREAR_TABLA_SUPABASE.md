@@ -87,7 +87,7 @@ vecs.arbot_documents
 ## 📝 Próximos Pasos
 
 1. ✅ Tabla recreada con estructura correcta
-2. 📤 Ejecuta el notebook de Colab (`INGESTA_DOCUMENTOS_COLAB.ipynb`)
+2. 📤 Ejecuta el notebook de Colab (`INGESTA_FINAL_RAG.ipynb`)
 3. 🔄 Procesa tus documentos PDF
 4. ✅ Los chunks se subirán automáticamente
 
@@ -114,6 +114,6 @@ Si ya tienes datos y quieres migrarlos:
 ## 📚 Archivos Relacionados
 
 - `RECREAR_TABLA_SUPABASE.sql` - Script SQL completo
-- `INGESTA_DOCUMENTOS_COLAB.ipynb` - Notebook para procesar documentos
+- `INGESTA_FINAL_RAG.ipynb` - Notebook para procesar documentos (Colab)
 - `GUIA_CHUNKING_JERARQUICO.md` - Guía del chunking
 

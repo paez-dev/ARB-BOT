@@ -63,7 +63,7 @@ Cada chunk incluye:
 
 ## 📚 Uso en Colab
 
-El notebook `INGESTA_DOCUMENTOS_COLAB.ipynb` ya incluye la función `chunk_hierarchical_legal()`.
+El notebook `INGESTA_FINAL_RAG.ipynb` ya incluye la función `chunk_hierarchical_legal()`.
 
 Solo ejecuta:
 ```python

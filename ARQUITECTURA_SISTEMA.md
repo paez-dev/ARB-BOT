@@ -39,7 +39,7 @@
 ### 1. Ingesta (Colab)
 
 1. **Administrador** tiene un nuevo PDF
-2. **Abre Colab** → `INGESTA_DOCUMENTOS_COLAB.ipynb`
+2. **Abre Colab** → `INGESTA_FINAL_RAG.ipynb`
 3. **Procesa el PDF:**
    - Extrae texto
    - Chunking jerárquico legal
@@ -64,7 +64,7 @@
 CREATE TABLE vecs.arbot_documents (
     id TEXT PRIMARY KEY,
     vec vector(384),        -- Embedding vector
-    content TEXT NOT NULL,  -- Texto del chunk
+    text TEXT NOT NULL,     -- Texto del chunk (estándar LlamaIndex)
     metadata JSONB          -- Metadatos completos
 );
 ```
@@ -73,7 +73,7 @@ CREATE TABLE vecs.arbot_documents (
 
 ```json
 {
-  "source": "MANUAL_DE_CONVIVENCIA.pdf",
+  "file": "MANUAL DE CONVIVENCIA ESCOLAR ROLDANISTA 2023.pdf",
   "title": "TÍTULO II",
   "chapter": "CAPÍTULO IV",
   "article": "Artículo 52",

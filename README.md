@@ -32,7 +32,7 @@ Ver [ARQUITECTURA_SISTEMA.md](ARQUITECTURA_SISTEMA.md) para más detalles.
 
 ### 2. Procesar Documentos (Colab)
 
-1. Abre `INGESTA_DOCUMENTOS_COLAB.ipynb` en Google Colab
+1. Abre `INGESTA_FINAL_RAG.ipynb` en Google Colab
 2. Configura `SUPABASE_DB_URL` en la celda de configuración
 3. Sube tu PDF (Manual de Convivencia, Reglamento, etc.)
 4. Ejecuta el procesamiento
@@ -74,7 +74,7 @@ ARB-BOT/
 │   ├── rag_service.py         # Servicio RAG (búsquedas)
 │   ├── generator.py           # Generador de respuestas
 │   └── text_processor.py      # Procesamiento de texto
-├── INGESTA_DOCUMENTOS_COLAB.ipynb  # Notebook para procesar documentos
+├── INGESTA_FINAL_RAG.ipynb  # Notebook para procesar documentos (Colab)
 ├── scripts/                    # Scripts SQL de utilidad
 └── templates/                  # Templates HTML
 ```

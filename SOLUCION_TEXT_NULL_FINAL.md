@@ -77,7 +77,7 @@ En los logs de Railway deberías ver:
 - ✅ `RECREAR_TABLA_SUPABASE.sql` - Usa `text`
 - ✅ `scripts/recrear_tabla_supabase.sql` - Usa `text`
 - ✅ `scripts/renombrar_content_a_text.sql` - Migración
-- ✅ `INGESTA_DOCUMENTOS_COLAB.ipynb` - Guarda en `text`
+- ✅ `INGESTA_FINAL_RAG.ipynb` - Guarda en `text` (formato estándar `meta`/`file`)
 - ✅ `services/rag_service.py` - Lee desde `text`
 
 ## 💡 Por Qué `text` y No `content`
