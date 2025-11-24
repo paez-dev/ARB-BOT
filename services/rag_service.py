@@ -505,7 +505,7 @@ class RAGService:
                     return self._search_direct_supabase(query, top_k)
             
             # Extraer resultados
-                results = []
+            results = []
             for i, node in enumerate(nodes[:top_k]):
                 # Convertir score a float de forma segura
                 try:
@@ -649,19 +649,19 @@ class RAGService:
         """
         try:
             results = self.search(query, top_k=top_k)
-        
-        if not results:
+            
+            if not results:
                 logger.warning("No se encontraron resultados relevantes")
-            return ""
-        
+                return ""
+            
             # Construir contexto desde los resultados
-        context_parts = []
+            context_parts = []
             current_length = 0
             
             # Asegurar que max_context_length sea int
             max_context_length = int(max_context_length) if max_context_length else 2500
             
-        for result in results:
+            for result in results:
                 # Asegurar que text sea string
                 text = str(result.get('text', ''))
                 if not text:
@@ -775,9 +775,9 @@ class RAGService:
             }
         except Exception as e:
             logger.error(f"Error obteniendo stats: {str(e)}")
-        return {
+            return {
                 'total_documents': 0,
-            'embeddings_model': self.embeddings_model_name,
+                'embeddings_model': self.embeddings_model_name,
                 'vector_store': 'unknown',
                 'error': str(e)
             }
@@ -794,6 +794,4 @@ class RAGService:
         Cargar índice (ya no necesario con Supabase, pero mantenido para compatibilidad)
         """
         logger.info("ℹ️ Con Supabase pgvector, el índice se carga automáticamente al inicializar.")
-        pass
-
         pass
