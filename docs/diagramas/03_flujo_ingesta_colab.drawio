@@ -1,0 +1,108 @@
+<mxfile host="app.diagrams.net" modified="2025-11-30T12:00:00.000Z" agent="5.0" version="21.0.0" type="device">
+  <diagram id="flujo-ingesta-v2" name="Flujo de Ingesta desde Colab">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <mxCell id="titulo" value="📒 FLUJO DE INGESTA - Google Colab" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="350" y="20" width="500" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="warning" value="⚠️ IMPORTANTE: Proceso MANUAL desde Colab. Requiere 2-4GB RAM. Railway solo tiene 0.5GB." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="200" y="70" width="700" height="35" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#E65100;strokeWidth=3;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="120" width="980" height="180" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="container-label" value="📒 Google Colab - 12GB RAM gratis" style="text;html=1;strokeColor=none;fillColor=#fff2cc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="60" y="115" width="220" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="numA" value="A" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=#E65100;fontSize=14;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="85" y="145" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="paso1" value="📄 Subir PDF" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="180" width="100" height="50" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="numB" value="B" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=#E65100;fontSize=14;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="225" y="145" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="paso2" value="📝 Extraer Texto" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="210" y="180" width="110" height="50" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="numC" value="C" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=#E65100;fontSize=14;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="365" y="145" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="paso3" value="📊 Chunking Legal" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="340" y="180" width="120" height="50" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="numD" value="D" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=#E65100;fontSize=14;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="505" y="145" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="paso4" value="🧠 Embeddings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="480" y="180" width="120" height="50" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="numE" value="E" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=#E65100;fontSize=14;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="645" y="145" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="paso5" value="📋 Metadata" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="620" y="180" width="120" height="50" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="numF" value="F" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=#E65100;fontSize=14;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="785" y="145" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="paso6" value="☁️ Subir Supabase" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="760" y="180" width="120" height="50" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="numG" value="G" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=#E65100;fontSize=14;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="925" y="145" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="paso7" value="✅ ~1200 chunks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="900" y="180" width="110" height="50" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="arrow1" value="" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#E65100;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="paso1" target="paso2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="arrow2" value="" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#E65100;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="paso2" target="paso3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="arrow3" value="" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#E65100;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="paso3" target="paso4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="arrow4" value="" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#E65100;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="paso4" target="paso5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="arrow5" value="" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#E65100;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="paso5" target="paso6">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="arrow6" value="" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#E65100;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="paso6" target="paso7">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="info1" value="⏱️ Tiempo: 5-10 min" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="350" y="330" width="150" height="35" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="info2" value="📅 Frecuencia: 1-2 veces/año" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="520" y="330" width="200" height="35" as="geometry"/>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

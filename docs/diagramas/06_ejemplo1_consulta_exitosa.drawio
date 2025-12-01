@@ -1,0 +1,40 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0" version="29.2.1">
+  <diagram id="ejemplo1" name="Ejemplo 1 - Consulta Exitosa">
+    <mxGraphModel dx="1418" dy="786" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="800" pageHeight="500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#388E3C;strokeWidth=3;" value="" vertex="1">
+          <mxGeometry height="460" width="760" x="20" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#388E3C;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=20;fontStyle=1;fontColor=#FFFFFF" value="✅ EJEMPLO 1: Consulta Exitosa" vertex="1">
+          <mxGeometry height="40" width="350" x="45" y="35" as="geometry" />
+        </mxCell>
+        <mxCell id="user-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" value="👤 Usuario pregunta:" vertex="1">
+          <mxGeometry height="25" width="180" x="40" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="pregunta" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1976D2;fontSize=16;fontStyle=2" value="&quot;¿Cuáles son las faltas graves?&quot;" vertex="1">
+          <mxGeometry height="45" width="340" x="40" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="proceso-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" value="⚙️ Sistema procesa:" vertex="1">
+          <mxGeometry height="25" width="180" x="40" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="contexto" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#FBC02D;fontSize=12;align=left;spacingLeft=15" value="📋 Contexto encontrado en Supabase:&#xa;&#xa;Artículo 28. FALTAS GRAVES.&#xa;Se consideran faltas graves:&#xa;a) La reincidencia en faltas leves&#xa;b) El fraude en evaluaciones académicas&#xa;c) La evasión de clases..." vertex="1">
+          <mxGeometry height="130" width="320" x="40" y="215" as="geometry" />
+        </mxCell>
+        <mxCell id="bot-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" value="🤖 ARB-BOT responde:" vertex="1">
+          <mxGeometry height="25" width="200" x="410" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="respuesta" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=12;align=left;spacingLeft=15" value="Según el Manual de Convivencia Escolar&#xa;Roldanista, en el Artículo 28 se establecen&#xa;las siguientes FALTAS GRAVES:&#xa;&#xa;a) La reincidencia en faltas leves&#xa;b) El fraude en evaluaciones académicas&#xa;c) La evasión de clases o del establecimiento&#xa;d) El irrespeto a miembros de la comunidad&#xa;e) Porte o consumo de sustancias&#xa;f) El acoso escolar o bullying&#xa;g) Daño intencional a la propiedad" vertex="1">
+          <mxGeometry height="220" width="350" x="410" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow" edge="1" parent="1" source="contexto" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#388E3C;entryX=0;entryY=0.5;exitX=1;exitY=0.5;" target="respuesta" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="resultado" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#388E3C;strokeColor=#2E7D32;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="✅ Respuesta basada en contexto REAL del Manual de Convivencia" vertex="1">
+          <mxGeometry height="45" width="500" x="150" y="400" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

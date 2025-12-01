@@ -1,0 +1,94 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0" version="29.2.1">
+  <diagram id="flujo-consulta-v2" name="Flujo de Consulta del Usuario">
+    <mxGraphModel dx="1418" dy="786" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1" value="🔄 FLUJO DE CONSULTA DEL USUARIO" vertex="1">
+          <mxGeometry height="40" width="500" x="120" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#dae8fc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=12;fontStyle=1;strokeColor=#6c8ebf" value="⏱️ Tiempo total: 2-4 segundos" vertex="1">
+          <mxGeometry height="25" width="200" x="476" y="92" as="geometry" />
+        </mxCell>
+        <mxCell id="num1" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#1976D2;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="1" vertex="1">
+          <mxGeometry height="30" width="30" x="60" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="paso1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" value="👤 Usuario escribe pregunta" vertex="1">
+          <mxGeometry height="50" width="160" x="100" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="num2" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#1976D2;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="2" vertex="1">
+          <mxGeometry height="30" width="30" x="60" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="paso2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" value="🐍 Flask procesa texto" vertex="1">
+          <mxGeometry height="50" width="160" x="100" y="175" as="geometry" />
+        </mxCell>
+        <mxCell id="num3" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#1976D2;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="3" vertex="1">
+          <mxGeometry height="30" width="30" x="60" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="paso3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" value="🔍 RAG genera embedding" vertex="1">
+          <mxGeometry height="50" width="160" x="100" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="num4" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#1976D2;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="4" vertex="1">
+          <mxGeometry height="30" width="30" x="60" y="335" as="geometry" />
+        </mxCell>
+        <mxCell id="paso4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" value="🗄️ Supabase busca chunks" vertex="1">
+          <mxGeometry height="50" width="160" x="100" y="325" as="geometry" />
+        </mxCell>
+        <mxCell id="decision" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" value="❓ ¿Hay contexto?" vertex="1">
+          <mxGeometry height="70" width="120" x="300" y="315" as="geometry" />
+        </mxCell>
+        <mxCell id="si-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontStyle=1;fontColor=#00AA00;" value="✅ SÍ" vertex="1">
+          <mxGeometry height="20" width="40" x="425" y="329" as="geometry" />
+        </mxCell>
+        <mxCell id="no-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontStyle=1;fontColor=#CC0000;" value="❌ NO" vertex="1">
+          <mxGeometry height="20" width="40" x="319" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="num5" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#1976D2;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="5" vertex="1">
+          <mxGeometry height="30" width="30" x="450" y="299" as="geometry" />
+        </mxCell>
+        <mxCell id="paso5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" value="🤖 Groq API genera respuesta" vertex="1">
+          <mxGeometry height="50" width="180" x="490" y="325" as="geometry" />
+        </mxCell>
+        <mxCell id="fallback" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" value="⚠️ Respuesta: No tengo info" vertex="1">
+          <mxGeometry height="40" width="160" x="280" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="num6" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#1976D2;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="6" vertex="1">
+          <mxGeometry height="30" width="30" x="450" y="241" as="geometry" />
+        </mxCell>
+        <mxCell id="paso6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" value="🛡️ Filtro anti-alucinación" vertex="1">
+          <mxGeometry height="50" width="180" x="490" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="num7" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#1976D2;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="7" vertex="1">
+          <mxGeometry height="30" width="30" x="450" y="157" as="geometry" />
+        </mxCell>
+        <mxCell id="paso7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1" value="✅ Respuesta mostrada en chat" vertex="1">
+          <mxGeometry height="50" width="180" x="490" y="146" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow1" edge="1" parent="1" source="paso1" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#1976D2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="paso2" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow2" edge="1" parent="1" source="paso2" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#1976D2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="paso3" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow3" edge="1" parent="1" source="paso3" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#1976D2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="paso4" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow4" edge="1" parent="1" source="paso4" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#1976D2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="decision" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow5" edge="1" parent="1" source="decision" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#00AA00;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="paso5" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow6" edge="1" parent="1" source="paso5" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#1976D2;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" target="paso6" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow7" edge="1" parent="1" source="paso6" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#1976D2;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" target="paso7" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-no" edge="1" parent="1" source="decision" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#CC0000;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="fallback" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

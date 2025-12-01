@@ -1,0 +1,40 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0" version="29.2.1">
+  <diagram id="ejemplo2" name="Ejemplo 2 - Sin Información">
+    <mxGraphModel dx="1418" dy="786" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="800" pageHeight="500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#D32F2F;strokeWidth=3;" value="" vertex="1">
+          <mxGeometry height="460" width="760" x="20" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#D32F2F;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=20;fontStyle=1;fontColor=#FFFFFF" value="❌ EJEMPLO 2: Sin Información Disponible" vertex="1">
+          <mxGeometry height="40" width="420" x="51" y="35" as="geometry" />
+        </mxCell>
+        <mxCell id="user-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" value="👤 Usuario pregunta:" vertex="1">
+          <mxGeometry height="25" width="180" x="40" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="pregunta" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1976D2;fontSize=16;fontStyle=2" value="&quot;¿Cuánto cuesta la pensión mensual?&quot;" vertex="1">
+          <mxGeometry height="45" width="340" x="40" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="proceso-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" value="⚙️ Sistema procesa:" vertex="1">
+          <mxGeometry height="25" width="180" x="40" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="contexto" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#D32F2F;fontSize=12;align=left;spacingLeft=15" value="🔍 Búsqueda RAG en Supabase:&#xa;&#xa;❌ No se encontró contexto relevante&#xa;&#xa;El Manual de Convivencia no contiene&#xa;información sobre costos o pensiones.&#xa;&#xa;⚠️ FALLBACK activado" vertex="1">
+          <mxGeometry height="140" width="320" x="40" y="215" as="geometry" />
+        </mxCell>
+        <mxCell id="bot-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" value="🤖 ARB-BOT responde:" vertex="1">
+          <mxGeometry height="25" width="200" x="410" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="respuesta" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=12;align=left;spacingLeft=15" value="Actualmente no tengo información cargada&#xa;en mi base documental relacionada con&#xa;tu consulta sobre costos de pensión.&#xa;&#xa;El Manual de Convivencia no incluye&#xa;información sobre tarifas o pagos.&#xa;&#xa;Te sugiero contactar directamente a la&#xa;secretaría de la institución para&#xa;información sobre costos y pagos.&#xa;&#xa;¿Puedo ayudarte con otra pregunta&#xa;sobre el Manual de Convivencia?" vertex="1">
+          <mxGeometry height="230" width="350" x="410" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow" edge="1" parent="1" source="contexto" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#E65100;entryX=0;entryY=0.5;exitX=1;exitY=0.5;" target="respuesta" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="resultado" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=#BF360C;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="⚠️ Sistema anti-alucinación: El bot NO inventa información - responde honestamente" vertex="1">
+          <mxGeometry height="45" width="600" x="100" y="405" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

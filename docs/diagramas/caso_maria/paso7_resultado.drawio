@@ -1,0 +1,77 @@
+<mxfile host="app.diagrams.net" modified="2025-11-30T12:00:00.000Z" agent="5.0" version="21.0.0" type="device">
+  <diagram id="resultado" name="Resultado Final">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="800" pageHeight="500" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <mxCell id="fondo" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="20" y="20" width="760" height="460" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="titulo" value="🎯 RESULTADO FINAL" style="text;html=1;strokeColor=none;fillColor=#1976D2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=24;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="250" y="35" width="300" height="50" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="con-arb-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="40" y="105" width="350" height="340" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="con-arb-titulo" value="✅ CON ARB-BOT" style="text;html=1;strokeColor=none;fillColor=#388E3C;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=18;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="55" y="120" width="180" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="con1" value="✅ María obtuvo información en&#xa;    menos de 2 minutos" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13" vertex="1" parent="1">
+          <mxGeometry x="55" y="175" width="320" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="con2" value="✅ Sabe que su caso es FALTA GRAVE&#xa;    (no gravísima)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13" vertex="1" parent="1">
+          <mxGeometry x="55" y="225" width="320" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="con3" value="✅ Entiende el procedimiento que&#xa;    seguirá coordinación" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13" vertex="1" parent="1">
+          <mxGeometry x="55" y="275" width="320" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="con4" value="✅ Puede ir PREPARADA a la reunión&#xa;    con coordinación" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13" vertex="1" parent="1">
+          <mxGeometry x="55" y="325" width="320" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="con-stats" value="⏱️ Tiempo: 2 minutos&#xa;📱 Dispositivo: Celular&#xa;💰 Costo: $0 GRATIS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#388E3C;strokeColor=#2E7D32;fontSize=12;fontStyle=1;fontColor=#FFFFFF;align=left;spacingLeft=20" vertex="1" parent="1">
+          <mxGeometry x="55" y="380" width="200" height="55" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="sin-arb-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#D32F2F;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="410" y="105" width="350" height="340" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="sin-arb-titulo" value="❌ SIN ARB-BOT" style="text;html=1;strokeColor=none;fillColor=#D32F2F;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=18;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="425" y="120" width="180" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="sin1" value="❌ Tendría que buscar en un PDF&#xa;    de 193 páginas" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13" vertex="1" parent="1">
+          <mxGeometry x="425" y="175" width="320" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="sin2" value="❌ Probablemente no encontraría&#xa;    toda la información relevante" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13" vertex="1" parent="1">
+          <mxGeometry x="425" y="225" width="320" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="sin3" value="❌ Le tomaría 15-30 minutos&#xa;    de búsqueda manual" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13" vertex="1" parent="1">
+          <mxGeometry x="425" y="275" width="320" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="sin4" value="❌ Podría malinterpretar el&#xa;    contenido legal" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13" vertex="1" parent="1">
+          <mxGeometry x="425" y="325" width="320" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="sin-stats" value="⏱️ Tiempo: 15-30 min&#xa;📄 Manual: 193 páginas&#xa;😰 Estrés: ALTO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D32F2F;strokeColor=#B71C1C;fontSize=12;fontStyle=1;fontColor=#FFFFFF;align=left;spacingLeft=20" vertex="1" parent="1">
+          <mxGeometry x="425" y="380" width="200" height="55" as="geometry"/>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
+
+

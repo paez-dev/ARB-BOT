@@ -1,0 +1,40 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0" version="29.2.1">
+  <diagram id="ejemplo3" name="Ejemplo 3 - Búsqueda por Artículo">
+    <mxGraphModel dx="1418" dy="786" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="800" pageHeight="550" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;strokeWidth=3;" value="" vertex="1">
+          <mxGeometry height="510" width="760" x="20" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#1976D2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=20;fontStyle=1;fontColor=#FFFFFF" value="🔍 EJEMPLO 3: Búsqueda por Artículo Específico" vertex="1">
+          <mxGeometry height="40" width="480" x="61" y="35" as="geometry" />
+        </mxCell>
+        <mxCell id="user-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" value="👤 Usuario pregunta:" vertex="1">
+          <mxGeometry height="25" width="180" x="40" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="pregunta" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1976D2;fontSize=16;fontStyle=2" value="&quot;¿Qué dice el artículo 52?&quot;" vertex="1">
+          <mxGeometry height="45" width="300" x="40" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="proceso-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" value="⚙️ Proceso especial:" vertex="1">
+          <mxGeometry height="25" width="180" x="40" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="pasos" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;fontSize=12;align=left;spacingLeft=15" value="1️⃣ Sistema detecta patrón &quot;artículo XX&quot;&#xa;&#xa;2️⃣ Búsqueda híbrida:&#xa;    • Primero por metadata (número)&#xa;    • Luego por similitud vectorial&#xa;&#xa;3️⃣ Encuentra chunk exacto con&#xa;    metadata.article = &quot;Artículo 52&quot;&#xa;&#xa;✅ Máxima precisión en resultados" vertex="1">
+          <mxGeometry height="180" width="300" x="40" y="215" as="geometry" />
+        </mxCell>
+        <mxCell id="bot-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" value="🤖 ARB-BOT responde:" vertex="1">
+          <mxGeometry height="25" width="200" x="400" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="respuesta" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1976D2;fontSize=11;align=left;spacingLeft=15" value="El Artículo 52 del Manual de Convivencia&#xa;Escolar Roldanista establece los&#xa;DEBERES DE LOS ESTUDIANTES:&#xa;&#xa;&quot;Son deberes de los estudiantes:&#xa;&#xa;a) Asistir puntualmente a todas las&#xa;   actividades programadas&#xa;b) Portar adecuadamente el uniforme&#xa;c) Respetar y acatar las instrucciones&#xa;   de directivos y docentes&#xa;d) Cuidar los enseres e instalaciones&#xa;e) Participar activamente en las&#xa;   actividades académicas...&quot;" vertex="1">
+          <mxGeometry height="270" width="360" x="400" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow" edge="1" parent="1" source="pasos" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#1976D2;entryX=0;entryY=0.5;exitX=1;exitY=0.5;" target="respuesta" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="resultado" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#0D47A1;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="🎯 Búsqueda PRECISA: El sistema encuentra el artículo exacto solicitado" vertex="1">
+          <mxGeometry height="45" width="540" x="130" y="455" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

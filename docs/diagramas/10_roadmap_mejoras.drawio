@@ -1,0 +1,153 @@
+<mxfile host="app.diagrams.net" modified="2025-11-30T12:00:00.000Z" agent="5.0" version="21.0.0" type="device">
+  <diagram id="roadmap" name="Roadmap de Mejoras">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <mxCell id="fondo" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#388E3C;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="20" y="20" width="960" height="560" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="titulo" value="🚀 ROADMAP DE MEJORAS - ARB-BOT" style="text;html=1;strokeColor=none;fillColor=#1976D2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=24;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="250" y="35" width="500" height="50" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="timeline" value="" style="endArrow=classic;html=1;strokeWidth=4;strokeColor=#1976D2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="60" y="530" as="sourcePoint"/>
+            <mxPoint x="940" y="530" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="time-label" value="TIEMPO →" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1;fontColor=#1976D2" vertex="1" parent="1">
+          <mxGeometry x="850" y="535" width="100" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase1-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="50" y="110" width="270" height="380" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase1-header" value="📅 FASE 1" style="text;html=1;strokeColor=none;fillColor=#388E3C;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=20;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="70" y="125" width="230" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase1-tiempo" value="⏱️ 1-2 meses" style="text;html=1;strokeColor=none;fillColor=#81C784;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="70" y="175" width="230" height="30" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase1-item1" value="✅ Memoria de conversación&#xa;&#xa;Guardar últimos 5 mensajes&#xa;para mantener contexto" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#388E3C;fontSize=11;align=left;spacingLeft=10" vertex="1" parent="1">
+          <mxGeometry x="70" y="220" width="230" height="70" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase1-item2" value="✅ Sugerencias de preguntas&#xa;&#xa;Botones con preguntas&#xa;frecuentes pre-cargadas" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#388E3C;fontSize=11;align=left;spacingLeft=10" vertex="1" parent="1">
+          <mxGeometry x="70" y="300" width="230" height="70" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase1-item3" value="✅ Analytics básicos&#xa;&#xa;Contador de consultas,&#xa;temas más preguntados" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#388E3C;fontSize=11;align=left;spacingLeft=10" vertex="1" parent="1">
+          <mxGeometry x="70" y="380" width="230" height="70" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase1-esfuerzo" value="💪 Esfuerzo: BAJO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#A5D6A7;strokeColor=#388E3C;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="70" y="460" width="230" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="arrow1" value="" style="endArrow=classic;html=1;strokeWidth=4;strokeColor=#388E3C;entryX=0;entryY=0.5;exitX=1;exitY=0.5;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="320" y="300" as="sourcePoint"/>
+            <mxPoint x="360" y="300" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="fase2-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1976D2;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="360" y="110" width="270" height="380" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase2-header" value="📅 FASE 2" style="text;html=1;strokeColor=none;fillColor=#1976D2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=20;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="380" y="125" width="230" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase2-tiempo" value="⏱️ 3-4 meses" style="text;html=1;strokeColor=none;fillColor=#64B5F6;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="380" y="175" width="230" height="30" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase2-item1" value="✅ Multi-idioma (EN, PT)&#xa;&#xa;Soporte para inglés y&#xa;portugués automático" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1976D2;fontSize=11;align=left;spacingLeft=10" vertex="1" parent="1">
+          <mxGeometry x="380" y="220" width="230" height="70" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase2-item2" value="✅ Múltiples documentos&#xa;&#xa;Cargar varios manuales&#xa;y reglamentos" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1976D2;fontSize=11;align=left;spacingLeft=10" vertex="1" parent="1">
+          <mxGeometry x="380" y="300" width="230" height="70" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase2-item3" value="✅ Integración WhatsApp&#xa;&#xa;Bot accesible desde&#xa;WhatsApp Business API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1976D2;fontSize=11;align=left;spacingLeft=10" vertex="1" parent="1">
+          <mxGeometry x="380" y="380" width="230" height="70" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase2-esfuerzo" value="💪 Esfuerzo: MEDIO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#90CAF9;strokeColor=#1976D2;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="380" y="460" width="230" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="arrow2" value="" style="endArrow=classic;html=1;strokeWidth=4;strokeColor=#1976D2;entryX=0;entryY=0.5;exitX=1;exitY=0.5;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="630" y="300" as="sourcePoint"/>
+            <mxPoint x="670" y="300" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="fase3-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="670" y="110" width="270" height="380" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase3-header" value="📅 FASE 3" style="text;html=1;strokeColor=none;fillColor=#7B1FA2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=20;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="690" y="125" width="230" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase3-tiempo" value="⏱️ 5-6 meses" style="text;html=1;strokeColor=none;fillColor=#BA68C8;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;fontColor=#FFFFFF" vertex="1" parent="1">
+          <mxGeometry x="690" y="175" width="230" height="30" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase3-item1" value="✅ Fine-tuning modelo propio&#xa;&#xa;Entrenar LLM específico&#xa;para documentos legales" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7B1FA2;fontSize=11;align=left;spacingLeft=10" vertex="1" parent="1">
+          <mxGeometry x="690" y="220" width="230" height="70" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase3-item2" value="✅ API pública&#xa;&#xa;Endpoints para que otros&#xa;sistemas consuman el bot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7B1FA2;fontSize=11;align=left;spacingLeft=10" vertex="1" parent="1">
+          <mxGeometry x="690" y="300" width="230" height="70" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase3-item3" value="✅ Dashboard administración&#xa;&#xa;Panel web completo para&#xa;gestionar todo el sistema" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7B1FA2;fontSize=11;align=left;spacingLeft=10" vertex="1" parent="1">
+          <mxGeometry x="690" y="380" width="230" height="70" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="fase3-esfuerzo" value="💪 Esfuerzo: ALTO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CE93D8;strokeColor=#7B1FA2;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="690" y="460" width="230" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="dot1" value="" style="ellipse;whiteSpace=wrap;html=1;fillColor=#388E3C;strokeColor=#2E7D32;" vertex="1" parent="1">
+          <mxGeometry x="170" y="520" width="20" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="dot2" value="" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#0D47A1;" vertex="1" parent="1">
+          <mxGeometry x="485" y="520" width="20" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="dot3" value="" style="ellipse;whiteSpace=wrap;html=1;fillColor=#7B1FA2;strokeColor=#4A148C;" vertex="1" parent="1">
+          <mxGeometry x="795" y="520" width="20" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="label1" value="Mes 1-2" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="140" y="545" width="80" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="label2" value="Mes 3-4" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="455" y="545" width="80" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="label3" value="Mes 5-6" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="765" y="545" width="80" height="20" as="geometry"/>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
+

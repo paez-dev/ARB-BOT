@@ -1,0 +1,88 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0" version="29.2.1">
+  <diagram id="limitaciones" name="Limitaciones Actuales">
+    <mxGraphModel dx="1418" dy="786" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="fondo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#D32F2F;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="560" width="860" x="20" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#D32F2F;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=22;fontStyle=1;fontColor=#FFFFFF" value="⚠️ LIMITACIONES ACTUALES DEL PROTOTIPO" vertex="1">
+          <mxGeometry height="50" width="500" x="200" y="35" as="geometry" />
+        </mxCell>
+        <mxCell id="col1-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#E53935;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="280" width="260" x="40" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="col1-titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#E53935;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=16;fontStyle=1;fontColor=#FFFFFF" value="📊 ESCALABILIDAD" vertex="1">
+          <mxGeometry height="35" width="230" x="55" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="col1-item1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E53935;fontSize=11;align=left;spacingLeft=10" value="❌ 30 requests/min máximo&#xa;    (límite Groq gratuito)" vertex="1">
+          <mxGeometry height="45" width="230" x="55" y="175" as="geometry" />
+        </mxCell>
+        <mxCell id="col1-item2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E53935;fontSize=11;align=left;spacingLeft=10" value="❌ 0.5GB RAM en Railway&#xa;    (no permite ingesta pesada)" vertex="1">
+          <mxGeometry height="45" width="230" x="55" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="col1-item3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E53935;fontSize=11;align=left;spacingLeft=10" value="❌ Cold start lento (~10s)&#xa;    tras inactividad" vertex="1">
+          <mxGeometry height="45" width="230" x="55" y="285" as="geometry" />
+        </mxCell>
+        <mxCell id="col1-item4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E53935;fontSize=11;align=left;spacingLeft=10" value="❌ Sin load balancer&#xa;    (un solo servidor)" vertex="1">
+          <mxGeometry height="40" width="230" x="55" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="col2-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#F57C00;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="280" width="260" x="320" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="col2-titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#F57C00;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=16;fontStyle=1;fontColor=#FFFFFF" value="🖥️ USABILIDAD" vertex="1">
+          <mxGeometry height="35" width="230" x="335" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="col2-item1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F57C00;fontSize=11;align=left;spacingLeft=10" value="⚠️ Ingesta manual desde Colab&#xa;    (requiere conocimiento técnico)" vertex="1">
+          <mxGeometry height="45" width="230" x="335" y="175" as="geometry" />
+        </mxCell>
+        <mxCell id="col2-item2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F57C00;fontSize=11;align=left;spacingLeft=10" value="⚠️ Sin tutorial integrado&#xa;    (usuarios nuevos)" vertex="1">
+          <mxGeometry height="45" width="230" x="335" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="col2-item3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F57C00;fontSize=11;align=left;spacingLeft=10" value="⚠️ Solo español&#xa;    (sin multi-idioma)" vertex="1">
+          <mxGeometry height="45" width="230" x="335" y="285" as="geometry" />
+        </mxCell>
+        <mxCell id="col2-item4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F57C00;fontSize=11;align=left;spacingLeft=10" value="⚠️ Sin autenticación&#xa;    (acceso público)" vertex="1">
+          <mxGeometry height="40" width="230" x="335" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="col3-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="280" width="260" x="600" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="col3-titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#7B1FA2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=16;fontStyle=1;fontColor=#FFFFFF" value="⚙️ FUNCIONALIDAD" vertex="1">
+          <mxGeometry height="35" width="230" x="615" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="col3-item1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7B1FA2;fontSize=11;align=left;spacingLeft=10" value="❌ Sin memoria conversacional&#xa;    (cada pregunta es independiente)" vertex="1">
+          <mxGeometry height="45" width="230" x="615" y="175" as="geometry" />
+        </mxCell>
+        <mxCell id="col3-item2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7B1FA2;fontSize=11;align=left;spacingLeft=10" value="❌ Sin multi-documento&#xa;    (solo Manual de Convivencia)" vertex="1">
+          <mxGeometry height="45" width="230" x="615" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="col3-item3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7B1FA2;fontSize=11;align=left;spacingLeft=10" value="❌ Sin feedback del usuario&#xa;    (no hay thumbs up/down)" vertex="1">
+          <mxGeometry height="45" width="230" x="615" y="285" as="geometry" />
+        </mxCell>
+        <mxCell id="col3-item4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7B1FA2;fontSize=11;align=left;spacingLeft=10" value="❌ Sin caché de respuestas&#xa;    (siempre procesa de nuevo)" vertex="1">
+          <mxGeometry height="40" width="230" x="615" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="impacto-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#FBC02D;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="150" width="820" x="40" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="impacto-titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#FBC02D;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=16;fontStyle=1;fontColor=#333333" value="💡 IMPACTO EN EL USUARIO" vertex="1">
+          <mxGeometry height="35" width="250" x="55" y="425" as="geometry" />
+        </mxCell>
+        <mxCell id="imp1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FBC02D;fontSize=12;align=left;spacingLeft=15" value="📝 Usuario debe dar contexto en cada pregunta (sin memoria)" vertex="1">
+          <mxGeometry height="35" width="380" x="55" y="475" as="geometry" />
+        </mxCell>
+        <mxCell id="imp2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FBC02D;fontSize=12;align=left;spacingLeft=15" value="⏳ Primera respuesta del día puede tardar ~10 segundos" vertex="1">
+          <mxGeometry height="35" width="380" x="55" y="515" as="geometry" />
+        </mxCell>
+        <mxCell id="imp3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FBC02D;fontSize=12;align=left;spacingLeft=15" value="🔒 No hay historial personal de consultas" vertex="1">
+          <mxGeometry height="35" width="380" x="455" y="475" as="geometry" />
+        </mxCell>
+        <mxCell id="imp4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FBC02D;fontSize=12;align=left;spacingLeft=15" value="📚 Solo puede responder sobre el Manual de Convivencia" vertex="1">
+          <mxGeometry height="35" width="380" x="455" y="515" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

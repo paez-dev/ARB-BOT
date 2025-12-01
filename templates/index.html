@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARB-BOT - Chatbot Institucional</title>
+    
+    <!-- Bootstrap 5 (Gratuito) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons (Gratuito) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <!-- Estilos personalizados -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <script>
+        window.ARB_CONFIG = {
+            AUTO_WARMUP_ENABLED: {{ 'true' if config.AUTO_WARMUP_ENABLED else 'false' }}
+        };
+    </script>
+</head>
+<body>
+    <!-- Header fijo -->
+    <header class="chat-header">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <h1 class="mb-0 me-3">🤖 ARB-BOT</h1>
+                    <span class="badge bg-success">En línea</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-light admin-btn" id="adminToggle" title="Panel de administración">
+                        <i class="bi bi-gear-fill"></i> <span class="d-none d-md-inline">Admin</span>
+                    </button>
+                    <button class="btn btn-sm btn-light admin-btn" id="historyToggle" title="Ver historial">
+                        <i class="bi bi-clock-history"></i> <span class="d-none d-md-inline">Historial</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Modal de Login Admin -->
+    <div class="modal fade" id="adminLoginModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🔒 Acceso de Administración</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="adminLoginForm">
+                        <div class="mb-3">
+                            <label for="adminPassword" class="form-label">Contraseña:</label>
+                            <input type="password" class="form-control" id="adminPassword" required>
+                            <small class="form-text text-muted">Ingresa la contraseña de administración</small>
+                        </div>
+                        <div id="loginError" class="alert alert-danger" style="display: none;"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="adminLoginBtn">Ingresar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel de Administración (Oculto por defecto) -->
+    <div class="admin-panel" id="adminPanel" style="display: none;">
+        <div class="container-fluid py-3">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">📚 Subir Documentos Institucionales</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <p class="text-muted small mb-0">
+                                    Sube documentos como el manual de convivencia, reglamentos, etc. 
+                                    El sistema los procesará para responder preguntas basándose en ellos.
+                                </p>
+                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="window.arbBot?.closeAdminPanel()">
+                                    <i class="bi bi-arrow-left"></i> Volver al Chat
+                                </button>
+                            </div>
+                            <form id="uploadForm" enctype="multipart/form-data">
+                                <div class="mb-3">
+                                    <label for="documentFile" class="form-label">Seleccionar documento:</label>
+                                    <input type="file" class="form-control" id="documentFile" 
+                                           accept=".pdf,.docx,.txt" required>
+                                    <small class="form-text text-muted">
+                                        Formatos permitidos: PDF, DOCX, TXT
+                                    </small>
+                                </div>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-upload"></i> Subir y Procesar
+                                </button>
+                            </form>
+                            <div id="uploadStatus" class="mt-3" style="display: none;"></div>
+                            <div class="mt-3">
+                                <strong>Documentos cargados:</strong>
+                                <div id="ragStats" class="text-muted">
+                                    <small>Cargando información...</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">⚙️ Configuración</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="modelSelector" class="form-label">Modelo de IA:</label>
+                                <select class="form-select" id="modelSelector">
+                                    <option value="distilgpt2">DistilGPT-2 (Rápido)</option>
+                                    <option value="gpt2">GPT-2 (Mejor Calidad)</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Estadísticas:</label>
+                                <div class="row text-center">
+                                    <div class="col-4">
+                                        <div class="stats-number" id="totalInteractions">0</div>
+                                        <div class="stats-label">Interacciones</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stats-number" id="activeModel">-</div>
+                                        <div class="stats-label">Modelo</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stats-number">✓</div>
+                                        <div class="stats-label">Estado</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel de Historial (Oculto por defecto) -->
+    <div class="history-panel" id="historyPanel" style="display: none;">
+        <div class="container-fluid py-3">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📚 Historial de Conversaciones</h5>
+                    <button class="btn btn-sm btn-outline-light" onclick="window.arbBot?.closeHistoryPanel()">
+                        <i class="bi bi-arrow-left"></i> Volver al Chat
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="historyContainer">
+                        <p class="text-muted text-center">Cargando historial...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Área de Chat Principal -->
+    <main class="chat-container">
+        <div class="chat-messages" id="chatMessages">
+            <!-- Mensaje de bienvenida -->
+            <div class="message bot-message">
+                <div class="message-avatar">
+                    <img src="{{ url_for('static', filename='images/logo_arbt.png') }}" alt="ARB-BOT" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                </div>
+                <div class="message-content">
+                    <div class="message-text">
+                        ¡Hola! 👋 Soy ARB-BOT, tu asistente institucional. 
+                        Puedo responder preguntas sobre el manual de convivencia, reglamentos y políticas de la institución.
+                        <br><br>
+                        <strong>¿En qué puedo ayudarte hoy?</strong>
+                    </div>
+                    <div class="message-time">Ahora</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input de Chat -->
+        <div class="chat-input-container">
+            <form id="generateForm" class="chat-input-form">
+                <div class="input-group">
+                    <textarea 
+                        class="form-control chat-input" 
+                        id="userInput" 
+                        rows="1"
+                        placeholder="Escribe tu pregunta aquí..."
+                        maxlength="500"
+                    ></textarea>
+                    <button type="submit" class="btn btn-primary chat-send-btn" id="sendBtn">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+                </div>
+                <div class="d-flex justify-content-between mt-2">
+                    <small class="text-muted">
+                        <span id="charCount">0/500</span> caracteres
+                    </small>
+                    <small class="text-muted">
+                        Las consultas se guardan automáticamente
+                    </small>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-content">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-3">Generando respuesta...</p>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- JavaScript personalizado -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    
+    <!-- Scripts adicionales -->
+    <script>
+        // Contador de caracteres
+        document.getElementById('userInput')?.addEventListener('input', function(e) {
+            const count = e.target.value.length;
+            document.getElementById('charCount').textContent = `${count}/500`;
+            
+            // Auto-resize textarea
+            e.target.style.height = 'auto';
+            e.target.style.height = e.target.scrollHeight + 'px';
+            
+            if (count > 500) {
+                document.getElementById('charCount').classList.add('text-danger');
+            } else {
+                document.getElementById('charCount').classList.remove('text-danger');
+            }
+        });
+
+        // Toggle panel de administración
+        document.getElementById('adminToggle')?.addEventListener('click', async function() {
+            const panel = document.getElementById('adminPanel');
+            const historyPanel = document.getElementById('historyPanel');
+            const chatContainer = document.querySelector('.chat-container');
+            const chatInput = document.querySelector('.chat-input-container');
+            
+            if (panel.style.display === 'none') {
+                // Verificar autenticación antes de abrir
+                const isAuthenticated = await window.arbBot?.checkAdminAuth();
+                
+                if (isAuthenticated) {
+                    panel.style.display = 'block';
+                    historyPanel.style.display = 'none';
+                    // Ocultar chat cuando se abre admin
+                    if (chatContainer) chatContainer.style.display = 'none';
+                    if (chatInput) chatInput.style.display = 'none';
+                } else {
+                    // Mostrar modal de login
+                    const loginModal = new bootstrap.Modal(document.getElementById('adminLoginModal'));
+                    loginModal.show();
+                }
+            } else {
+                panel.style.display = 'none';
+                // Mostrar chat cuando se cierra admin
+                if (chatContainer) chatContainer.style.display = 'flex';
+                if (chatInput) chatInput.style.display = 'block';
+            }
+        });
+
+        // Toggle panel de historial
+        document.getElementById('historyToggle')?.addEventListener('click', function() {
+            const panel = document.getElementById('historyPanel');
+            const adminPanel = document.getElementById('adminPanel');
+            const chatContainer = document.querySelector('.chat-container');
+            const chatInput = document.querySelector('.chat-input-container');
+            
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                adminPanel.style.display = 'none';
+                // Ocultar chat cuando se abre historial
+                if (chatContainer) chatContainer.style.display = 'none';
+                if (chatInput) chatInput.style.display = 'none';
+                window.arbBot?.loadHistory();
+            } else {
+                panel.style.display = 'none';
+                // Mostrar chat cuando se cierra historial
+                if (chatContainer) chatContainer.style.display = 'flex';
+                if (chatInput) chatInput.style.display = 'block';
+            }
+        });
+
+        // Enter para enviar (Shift+Enter para nueva línea)
+        document.getElementById('userInput')?.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById('generateForm')?.dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0" version="29.2.1">
+  <diagram id="paso1" name="Paso 1 - Usuario Entra">
+    <mxGraphModel dx="1418" dy="786" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="700" pageHeight="450" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="fondo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#388E3C;strokeWidth=3;" value="" vertex="1">
+          <mxGeometry height="410" width="660" x="20" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="numero" parent="1" style="text;html=1;strokeColor=none;fillColor=#388E3C;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=24;fontStyle=1;fontColor=#FFFFFF" value="PASO 1" vertex="1">
+          <mxGeometry height="45" width="120" x="48" y="35" as="geometry" />
+        </mxCell>
+        <mxCell id="titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1" value="USUARIO ENTRA AL SISTEMA" vertex="1">
+          <mxGeometry height="40" width="400" x="175" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="contexto" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#FBC02D;fontSize=12;fontStyle=2" value="👩‍🎓 María (estudiante de 10°) fue acusada de copiar en un examen" vertex="1">
+          <mxGeometry height="35" width="620" x="40" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="accion1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1976D2;fontSize=14;align=left;spacingLeft=20" value="📱 María abre el navegador en su celular" vertex="1">
+          <mxGeometry height="45" width="360" x="40" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="accion2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1976D2;fontSize=14;align=left;spacingLeft=20" value="🌐 Ingresa a: asistente-virtual-arb-bot.up.railway.app" vertex="1">
+          <mxGeometry height="45" width="360" x="40" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="accion3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1976D2;fontSize=14;align=left;spacingLeft=20" value="👀 Ve la pantalla de bienvenida del chatbot" vertex="1">
+          <mxGeometry height="45" width="360" x="40" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="pantalla" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1976D2;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="200" width="240" x="420" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="header" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=none;fontSize=11;fontColor=#FFFFFF;fontStyle=1" value="🤖 ARB-BOT                    🟢" vertex="1">
+          <mxGeometry height="30" width="240" x="420" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="mensaje" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#388E3C;fontSize=10;align=left;spacingLeft=10" value="🤖 ¡Hola! Soy ARB-BOT, tu&#xa;asistente institucional.&#xa;&#xa;Puedo responder preguntas&#xa;sobre el manual de convivencia.&#xa;&#xa;¿En qué puedo ayudarte hoy?" vertex="1">
+          <mxGeometry height="110" width="180" x="430" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="input" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#BDBDBD;fontSize=10;fontStyle=2;fontColor=#9E9E9E" value="Escribe tu mensaje..." vertex="1">
+          <mxGeometry height="30" width="180" x="430" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow1" edge="1" parent="1" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#388E3C;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="40" y="390" as="sourcePoint" />
+            <mxPoint x="640" y="390" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="next" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=3" value="→ Continúa en PASO 2" vertex="1">
+          <mxGeometry height="25" width="160" x="480" y="395" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
+

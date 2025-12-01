@@ -1,0 +1,175 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0" version="29.2.1">
+  <diagram id="requisitos" name="Requisitos para Producción Empresarial">
+    <mxGraphModel dx="1418" dy="786" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="750" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="fondo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="710" width="1060" x="20" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#1976D2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=22;fontStyle=1;fontColor=#FFFFFF" value="🏢 REQUISITOS PARA PRODUCCIÓN EMPRESARIAL" vertex="1">
+          <mxGeometry height="50" width="600" x="250" y="35" as="geometry" />
+        </mxCell>
+        <mxCell id="seg-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#D32F2F;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="200" width="200" x="40" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="seg-titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#D32F2F;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="🔒 SEGURIDAD" vertex="1">
+          <mxGeometry height="30" width="170" x="55" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="seg1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D32F2F;fontSize=10;align=left;spacingLeft=8" value="❌ Autenticación SSO&#xa;    (No implementado)" vertex="1">
+          <mxGeometry height="40" width="170" x="55" y="155" as="geometry" />
+        </mxCell>
+        <mxCell id="seg2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#FBC02D;fontSize=10;align=left;spacingLeft=8" value="⚠️ Cifrado datos reposo&#xa;    (Parcial - Supabase)" vertex="1">
+          <mxGeometry height="40" width="170" x="55" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="seg-pri" parent="1" style="text;html=1;strokeColor=none;fillColor=#D32F2F;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=10;fontStyle=1;fontColor=#FFFFFF" value="🔴 ALTA PRIORIDAD" vertex="1">
+          <mxGeometry height="25" width="170" x="55" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="esc-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#F57C00;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="200" width="200" x="260" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="esc-titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#F57C00;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="📈 ESCALABILIDAD" vertex="1">
+          <mxGeometry height="30" width="170" x="275" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="esc1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F57C00;fontSize=10;align=left;spacingLeft=8" value="❌ Load balancer&#xa;    (No implementado)" vertex="1">
+          <mxGeometry height="40" width="170" x="275" y="155" as="geometry" />
+        </mxCell>
+        <mxCell id="esc2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F57C00;fontSize=10;align=left;spacingLeft=8" value="❌ Rate limiting x usuario&#xa;    (No implementado)" vertex="1">
+          <mxGeometry height="40" width="170" x="275" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="esc-pri" parent="1" style="text;html=1;strokeColor=none;fillColor=#F57C00;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=10;fontStyle=1;fontColor=#FFFFFF" value="🟠 MEDIA PRIORIDAD" vertex="1">
+          <mxGeometry height="25" width="170" x="275" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="mon-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1976D2;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="200" width="200" x="480" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="mon-titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#1976D2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="📊 MONITOREO" vertex="1">
+          <mxGeometry height="30" width="170" x="495" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="mon1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1976D2;fontSize=10;align=left;spacingLeft=8" value="❌ Logs centralizados&#xa;    (Solo logs locales)" vertex="1">
+          <mxGeometry height="40" width="170" x="495" y="155" as="geometry" />
+        </mxCell>
+        <mxCell id="mon2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1976D2;fontSize=10;align=left;spacingLeft=8" value="❌ Alertas automáticas&#xa;    (No implementado)" vertex="1">
+          <mxGeometry height="40" width="170" x="495" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="mon-pri" parent="1" style="text;html=1;strokeColor=none;fillColor=#1976D2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=10;fontStyle=1;fontColor=#FFFFFF" value="🟠 MEDIA PRIORIDAD" vertex="1">
+          <mxGeometry height="25" width="170" x="495" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="com-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="200" width="200" x="700" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="com-titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#7B1FA2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="📋 COMPLIANCE" vertex="1">
+          <mxGeometry height="30" width="170" x="715" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="com1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7B1FA2;fontSize=10;align=left;spacingLeft=8" value="❌ Retención de datos&#xa;    (No definida)" vertex="1">
+          <mxGeometry height="40" width="170" x="715" y="155" as="geometry" />
+        </mxCell>
+        <mxCell id="com2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#7B1FA2;fontSize=10;align=left;spacingLeft=8" value="❌ GDPR / Ley Datos&#xa;    (No implementado)" vertex="1">
+          <mxGeometry height="40" width="170" x="715" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="com-pri" parent="1" style="text;html=1;strokeColor=none;fillColor=#7B1FA2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=10;fontStyle=1;fontColor=#FFFFFF" value="🔴 ALTA PRIORIDAD" vertex="1">
+          <mxGeometry height="25" width="170" x="715" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="ux-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="200" width="140" x="920" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="ux-titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#388E3C;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="🎨 UX" vertex="1">
+          <mxGeometry height="30" width="110" x="935" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="ux1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#FBC02D;fontSize=10;align=left;spacingLeft=5" value="⚠️ Testing usuarios&#xa;    (Limitado)" vertex="1">
+          <mxGeometry height="40" width="118" x="932" y="155" as="geometry" />
+        </mxCell>
+        <mxCell id="ux2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#FBC02D;fontSize=10;align=left;spacingLeft=5" value="⚠️ WCAG 2.1&#xa;    (Parcial)" vertex="1">
+          <mxGeometry height="40" width="118" x="932" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="ux-pri" parent="1" style="text;html=1;strokeColor=none;fillColor=#388E3C;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=10;fontStyle=1;fontColor=#FFFFFF" value="🟡 MEDIA-ALTA" vertex="1">
+          <mxGeometry height="25" width="118" x="932" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="costos-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;strokeWidth=3;" value="" vertex="1">
+          <mxGeometry height="380" width="500" x="40" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="costos-titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#1976D2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=16;fontStyle=1;fontColor=#FFFFFF" value="💰 ESTIMACIÓN COSTOS PRODUCCIÓN" vertex="1">
+          <mxGeometry height="35" width="350" x="55" y="345" as="geometry" />
+        </mxCell>
+        <mxCell id="escenario" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#FBC02D;fontSize=12;fontStyle=2" value="📊 Escenario: 1,000 usuarios | 10,000 consultas/mes" vertex="1">
+          <mxGeometry height="30" width="350" x="55" y="395" as="geometry" />
+        </mxCell>
+        <mxCell id="infra-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1976D2;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="160" width="220" x="55" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="infra-titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#1976D2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=12;fontStyle=1;fontColor=#FFFFFF" value="🖥️ INFRAESTRUCTURA" vertex="1">
+          <mxGeometry height="25" width="200" x="65" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="infra1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11" value="Railway Pro: $20/mes" vertex="1">
+          <mxGeometry height="18" width="150" x="70" y="485" as="geometry" />
+        </mxCell>
+        <mxCell id="infra2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11" value="Supabase Pro: $25/mes" vertex="1">
+          <mxGeometry height="18" width="150" x="70" y="508" as="geometry" />
+        </mxCell>
+        <mxCell id="infra3" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11" value="Groq/OpenAI API: $50/mes" vertex="1">
+          <mxGeometry height="18" width="160" x="70" y="531" as="geometry" />
+        </mxCell>
+        <mxCell id="infra4" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11" value="Dominio: $15/año" vertex="1">
+          <mxGeometry height="18" width="150" x="70" y="554" as="geometry" />
+        </mxCell>
+        <mxCell id="infra-total" parent="1" style="text;html=1;strokeColor=none;fillColor=#1976D2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="~$100/mes" vertex="1">
+          <mxGeometry height="22" width="200" x="65" y="577" as="geometry" />
+        </mxCell>
+        <mxCell id="dev-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="160" width="230" x="295" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="dev-titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#388E3C;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=12;fontStyle=1;fontColor=#FFFFFF" value="👨‍💻 DESARROLLO" vertex="1">
+          <mxGeometry height="25" width="210" x="305" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="dev1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11" value="Features (freelancer): $500-1000" vertex="1">
+          <mxGeometry height="18" width="200" x="310" y="485" as="geometry" />
+        </mxCell>
+        <mxCell id="dev2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11" value="Soporte técnico: $200/mes" vertex="1">
+          <mxGeometry height="18" width="180" x="310" y="508" as="geometry" />
+        </mxCell>
+        <mxCell id="dev3" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11" value="Actualización docs: $100/mes" vertex="1">
+          <mxGeometry height="18" width="190" x="310" y="531" as="geometry" />
+        </mxCell>
+        <mxCell id="dev-total" parent="1" style="text;html=1;strokeColor=none;fillColor=#388E3C;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;fontColor=#FFFFFF" value="~$800/mes" vertex="1">
+          <mxGeometry height="22" width="210" x="305" y="577" as="geometry" />
+        </mxCell>
+        <mxCell id="total-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#FBC02D;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="80" width="470" x="55" y="615" as="geometry" />
+        </mxCell>
+        <mxCell id="total" parent="1" style="text;html=1;strokeColor=none;fillColor=#388E3C;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=18;fontStyle=1;fontColor=#FFFFFF" value="💵 TOTAL ESTIMADO: ~$900/mes" vertex="1">
+          <mxGeometry height="35" width="300" x="70" y="625" as="geometry" />
+        </mxCell>
+        <mxCell id="ahorro" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1" value="📉 vs Secretaria: $1,500/mes&#xa;✅ Ahorro: 40%+" vertex="1">
+          <mxGeometry height="30" width="200" x="70" y="665" as="geometry" />
+        </mxCell>
+        <mxCell id="leyenda-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#9E9E9E;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="380" width="500" x="560" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="leyenda-titulo" parent="1" style="text;html=1;strokeColor=none;fillColor=#424242;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=16;fontStyle=1;fontColor=#FFFFFF" value="📋 RESUMEN DE ESTADO" vertex="1">
+          <mxGeometry height="35" width="250" x="575" y="345" as="geometry" />
+        </mxCell>
+        <mxCell id="estado1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#D32F2F;fontSize=13;fontStyle=1" value="❌ No implementado (7 requisitos)" vertex="1">
+          <mxGeometry height="40" width="280" x="575" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="estado2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#FBC02D;fontSize=13;fontStyle=1" value="⚠️ Parcialmente implementado (4 requisitos)" vertex="1">
+          <mxGeometry height="40" width="300" x="575" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="estado3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=13;fontStyle=1" value="✅ Completamente implementado (0 requisitos)" vertex="1">
+          <mxGeometry height="40" width="310" x="575" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="prioridades" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" value="🎯 PRIORIDADES:" vertex="1">
+          <mxGeometry height="25" width="150" x="575" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="pri1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12" value="🔴 ALTA: Seguridad, Compliance, Testing usuarios" vertex="1">
+          <mxGeometry height="22" width="350" x="585" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="pri2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12" value="🟠 MEDIA: Escalabilidad, Monitoreo, Accesibilidad" vertex="1">
+          <mxGeometry height="22" width="350" x="585" y="627" as="geometry" />
+        </mxCell>
+        <mxCell id="conclusion" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;fontSize=12;fontStyle=2;align=left;spacingLeft=15" value="💡 El prototipo actual es funcional como MVP,&#xa;pero requiere mejoras significativas para&#xa;producción empresarial real." vertex="1">
+          <mxGeometry height="50" width="400" x="600" y="655" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
