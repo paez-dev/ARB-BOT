@@ -10,6 +10,34 @@ import re
 logger = logging.getLogger("services.generator")
 
 
+def formatear_con_vinetas(texto):
+    """
+    Convierte listas en texto plano a formato con viñetas.
+    Detecta patrones como: a) b) c), 1. 2. 3., - item, etc.
+    """
+    if not texto:
+        return texto
+    
+    # Patrón para detectar listas con letras: a) b) c) o a. b. c.
+    texto = re.sub(r'\s*([a-z])\)\s*', r'\n• ', texto)
+    texto = re.sub(r'\s*([a-z])\.\s+(?=[A-Z])', r'\n• ', texto)
+    
+    # Patrón para detectar listas numeradas: 1. 2. 3. o 1) 2) 3)
+    texto = re.sub(r'\s*(\d+)\)\s*', r'\n• ', texto)
+    texto = re.sub(r'\s*(\d+)\.\s+(?=[A-Z])', r'\n• ', texto)
+    
+    # Patrón para guiones como lista: - item
+    texto = re.sub(r'\s*-\s+(?=[A-Z])', r'\n• ', texto)
+    
+    # Limpiar múltiples saltos de línea
+    texto = re.sub(r'\n{3,}', '\n\n', texto)
+    
+    # Limpiar espacios al inicio de líneas
+    texto = re.sub(r'\n\s+•', '\n•', texto)
+    
+    return texto.strip()
+
+
 class ContentGenerator:
     def __init__(self, api_model, text_processor):
         self.api_model = api_model
@@ -118,12 +146,14 @@ class ContentGenerator:
         # -------------------------------------------------------
         # 4. Construcción de la respuesta final
         # -------------------------------------------------------
+        cita_formateada = formatear_con_vinetas(context.strip())
+        
         respuesta_final = (
             "📌 **RESUMEN**\n"
             f"{resumen}\n\n"
             "────────────────────\n\n"
             "📄 **CITA TEXTUAL DEL MANUAL**\n"
-            f"{context.strip()}\n"
+            f"{cita_formateada}\n"
         )
 
         logger.info("🟩 Respuesta generada exitosamente en Modo D.")

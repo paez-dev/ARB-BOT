@@ -244,7 +244,7 @@ class RAGService:
     # ==========================================================
     # CONTEXTO
     # ==========================================================
-    def get_context_for_query(self, query: str, top_k: int = 5, max_context_length: int = 3000) -> str:
+    def get_context_for_query(self, query: str, top_k: int = 5, max_context_length: int = 6000) -> str:
         """Devuelve contexto concatenado para el modelo."""
         hits = self.search_similar_chunks(query, top_k)
         if not hits:
