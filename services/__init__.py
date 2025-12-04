@@ -1,11 +1,9 @@
 """
-ARB-BOT - Módulo de Servicios
+ARB-BOT - Módulo de Servicios (Producción)
 """
 
 from .text_processor import TextProcessor
 from .generator import ContentGenerator
-from .document_processor import DocumentProcessor
 from .rag_service import RAGService
 
-__all__ = ['TextProcessor', 'ContentGenerator', 'DocumentProcessor', 'RAGService']
-
+__all__ = ['TextProcessor', 'ContentGenerator', 'RAGService']
