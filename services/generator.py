@@ -119,10 +119,11 @@ class ContentGenerator:
         # 4. Construcción de la respuesta final
         # -------------------------------------------------------
         respuesta_final = (
-            "## 📌 Resumen\n"
+            "📌 *RESUMEN*\n"
             f"{resumen}\n\n"
-            "## 📄 Cita textual del Manual\n"
-            f"> {context.strip()}\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            "📄 *CITA TEXTUAL DEL MANUAL*\n"
+            f"「{context.strip()}」\n"
         )
 
         logger.info("🟩 Respuesta generada exitosamente en Modo D.")
