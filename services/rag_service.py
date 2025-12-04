@@ -143,11 +143,64 @@ class RAGService:
         return "[" + ",".join(f"{x:.6f}" for x in emb) + "]"
 
     # ==========================================================
+    # BÚSQUEDA POR METADATA (artículos específicos)
+    # ==========================================================
+    def search_by_article(self, article_num: str, top_k: int = 3) -> List[Dict[str, Any]]:
+        """Busca chunks por número de artículo en metadata o texto."""
+        sql = f"""
+            SELECT text, metadata, 0.0 AS distance
+            FROM {self.schema}.{self.table}
+            WHERE 
+                metadata->>'article' ILIKE %s
+                OR text ILIKE %s
+            LIMIT %s;
+        """
+        pattern_meta = f'%{article_num}%'
+        pattern_text = f'%artículo {article_num}%'
+        
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(sql, (pattern_meta, pattern_text, top_k))
+                rows = cur.fetchall()
+            
+            results = []
+            for row in rows:
+                meta = row["metadata"]
+                if isinstance(meta, str):
+                    try:
+                        meta = json.loads(meta)
+                    except:
+                        pass
+                results.append({
+                    "text": row["text"],
+                    "metadata": meta,
+                    "distance": 0.0,
+                })
+            
+            if results:
+                logger.info(f"✅ Encontrado artículo {article_num} por metadata")
+            return results
+            
+        except Exception:
+            logger.exception("❌ Error en búsqueda por artículo.")
+            return []
+
+    # ==========================================================
     # BÚSQUEDA VECTORIAL
     # ==========================================================
     def search_similar_chunks(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         if not query:
             return []
+
+        # BÚSQUEDA HÍBRIDA: Primero por metadata si menciona artículo
+        import re
+        article_match = re.search(r'art[íi]culo\s*(\d+)', query.lower())
+        if article_match:
+            article_num = article_match.group(1)
+            metadata_results = self.search_by_article(article_num, top_k)
+            if metadata_results:
+                return metadata_results
+            logger.info(f"⚠️ Artículo {article_num} no encontrado por metadata, buscando vectorialmente...")
 
         emb = self.embed(query)
         if not emb:

@@ -385,3 +385,4 @@ if result:
 else:
     print('⚠️ No se encontró el artículo 52')
 
+
