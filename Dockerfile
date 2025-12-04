@@ -1,6 +1,6 @@
 # ============================================================
 # ARB-BOT — DOCKERFILE PRO PARA RAILWAY (OPTIMIZADO PARA RAM)
-# Python 3.11-slim + LlamaIndex + pgvector + RAG
+# Python 3.11-slim + Sentence-Transformers + pgvector + RAG
 # ============================================================
 
 FROM python:3.11-slim
@@ -18,7 +18,10 @@ ENV TOKENIZERS_PARALLELISM=false
 ENV OMP_NUM_THREADS=1
 ENV MKL_NUM_THREADS=1
 ENV HF_HUB_DISABLE_TELEMETRY=1
-ENV TRANSFORMERS_OFFLINE=1
+
+# Directorio para cache de modelos
+ENV HF_HOME=/app/.cache/huggingface
+ENV SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence_transformers
 
 # -----------------------------
 # DEPENDENCIAS DEL SISTEMA
@@ -41,6 +44,16 @@ WORKDIR /app
 # -----------------------------
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# -----------------------------
+# PRE-DESCARGAR MODELO DE EMBEDDINGS
+# (Esto lo descarga durante el build, no en runtime)
+# -----------------------------
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')"
+
+# Ahora sí activamos modo offline para runtime
+ENV TRANSFORMERS_OFFLINE=1
+ENV HF_HUB_OFFLINE=1
 
 # -----------------------------
 # COPIAR TODO EL PROYECTO
