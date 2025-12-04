@@ -168,6 +168,7 @@ def generate_content():
         # 2) Obtener contexto RAG (si existe)
         rag = get_rag()
         context = ""
+        context_metadata = None
         rag_docs_count = 0
         if rag:
             try:
@@ -176,8 +177,10 @@ def generate_content():
                 if rag_docs_count > 0:
                     # Top_k y max_context_length pueden ajustarse en config
                     top_k = int(app.config.get("RAG_TOP_K", 6))
-                    max_ctx = int(app.config.get("RAG_MAX_CONTEXT_LENGTH", 3000))
-                    context = rag.get_context_for_query(processed_input, top_k=top_k, max_context_length=max_ctx)
+                    max_ctx = int(app.config.get("RAG_MAX_CONTEXT_LENGTH", 6000))
+                    result = rag.get_context_with_metadata(processed_input, top_k=top_k, max_context_length=max_ctx)
+                    context = result.get("context", "")
+                    context_metadata = result.get("metadata")
                     logger.info(f"Contexto obtenido: {len(context)} chars (top_k={top_k})")
             except Exception as e:
                 logger.warning(f"Error consultando RAG: {e}")
@@ -189,7 +192,8 @@ def generate_content():
             processed_input,
             max_tokens=int(app.config.get("MAX_TOKENS", 512)),
             temperature=float(app.config.get("TEMPERATURE", 0.2)),
-            context=context if context else None
+            context=context if context else None,
+            metadata=context_metadata
         )
 
         # 4) Guardar interacción (no crítico)

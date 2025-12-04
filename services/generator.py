@@ -58,15 +58,49 @@ class ContentGenerator:
         )
 
     # -----------------------------------------------------------
+    # FORMATO DE REFERENCIA
+    # -----------------------------------------------------------
+    def _format_reference(self, metadata):
+        """Formatea los metadatos como referencia legible."""
+        if not metadata:
+            return "📍 **REFERENCIA**\nManual de Convivencia Escolar Roldanista"
+        
+        parts = []
+        
+        # Artículo
+        if metadata.get("article"):
+            parts.append(f"📖 {metadata['article']}")
+        
+        # Capítulo
+        if metadata.get("chapter"):
+            parts.append(f"📑 {metadata['chapter']}")
+        
+        # Título
+        if metadata.get("title"):
+            parts.append(f"📚 {metadata['title']}")
+        
+        # Parágrafo
+        if metadata.get("paragraph"):
+            parts.append(f"📝 {metadata['paragraph']}")
+        
+        # Página
+        if metadata.get("page"):
+            parts.append(f"📄 Página: {metadata['page']}")
+        
+        if not parts:
+            return "📍 **REFERENCIA**\nManual de Convivencia Escolar Roldanista"
+        
+        return "📍 **REFERENCIA**\n" + "\n".join(parts)
+
+    # -----------------------------------------------------------
     # GENERACIÓN PRINCIPAL
     # -----------------------------------------------------------
-    def generate(self, user_input, max_tokens=512, temperature=0.2, context=None):
+    def generate(self, user_input, max_tokens=512, temperature=0.2, context=None, metadata=None):
         """
-        MODO D: RESUMEN + CITA TEXTUAL
-        - Se ignora completamente la respuesta principal del modelo.
-        - El modelo SOLO genera el resumen.
-        - La cita textual SIEMPRE viene directo del RAG.
-        - Cero alucinaciones.
+        MODO D: RESUMEN + REFERENCIA
+        - El modelo genera el resumen basado en el contexto.
+        - Se muestra la REFERENCIA (artículo, capítulo, página) en lugar de la cita completa.
+        - El usuario puede ir al manual a verificar.
         """
 
         logger.info(f"🧩 Generando respuesta (Modo D) para: '{user_input}'")
@@ -118,12 +152,13 @@ class ContentGenerator:
         # -------------------------------------------------------
         # 4. Construcción de la respuesta final
         # -------------------------------------------------------
+        referencia = self._format_reference(metadata)
+        
         respuesta_final = (
             "📌 **RESUMEN**\n"
             f"{resumen}\n\n"
             "────────────────────\n\n"
-            "📄 **CITA TEXTUAL DEL MANUAL**\n"
-            f"{context.strip()}\n"
+            f"{referencia}\n"
         )
 
         logger.info("🟩 Respuesta generada exitosamente en Modo D.")

@@ -269,6 +269,36 @@ class RAGService:
         logger.info(f"📎 Contexto generado: {len(context)} chars.")
         return context
 
+    def get_context_with_metadata(self, query: str, top_k: int = 5, max_context_length: int = 6000) -> Dict[str, Any]:
+        """Devuelve contexto + metadatos para mostrar referencias."""
+        hits = self.search_similar_chunks(query, top_k)
+        if not hits:
+            return {"context": "", "metadata": None}
+
+        parts = []
+        total = 0
+        best_metadata = None
+
+        for hit in hits:
+            chunk = hit["text"]
+            if not chunk:
+                continue
+
+            # Guardar metadatos del primer hit (más relevante)
+            if best_metadata is None:
+                best_metadata = hit.get("metadata", {})
+
+            if total + len(chunk) > max_context_length:
+                parts.append(chunk[:max_context_length-total])
+                break
+
+            parts.append(chunk)
+            total += len(chunk)
+
+        context = "\n\n".join(parts)
+        logger.info(f"📎 Contexto generado: {len(context)} chars con metadatos.")
+        return {"context": context, "metadata": best_metadata}
+
     # ==========================================================
     # ESTADÍSTICAS
     # ==========================================================
