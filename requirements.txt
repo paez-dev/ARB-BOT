@@ -2,10 +2,12 @@ Flask==3.0.0
 Werkzeug==3.0.1
 Flask-SQLAlchemy==3.1.1
 
-# Embeddings
-sentence-transformers==2.2.2
-torch==2.0.1   # Compatible con tu ingestion model
+# Embeddings (versiones compatibles)
+sentence-transformers==2.7.0
+torch==2.1.0
 numpy==1.26.4
+huggingface_hub==0.21.4
+transformers==4.40.0
 
 # Base de datos
 psycopg2-binary==2.9.9
