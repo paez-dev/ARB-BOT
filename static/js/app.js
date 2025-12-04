@@ -176,11 +176,12 @@ class ARBBot {
     }
 
     formatMessage(text) {
-        // Escapar HTML y convertir saltos de línea
+        // Escapar HTML, convertir negrillas y saltos de línea
         return text
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
+            .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')  // **texto** → negrilla
             .replace(/\n/g, '<br>');
     }
 
