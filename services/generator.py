@@ -150,16 +150,43 @@ class ContentGenerator:
             resumen = "No se pudo generar un resumen automático, pero a continuación se muestra el texto exacto."
 
         # -------------------------------------------------------
-        # 4. Construcción de la respuesta final
+        # 4. Detectar si NO encontró información relevante
         # -------------------------------------------------------
-        referencia = self._format_reference(metadata)
-        
-        respuesta_final = (
-            "📌 **RESUMEN**\n"
-            f"{resumen}\n\n"
-            "────────────────────\n\n"
-            f"{referencia}\n"
-        )
+        resumen_lower = resumen.lower()
+        no_encontro_info = any(frase in resumen_lower for frase in [
+            "no se menciona",
+            "no se encontró",
+            "no hay información",
+            "no aparece",
+            "no está disponible",
+            "no se incluye",
+            "no contiene información",
+            "no proporciona información",
+            "el fragmento no",
+            "el texto no",
+        ])
+
+        # -------------------------------------------------------
+        # 5. Construcción de la respuesta final
+        # -------------------------------------------------------
+        if no_encontro_info:
+            # Si no encontró info relevante, NO mostrar referencia confusa
+            respuesta_final = (
+                "📌 **RESUMEN**\n"
+                f"{resumen}\n\n"
+                "────────────────────\n\n"
+                "ℹ️ Esta información no se encuentra en el Manual de Convivencia.\n"
+                "Puedes consultar directamente con la institución."
+            )
+        else:
+            # Si encontró info, mostrar referencia normalmente
+            referencia = self._format_reference(metadata)
+            respuesta_final = (
+                "📌 **RESUMEN**\n"
+                f"{resumen}\n\n"
+                "────────────────────\n\n"
+                f"{referencia}\n"
+            )
 
         logger.info("🟩 Respuesta generada exitosamente en Modo D.")
         return respuesta_final
