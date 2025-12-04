@@ -1,57 +1,27 @@
-# ARB-BOT - Dependencias del Proyecto
-# Todas las librerías son gratuitas y de código abierto
-
-# Framework Web
 Flask==3.0.0
 Werkzeug==3.0.1
 Flask-SQLAlchemy==3.1.1
 
-# Procesamiento de IA (Gratuito)
-# Versiones optimizadas para memoria limitada (optimizado para Railway)
-transformers>=4.36.0,<5.0.0
-torch>=2.0.0,<2.2.0  # Versión más ligera para ahorrar memoria
 sentence-transformers==2.2.2
-langchain==0.0.350
+transformers>=4.36.0,<4.42.0
+torch==2.0.1
+
 llama-index==0.10.0
 llama-index-core==0.10.0
-huggingface-hub==0.23.4
-tokenizers>=0.15.0
-accelerate>=0.20.0
-
-# RAG y Base de Datos Vectorial (Gratuito)
-# faiss-cpu removido - ahora usamos LlamaIndex con Supabase pgvector
 llama-index-vector-stores-supabase==0.1.0
 llama-index-embeddings-huggingface==0.1.0
-psycopg2-binary==2.9.9  # Para conexión a PostgreSQL de Supabase
+huggingface-hub==0.23.4
 
-# Procesamiento de Documentos (Gratuito)
+psycopg2-binary==2.9.9
+
 PyPDF2==3.0.1
 pypdf==3.17.0
 python-docx==1.1.0
 
-# Procesamiento de Texto
-# nltk y spacy removidos - no se usan en el código (solo se usa re de la stdlib)
-
-# Utilidades
 python-dotenv==1.0.0
 requests==2.31.0
 numpy>=1.25.0,<2.0
 pandas==2.1.3
-
-# Almacenamiento en la nube (Opcional - para Supabase)
-# supabase==2.0.0  # Descomentar si usas Supabase Storage
-
-# Base de Datos
 sqlalchemy==2.0.23
 
-# Validación y Seguridad
-python-dateutil==2.8.2
-pydantic==2.5.0
-
-# Servidor WSGI para Producción
 gunicorn==21.2.0
-
-# Testing (Opcional)
-pytest==7.4.3
-pytest-flask==1.3.0
-

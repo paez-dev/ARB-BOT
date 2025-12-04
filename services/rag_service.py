@@ -1,235 +1,253 @@
 """
-ARB-BOT - Servicio RAG (Retrieval Augmented Generation)
-Sistema de búsqueda y recuperación de información de documentos
-Usa LlamaIndex con Supabase pgvector para persistencia
-"""
-
-#!/usr/bin/env python3
-"""
-rag_service.py
-Servicio RAG (Supabase pgvector) para ARB-BOT.
-
-Funcionalidades:
-- conexión segura a Supabase (via SUPABASE_DB_URL)
-- generación de embeddings para queries (Sentence-Transformers)
-- búsqueda vectorial eficiente usando ORDER BY vec <-> query_vector
-- creación de contexto concatenado
-- stats básicos
+ARB-BOT - Servicio RAG Profesional
+Optimizado para Railway, Supabase pgvector y modelo MiniLM-L12-V2.
+Incluye caching, singleton real y uso eficiente de RAM.
 """
 
 import os
 import json
 import logging
 from typing import List, Dict, Any, Optional
-from datetime import datetime
 
 import psycopg2
-from psycopg2.extras import RealDictCursor, execute_values
+from psycopg2.extras import RealDictCursor
 from sentence_transformers import SentenceTransformer
 
+# ============================================================
+# LOGGING
+# ============================================================
 logger = logging.getLogger("services.rag_service")
 logger.setLevel(logging.INFO)
 
-# Default config (override with env vars)
-DEFAULT_SCHEMA = "vecs"
-DEFAULT_TABLE = "arbot_documents"
-EMBEDDING_MODEL = os.getenv("EMBEDDINGS_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+
+# ============================================================
+# SINGLETON PARA EL MODELO DE EMBEDDINGS
+# ============================================================
+class EmbeddingsSingleton:
+    _model = None
+
+    @staticmethod
+    def get_model():
+        """Carga el modelo UNA sola vez en toda la app."""
+        if EmbeddingsSingleton._model is None:
+            model_name = os.getenv(
+                "EMBEDDINGS_MODEL",
+                "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+            )
+            logger.info(f"🧠 Cargando modelo de embeddings: {model_name}")
+            EmbeddingsSingleton._model = SentenceTransformer(model_name)
+        return EmbeddingsSingleton._model
+
+
+# Dimensión del modelo MiniLM-L12-v2 = 384
 VECTOR_DIM = int(os.getenv("VECTOR_DIM", "384"))
 
+DEFAULT_SCHEMA = "vecs"
+DEFAULT_TABLE = "arbot_documents"
 
+
+# ============================================================
+# RAG SERVICE
+# ============================================================
 class RAGService:
+    """Servicio profesional RAG conectado a Supabase con pgvector."""
+
     def __init__(self):
-        logger.info("🚀 Inicializando RAGService...")
+        logger.info("🚀 Inicializando RAGService…")
+
+        # --------------------------
+        # VARIABLES DE ENTORNO
+        # --------------------------
         self.db_url = os.getenv("SUPABASE_DB_URL")
-        self.supabase_url = os.getenv("SUPABASE_URL")
-        self.supabase_key = os.getenv("SUPABASE_KEY")
-
         if not self.db_url:
-            logger.error("SUPABASE_DB_URL no configurado. Revisa variables de entorno.")
-            raise RuntimeError("SUPABASE_DB_URL required")
-
-        if not self.supabase_key or not self.supabase_url:
-            logger.warning("SUPABASE_URL o SUPABASE_KEY no configurados — la app puede seguir, pero algunas funciones podrían quedar limitadas.")
+            raise RuntimeError("SUPABASE_DB_URL requerido para RAG.")
 
         self.schema = os.getenv("SCHEMA", DEFAULT_SCHEMA)
         self.table = os.getenv("TABLE", DEFAULT_TABLE)
-        self.vector_dim = int(os.getenv("VECTOR_DIM", VECTOR_DIM))
+        self.vector_dim = VECTOR_DIM
 
-        # Embeddings model (for query embeddings)
-        logger.info(f"🧠 Cargando modelo de embeddings: {EMBEDDING_MODEL}")
-        self.embedding_model = SentenceTransformer(EMBEDDING_MODEL)
-
-        # DB connection
-        logger.info("🔗 Conectando a la base de datos (Supabase Postgres)...")
+        # --------------------------
+        # CONEXIÓN BD
+        # --------------------------
         self.conn = self._connect_db()
-        logger.info("🟩 Conectado a Supabase (Postgres).")
+        self._ensure_table()
+        self._log_stats()
 
-        # Quick sanity check
-        self._ensure_table_exists()
-        self._test_documents_loaded()
+        # Modelo NO se carga aquí → lazy load con Singleton
+        logger.info("🟩 RAGService listo.")
 
+    # ==========================================================
+    # BASE DE DATOS
+    # ==========================================================
     def _connect_db(self):
         try:
             conn = psycopg2.connect(self.db_url)
             conn.autocommit = True
+            logger.info("🔗 Conectado a Supabase Postgres.")
             return conn
         except Exception as e:
-            logger.error("🟥 No fue posible conectar a Supabase Postgres.")
-            logger.exception(e)
-            raise
+            logger.error("❌ Error conectando a Supabase.")
+            raise e
 
-    def _ensure_table_exists(self):
-        """Verifica que la tabla exista y tenga columnas mínimas."""
+    def _ensure_table(self):
+        """Valida que la tabla tenga columnas text + vec."""
         try:
             with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    """
-                    SELECT column_name, data_type
-                    FROM information_schema.columns
-                    WHERE table_schema = %s AND table_name = %s
-                    """,
-                    (self.schema, self.table),
-                )
-                cols = {r["column_name"]: r["data_type"] for r in cur.fetchall()}
+                cur.execute("""
+                    SELECT column_name FROM information_schema.columns
+                    WHERE table_schema = %s AND table_name = %s;
+                """, (self.schema, self.table))
+
+                cols = {row["column_name"] for row in cur.fetchall()}
+
                 if "text" not in cols or "vec" not in cols:
-                    logger.error(f"La tabla {self.schema}.{self.table} no tiene las columnas esperadas (text, vec). Columnas encontradas: {list(cols.keys())}")
-                    raise RuntimeError("Invalid table schema for RAG. Expected columns: text, vec")
-        except Exception as e:
-            logger.exception("Error verificando esquema de tabla.")
+                    raise RuntimeError(
+                        f"Tabla {self.schema}.{self.table} inválida. "
+                        "Debe tener columnas: text (text), vec (vector)"
+                    )
+        except Exception:
+            logger.exception("❌ Error verificando tabla de RAG.")
             raise
 
-    def _test_documents_loaded(self):
-        """Cuenta documentos para informar estado."""
+    def _log_stats(self):
         try:
             with self.conn.cursor() as cur:
                 cur.execute(f"SELECT COUNT(*) FROM {self.schema}.{self.table}")
-                cnt = cur.fetchone()[0]
-                if cnt == 0:
-                    logger.warning(f"⚠️ Tabla {self.schema}.{self.table} está vacía (0 rows).")
-                else:
-                    logger.info(f"📚 {cnt} documentos vectores disponibles en {self.schema}.{self.table}")
-        except Exception as e:
-            logger.warning("No se pudo contar documentos (continuando).")
-            logger.debug(e)
+                total = cur.fetchone()[0]
+                logger.info(f"📚 Documentos cargados: {total}")
+        except Exception:
+            logger.warning("⚠️ No se pudo obtener stats del RAG.")
 
-    def embed_text(self, text: str) -> List[float]:
-        """Genera embedding (lista de floats) para un texto (query)."""
+    # ==========================================================
+    # EMBEDDINGS
+    # ==========================================================
+    def embed(self, text: str) -> List[float]:
+        """Convierte texto → vector usando Singleton (muy bajo RAM)."""
         if not text:
             return []
-        arr = self.embedding_model.encode([text], show_progress_bar=False, convert_to_numpy=False)
-        # arr is list of numpy arrays if convert_to_numpy=False; ensure list[float]
-        emb = list(map(float, arr[0])) if hasattr(arr[0], "__iter__") else [float(arr[0])]
-        if len(emb) != self.vector_dim:
-            logger.debug(f"Advertencia: embedding generado dim={len(emb)} != VECTOR_DIM={self.vector_dim}")
-        return emb
 
-    def _vec_literal(self, emb: List[float]) -> str:
-        """Convierte embedding a literal PostgreSQL vector: '[0.1,0.2,...]'"""
-        return "[" + ",".join(map(str, emb)) + "]"
-
-    def search_similar_chunks(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        """
-        Busca chunks similares en la tabla usando pgvector <-> distance operator.
-        Retorna lista de dicts: {text, metadata, distance(optional)}
-        """
-        if not query or not query.strip():
+        try:
+            model = EmbeddingsSingleton.get_model()
+            emb = model.encode(
+                text,
+                show_progress_bar=False,
+                convert_to_numpy=True
+            )
+            return emb.tolist()
+        except Exception as e:
+            logger.error(f"❌ Error generando embedding: {e}")
             return []
 
-        emb = self.embed_text(query)
+    def _vec_literal(self, emb: List[float]) -> str:
+        """Convierte embedding en literal PostgreSQL pgvector."""
+        return "[" + ",".join(f"{x:.6f}" for x in emb) + "]"
+
+    # ==========================================================
+    # BÚSQUEDA VECTORIAL
+    # ==========================================================
+    def search_similar_chunks(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+        if not query:
+            return []
+
+        emb = self.embed(query)
         if not emb:
             return []
 
-        vec_literal = self._vec_literal(emb)
+        vec = self._vec_literal(emb)
+
         sql = f"""
             SELECT text, metadata, (vec <-> %s::vector) AS distance
             FROM {self.schema}.{self.table}
-            ORDER BY distance
+            ORDER BY distance ASC
             LIMIT %s;
         """
 
         try:
             with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(sql, (vec_literal, top_k))
+                cur.execute(sql, (vec, top_k))
                 rows = cur.fetchall()
-                results = []
-                for r in rows:
-                    # metadata puede venir como JSON/str
-                    meta = r["metadata"]
-                    if isinstance(meta, str):
-                        try:
-                            meta = json.loads(meta)
-                        except Exception:
-                            pass
-                    results.append({
-                        "text": r["text"],
-                        "metadata": meta,
-                        "distance": float(r.get("distance", 0.0))
-                    })
-                logger.info(f"🔎 Encontrados {len(results)} chunks (top_k={top_k})")
-                return results
-        except Exception as e:
-            logger.exception("Error en búsqueda vectorial en Supabase.")
+
+            results = []
+            for row in rows:
+                meta = row["metadata"]
+                if isinstance(meta, str):
+                    try:
+                        meta = json.loads(meta)
+                    except:
+                        pass
+
+                results.append({
+                    "text": row["text"],
+                    "metadata": meta,
+                    "distance": float(row["distance"]),
+                })
+
+            return results
+
+        except Exception:
+            logger.exception("❌ Error en búsqueda pgvector.")
             return []
 
+    # ==========================================================
+    # CONTEXTO
+    # ==========================================================
     def get_context_for_query(self, query: str, top_k: int = 5, max_context_length: int = 3000) -> str:
-        """
-        Devuelve el contexto concatenado (texto) de los mejores chunks.
-        max_context_length en caracteres.
-        """
-        hits = self.search_similar_chunks(query, top_k=top_k)
+        """Devuelve contexto concatenado para el modelo."""
+        hits = self.search_similar_chunks(query, top_k)
         if not hits:
             return ""
 
-        context_parts = []
-        length = 0
-        for h in hits:
-            txt = h.get("text", "")
-            if not txt:
-                continue
-            # avoid huge context: truncate each chunk if necessary
-            if length + len(txt) > max_context_length:
-                # take remaining
-                remaining = max_context_length - length
-                if remaining > 0:
-                    context_parts.append(txt[:remaining])
-                    length += remaining
-                break
-            context_parts.append(txt)
-            length += len(txt)
+        parts = []
+        total = 0
 
-        context = "\n\n".join(context_parts).strip()
-        logger.info(f"📎 Context length: {len(context)} chars (from {len(context_parts)} chunks)")
+        for hit in hits:
+            chunk = hit["text"]
+            if not chunk:
+                continue
+
+            if total + len(chunk) > max_context_length:
+                parts.append(chunk[:max_context_length-total])
+                break
+
+            parts.append(chunk)
+            total += len(chunk)
+
+        context = "\n\n".join(parts)
+        logger.info(f"📎 Contexto generado: {len(context)} chars.")
         return context
 
+    # ==========================================================
+    # ESTADÍSTICAS
+    # ==========================================================
     def get_stats(self) -> Dict[str, Any]:
-        """Retorna estadísticas simples sobre la tabla/vector store."""
         stats = {
             "service": "supabase_pgvector",
+            "model": os.getenv("EMBEDDINGS_MODEL"),
             "schema": self.schema,
             "table": self.table,
-            "total_documents": "unknown",
-            "embeddings_model": EMBEDDING_MODEL,
+            "total_documents": 0,
         }
+
         try:
             with self.conn.cursor() as cur:
                 cur.execute(f"SELECT COUNT(*) FROM {self.schema}.{self.table}")
-                stats["total_documents"] = int(cur.fetchone()[0])
-        except Exception as e:
-            logger.warning("No se pudo obtener stats de la tabla.")
-            stats["total_documents"] = 0
+                stats["total_documents"] = cur.fetchone()[0]
+        except:
+            pass
+
         return stats
 
     def close(self):
         try:
-            if self.conn:
-                self.conn.close()
-        except Exception:
+            self.conn.close()
+        except:
             pass
 
 
-# Si se importa y se quiere un singleton simple:
+# ================================================================
+# SINGLETON GLOBAL
+# ================================================================
 _rag_instance: Optional[RAGService] = None
-
 
 def get_rag_instance() -> RAGService:
     global _rag_instance

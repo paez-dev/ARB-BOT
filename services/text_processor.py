@@ -1,176 +1,140 @@
 """
-ARB-BOT - Procesador de Texto
-Procesamiento y limpieza de texto de entrada
+ARB-BOT - Procesador de Texto (Versión Optimizada)
+Procesamiento, normalización y sanitización segura del texto de entrada.
+Diseñado para proteger el modelo, evitar prompts dañinos y estandarizar la entrada.
 """
 
 import re
 import logging
 from typing import Dict, List
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("services.text_processor")
+
 
 class TextProcessor:
     """
-    Clase para procesar y limpiar texto
-    Utiliza solo librerías estándar de Python (gratuito)
+    Procesador de texto para:
+    - limpiar caracteres peligrosos
+    - normalizar saltos y espacios
+    - validar longitud
+    - preparar prompt para el modelo
+    - extraer palabras clave (simple)
+    - obtener métricas del texto
     """
-    
-    def __init__(self):
-        """Inicializar procesador de texto"""
-        self.min_length = 3
-        self.max_length = 500
-    
+
+    def __init__(self, min_length: int = 3, max_length: int = 500):
+        self.min_length = min_length
+        self.max_length = max_length
+
+    # ==========================================================
+    #                  PROCESAMIENTO PRINCIPAL
+    # ==========================================================
     def process(self, text: str) -> str:
-        """
-        Procesar texto de entrada
-        
-        Args:
-            text: Texto a procesar
-        
-        Returns:
-            Texto procesado y limpio
-        """
+        """Procesa y limpia texto de entrada antes de pasarlo al modelo."""
         try:
-            # Paso 1: Limpiar texto básico
-            cleaned = self._clean_text(text)
-            
-            # Paso 2: Normalizar espacios
-            normalized = self._normalize_spaces(cleaned)
-            
-            # Paso 3: Validar longitud
-            validated = self._validate_length(normalized)
-            
-            # Paso 4: Preparar para modelo
-            prepared = self._prepare_for_model(validated)
-            
-            logger.info(f"Texto procesado: {len(text)} -> {len(prepared)} caracteres")
-            
-            return prepared
-            
+            if not isinstance(text, str):
+                raise ValueError("Texto inválido: se esperaba un string.")
+
+            logger.debug(f"Texto original recibido ({len(text)} chars).")
+
+            text = self._clean_text(text)
+            text = self._normalize_spaces(text)
+            text = self._validate_length(text)
+            text = self._prepare_for_model(text)
+
+            logger.info(f"Texto procesado: {len(text)} chars.")
+            return text
+
         except Exception as e:
-            logger.error(f"Error procesando texto: {str(e)}")
-            return text  # Retornar texto original si hay error
-    
+            logger.error(f"❌ Error procesando texto: {str(e)} — devolviendo texto original.")
+            return text
+
+    # ==========================================================
+    #                  MÉTODOS DE LIMPIEZA
+    # ==========================================================
     def _clean_text(self, text: str) -> str:
-        """Limpiar texto de caracteres especiales no deseados"""
-        # Remover caracteres de control excepto saltos de línea
-        text = re.sub(r'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]', '', text)
+        """Elimina caracteres de control, normaliza saltos, protege estructura básica."""
         
-        # Normalizar saltos de línea
-        text = re.sub(r'\r\n', '\n', text)
-        text = re.sub(r'\r', '\n', text)
-        
+        # Eliminar caracteres de control invisibles (excepto \n)
+        text = re.sub(r"[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]", "", text)
+
+        # Normalizar saltos a estándar UNIX
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
+
+        # Evitar inyecciones accidentales de backticks u otros símbolos repetidos
+        text = re.sub(r"`{2,}", "`", text)
+        text = re.sub(r"[<>]{2,}", "", text)
+
         return text.strip()
-    
+
     def _normalize_spaces(self, text: str) -> str:
-        """Normalizar espacios en blanco"""
-        # Reemplazar múltiples espacios con uno solo
-        text = re.sub(r' +', ' ', text)
-        
-        # Reemplazar múltiples saltos de línea con uno solo
-        text = re.sub(r'\n+', '\n', text)
-        
+        """Reduce espacios múltiples y saltos excesivos."""
+        text = re.sub(r" +", " ", text)        # espacios repetidos
+        text = re.sub(r"\n{2,}", "\n", text)  # saltos excesivos
         return text.strip()
-    
+
+    # ==========================================================
+    #                  VALIDACIÓN DE LONGITUD
+    # ==========================================================
     def _validate_length(self, text: str) -> str:
-        """Validar y ajustar longitud del texto"""
+        """Garantiza que el texto esté dentro del rango permitido."""
         if len(text) < self.min_length:
-            raise ValueError(f"Texto muy corto. Mínimo {self.min_length} caracteres")
-        
+            raise ValueError(f"Texto demasiado corto (mínimo {self.min_length} caracteres).")
+
         if len(text) > self.max_length:
-            # Truncar si es muy largo
-            text = text[:self.max_length]
-            logger.warning(f"Texto truncado a {self.max_length} caracteres")
-        
+            logger.warning(f"⚠️ Texto truncado a {self.max_length} caracteres.")
+            return text[:self.max_length]
+
         return text
-    
+
+    # ==========================================================
+    #                  PREPARACIÓN PARA MODELO
+    # ==========================================================
     def _prepare_for_model(self, text: str) -> str:
-        """Preparar texto para el modelo de IA"""
-        # Asegurar que el texto termine con un punto o signo de interrogación
-        if text and text[-1] not in '.!?':
-            text += '.'
-        
+        """Asegura cierre apropiado de frase, necesario para modelos."""
+        if text and text[-1] not in ".!?":
+            return text + "."
         return text
-    
+
+    # ==========================================================
+    #                  KEYWORDS (versión simple)
+    # ==========================================================
     def extract_keywords(self, text: str, max_keywords: int = 5) -> List[str]:
-        """
-        Extraer palabras clave del texto (implementación simple)
-        
-        Args:
-            text: Texto del cual extraer keywords
-            max_keywords: Número máximo de keywords
-        
-        Returns:
-            Lista de palabras clave
-        """
-        # Palabras comunes a ignorar (stop words básicas)
-        stop_words = {
-            'el', 'la', 'de', 'que', 'y', 'a', 'en', 'un', 'ser', 'se',
-            'no', 'haber', 'por', 'con', 'su', 'para', 'como', 'estar',
-            'tener', 'le', 'lo', 'todo', 'pero', 'más', 'hacer', 'o',
-            'poder', 'decir', 'este', 'ir', 'otro', 'ese', 'la', 'si',
-            'me', 'ya', 'ver', 'porque', 'dar', 'cuando', 'él', 'muy',
-            'sin', 'vez', 'mucho', 'saber', 'qué', 'sobre', 'mi', 'alguno',
-            'mismo', 'yo', 'también', 'hasta', 'año', 'dos', 'querer',
-            'entre', 'así', 'primero', 'desde', 'grande', 'eso', 'ni',
-            'nos', 'llegar', 'pasar', 'tiempo', 'ella', 'sí', 'día',
-            'uno', 'bien', 'poco', 'deber', 'entonces', 'poner', 'cosa',
-            'tanto', 'hombre', 'parecer', 'nuestro', 'tan', 'donde',
-            'ahora', 'parte', 'después', 'vida', 'quedar', 'siempre',
-            'creer', 'hablar', 'llevar', 'dejar', 'nada', 'cada', 'seguir',
-            'menos', 'nuevo', 'encontrar', 'venir', 'pensar', 'casa',
-            'mirar', 'deber', 'encontrar', 'señor', 'problema', 'mundo',
-            'hacer', 'trabajo', 'forma', 'mujer', 'caso', 'día', 'mano',
-            'mientras', 'contra', 'según', 'menos', 'mismo', 'año',
-            'antes', 'eje', 'parecer', 'presente', 'si', 'sin', 'trabajo',
-            'tanto', 'aunque', 'centro', 'mientras', 'además', 'durante',
-            'también', 'así', 'cual', 'cuando', 'donde', 'mientras', 'pero',
-            'porque', 'que', 'si', 'sin', 'sobre', 'tras', 'durante',
-            'mediante', 'según', 'incluso', 'además', 'también', 'aunque'
-        }
-        
-        # Convertir a minúsculas y dividir en palabras
-        words = re.findall(r'\b\w+\b', text.lower())
-        
-        # Filtrar stop words y palabras muy cortas
-        keywords = [
-            word for word in words
-            if word not in stop_words and len(word) > 3
-        ]
-        
-        # Contar frecuencia
-        word_freq = {}
-        for word in keywords:
-            word_freq[word] = word_freq.get(word, 0) + 1
-        
-        # Ordenar por frecuencia y retornar top N
-        sorted_keywords = sorted(
-            word_freq.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
-        
-        return [word for word, _ in sorted_keywords[:max_keywords]]
-    
-    def get_statistics(self, text: str) -> Dict:
-        """
-        Obtener estadísticas del texto
-        
-        Args:
-            text: Texto a analizar
-        
-        Returns:
-            Diccionario con estadísticas
-        """
-        words = re.findall(r'\b\w+\b', text)
-        sentences = re.split(r'[.!?]+', text)
-        sentences = [s.strip() for s in sentences if s.strip()]
-        
-        return {
-            'char_count': len(text),
-            'word_count': len(words),
-            'sentence_count': len(sentences),
-            'avg_word_length': sum(len(w) for w in words) / len(words) if words else 0,
-            'avg_sentence_length': sum(len(s) for s in sentences) / len(sentences) if sentences else 0
+        """Extrae palabras clave relevantes (sin librerías externas)."""
+
+        STOP_WORDS = {
+            'el','la','los','las','de','y','que','a','en','un','una','ser','se',
+            'por','con','su','para','como','estar','tener','lo','todo','pero',
+            'más','hacer','poder','decir','este','ese','eso','ir','si','ya',
+            'me','mi','tu','él','ella','ellos','ellas','nos','muy','sin','del',
+            'al','porque','cuando','aquí','allí','donde','sobre','entre','desde',
+            'hasta','cada','quien','cual','qué','cual','donde','quizá','aunque',
+            'también','además','durante','según','tras'
         }
 
+        words = re.findall(r"\b\w+\b", text.lower())
+        valid = [w for w in words if w not in STOP_WORDS and len(w) > 3]
+
+        freq = {}
+        for w in valid:
+            freq[w] = freq.get(w, 0) + 1
+
+        sorted_words = sorted(freq.items(), key=lambda x: x[1], reverse=True)
+
+        return [w for w, _ in sorted_words[:max_keywords]]
+
+    # ==========================================================
+    #                  ESTADÍSTICAS DEL TEXTO
+    # ==========================================================
+    def get_statistics(self, text: str) -> Dict:
+        """Obtiene estadísticas básicas sobre el texto."""
+        words = re.findall(r"\b\w+\b", text)
+        sentences = [s.strip() for s in re.split(r"[.!?]+", text) if s.strip()]
+
+        return {
+            "char_count": len(text),
+            "word_count": len(words),
+            "sentence_count": len(sentences),
+            "avg_word_length": sum(len(w) for w in words) / len(words) if words else 0,
+            "avg_sentence_length": sum(len(s) for s in sentences) / len(sentences) if sentences else 0,
+        }

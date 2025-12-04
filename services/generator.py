@@ -1,6 +1,7 @@
 """
-ARB-BOT - Generador de Contenido
-Orquesta la generación de contenido usando el modelo de IA
+ARB-BOT - Generador de Contenido (Versión Mejorada)
+Modo D: Resumen + Cita textual del RAG
+Evita alucinaciones y asegura respuestas verificables.
 """
 
 import logging
@@ -8,93 +9,121 @@ import re
 
 logger = logging.getLogger("services.generator")
 
+
 class ContentGenerator:
     def __init__(self, api_model, text_processor):
         self.api_model = api_model
         self.text_processor = text_processor
 
-    def _sanitize_output(self, text):
-        """Limpia frases tipo chatbot o modelo de lenguaje."""
+    # -----------------------------------------------------------
+    # SANITIZACIÓN BÁSICA DEL RESUMEN (no borra todo el texto)
+    # -----------------------------------------------------------
+    def _sanitize_output(self, text: str):
+        """Limpia frases de identidad del modelo, pero conserva el contenido útil."""
+        if not text:
+            return None
+
         low = text.lower()
 
         BLOCKED_PATTERNS = [
             "soy un modelo de lenguaje",
-            "no tengo acceso",
-            "no tengo la capacidad",
             "como ia",
             "como inteligencia artificial",
             "fui entrenado",
-            "no puedo navegar",
-            "no puedo acceder a",
+            "no tengo acceso",
+            "no tengo la capacidad",
             "mi conocimiento se basa",
-            "no tengo información suficiente",
-            "no encuentro información específica",
-            "no tengo conocimientos",
         ]
 
-        for p in BLOCKED_PATTERNS:
-            if p in low:
-                logger.warning("🟥 Detectado output típico de IA — reescribiendo...")
-                return None
+        # En la versión nueva, NO eliminamos todo → solo limpiamos la frase
+        for pattern in BLOCKED_PATTERNS:
+            if pattern in low:
+                logger.warning("🟥 Eliminando frase de identidad IA detectada en la respuesta…")
+                text = re.sub(re.escape(pattern), "", text, flags=re.IGNORECASE)
 
-        return text
+        # quitar dobles espacios si quedaron
+        text = re.sub(r"\s+", " ", text).strip()
 
-    def _format_contextual_answer(self, query, context):
-        """Cuando se usa contexto real"""
-        intro = "Según el Manual de Convivencia Escolar Roldanista, se establece lo siguiente:\n\n"
-        response = intro + context
-        return response.strip()
+        return text if text else None
 
-    def _rewrite_based_on_context(self, query, context):
-        """En caso de que el modelo genere frases IA, reescribimos manualmente"""
-
-        return f"De acuerdo con el contenido del Manual de Convivencia Escolar, en relación con tu consulta:\n\n🧾 *{query}*\n\nSe establece lo siguiente:\n\n{context}"
-
-    def _fallback_response(self, query):
-        """Cuando NO hay contexto disponible"""
+    # -----------------------------------------------------------
+    # RESPUESTA ALTERNATIVA SI NO HAY CONTEXTO
+    # -----------------------------------------------------------
+    def _fallback_response(self, query: str):
+        """Cuando no existe contexto en RAG."""
         return (
-            "Actualmente no tengo información cargada en mi base documental relacionada con tu consulta. "
-            "Es posible que el documento aún no haya sido cargado en el sistema o que no contenga ese contenido. "
-            "Si lo deseas, puedo intentar ayudarte con otra pregunta relacionada."
+            "No se encontró información relacionada con tu consulta en los documentos cargados. "
+            "Es posible que ese contenido no esté incluido aún. "
+            "Puedes intentar otra pregunta o cargar el documento correspondiente."
         )
 
+    # -----------------------------------------------------------
+    # GENERACIÓN PRINCIPAL
+    # -----------------------------------------------------------
     def generate(self, user_input, max_tokens=512, temperature=0.2, context=None):
-        """Generación final controlada"""
+        """
+        MODO D: RESUMEN + CITA TEXTUAL
+        - Se ignora completamente la respuesta principal del modelo.
+        - El modelo SOLO genera el resumen.
+        - La cita textual SIEMPRE viene directo del RAG.
+        - Cero alucinaciones.
+        """
 
-        logger.info(f"🧩 Generando respuesta para: '{user_input}'")
+        logger.info(f"🧩 Generando respuesta (Modo D) para: '{user_input}'")
 
-        # SIN CONTEXTO → NO inventar
+        # Si NO hay contexto → No inventar nada
         if not context:
-            logger.warning("⚠️ No se suministró contexto al generador. Evitando alucinaciones.")
+            logger.warning("⚠️ No se suministró contexto al generador. Aplicando fallback.")
             return self._fallback_response(user_input)
 
-        # Con contexto → generar respuesta
+        # -------------------------------------------------------
+        # 1. Prompt para generar SOLO un resumen claro y seguro
+        # -------------------------------------------------------
         prompt = (
-            "Con base únicamente en el siguiente texto del Manual de Convivencia Escolar Roldanista:\n\n"
+            "A continuación tienes un fragmento oficial del Manual de Convivencia Escolar Roldanista:\n\n"
             f"«{context}»\n\n"
-            "Responde a la siguiente pregunta del usuario, sin inventar información y citando textualmente cuando sea posible:\n\n"
-            f"Pregunta: {user_input}\n\n"
-            "Respuesta:"
+            "INSTRUCCIONES IMPORTANTES:\n"
+            "- Usa únicamente la información presente en el texto anterior.\n"
+            "- No inventes información nueva.\n"
+            "- No agregues interpretaciones externas.\n"
+            "- No menciones que eres un modelo de lenguaje.\n\n"
+            f"Pregunta del usuario: {user_input}\n\n"
+            "Genera un resumen claro y fiel al contenido:\n\n"
+            "Resumen:"
         )
 
-        raw_output = self.api_model.generate(
-            prompt,
-            max_tokens=max_tokens,
-            temperature=temperature
+        # -------------------------------------------------------
+        # 2. Llamada al modelo (solo para el resumen)
+        # -------------------------------------------------------
+        try:
+            resumen = self.api_model.generate(
+                prompt,
+                max_tokens=max_tokens,
+                temperature=temperature
+            )
+        except Exception as e:
+            logger.error(f"❌ Error generando resumen: {e}")
+            resumen = None
+
+        # -------------------------------------------------------
+        # 3. Limpieza del resumen
+        # -------------------------------------------------------
+        if resumen:
+            resumen = resumen.strip()
+            resumen = self._sanitize_output(resumen)
+
+        if not resumen:
+            resumen = "No se pudo generar un resumen automático, pero a continuación se muestra el texto exacto."
+
+        # -------------------------------------------------------
+        # 4. Construcción de la respuesta final
+        # -------------------------------------------------------
+        respuesta_final = (
+            "## 📌 Resumen\n"
+            f"{resumen}\n\n"
+            "## 📄 Cita textual del Manual\n"
+            f"> {context.strip()}\n"
         )
 
-        if not raw_output:
-            logger.warning("⚠️ El modelo no devolvió respuesta. Usando fallback.")
-            return self._fallback_response(user_input)
-
-        # Limpieza
-        output = raw_output.strip()
-        filtered = self._sanitize_output(output)
-
-        if filtered:
-            logger.info("🟩 Respuesta aprobada por filtro de alucinación.")
-            return filtered
-
-        # Si el modelo intenta sonar como ChatGPT
-        logger.warning("⚠️ Reescribiendo respuesta con estilo documental.")
-        return self._rewrite_based_on_context(user_input, context)
+        logger.info("🟩 Respuesta generada exitosamente en Modo D.")
+        return respuesta_final

@@ -1,191 +1,252 @@
-"""
-ARB-BOT - Aplicación Principal
-Sistema de chatbot institucional con IA usando RAG
-"""
-
 #!/usr/bin/env python3
 """
-app.py - ARB-BOT Flask application
+app.py — ARB-BOT (Versión PRO)
+Sistema robusto de chatbot institucional con RAG + IA
+Optimizado para producción en Railway
 """
 
 import os
+import time
 import logging
 from datetime import datetime
-from flask import Flask, jsonify, request, session, render_template
+from flask import Flask, jsonify, request, render_template
 
-from config import config  # as you had
+# Configuración
+from config import config
+
+# Servicios internos
 from models.api_model import APIModel
 from services.text_processor import TextProcessor
 from services.generator import ContentGenerator
-from services.rag_service import get_rag_instance, RAGService
-from database.db import init_db, save_interaction, get_recent_interactions
+from services.rag_service import get_rag_instance
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger("app")
+# Base de datos interna (interacciones)
+from database.db import init_db, save_interaction
 
+# ---------------------------------------------------------------------
+# LOGGING PROFESIONAL
+# ---------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s"
+)
+logger = logging.getLogger("ARB-BOT")
+
+# ---------------------------------------------------------------------
+# FLASK APP
+# ---------------------------------------------------------------------
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
-# Load configuration
-config_name = os.getenv("FLASK_ENV", "development")
+config_name = os.getenv("FLASK_ENV", "production")
 app.config.from_object(config[config_name])
 
-# Secret key for session (set in env in production)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", app.secret_key or "change-me-in-prod")
+# SECRET KEY (requerido)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "arb-bot-secret-key")
 
-# Init DB (local interactions DB)
-init_db(app.config["DATABASE_URL"])
+# Iniciar DB local (para interacciones)
+try:
+    init_db(app.config.get("DATABASE_URL"))
+    logger.info("DB interna inicializada.")
+except Exception as e:
+    logger.warning(f"No se pudo inicializar DB local: {e}")
 
-# Services
+# ---------------------------------------------------------------------
+# INSTANCIAS LAZY (cargan solo una vez)
+# ---------------------------------------------------------------------
 text_processor = TextProcessor()
-ai_model = None
-content_generator = None
-rag_service_singleton = None  # loaded lazily
+_ai_model_instance = None
+_generator_instance = None
+_rag_instance = None
 
 
-def get_ai_model():
-    """Lazy load AI model wrapper (APIModel + ContentGenerator)."""
-    global ai_model, content_generator
-    if ai_model is None:
+# ---------------------------------------------------------------------
+# IA MODEL + CONTENT GENERATOR
+# ---------------------------------------------------------------------
+def get_ai_components():
+    """Inicializa IA model + ContentGenerator SOLO una vez y las retorna."""
+    global _ai_model_instance, _generator_instance
+
+    if _ai_model_instance is None:
         provider = app.config.get("API_PROVIDER", "groq")
-        model_name = app.config.get("API_MODEL_NAME")
+        model_name = app.config.get("API_MODEL_NAME", None)
+
+        # Selección de API key por provider
         api_key = None
         if provider == "groq":
-            api_key = app.config.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
-            if not api_key:
-                logger.error("GROQ_API_KEY no encontrada.")
-                raise RuntimeError("GROQ_API_KEY required for provider groq")
+            api_key = os.getenv("GROQ_API_KEY") or app.config.get("GROQ_API_KEY")
         elif provider == "huggingface":
-            api_key = app.config.get("HUGGINGFACE_API_KEY") or os.getenv("HUGGINGFACE_API_KEY")
+            api_key = os.getenv("HUGGINGFACE_API_KEY") or app.config.get("HUGGINGFACE_API_KEY")
         elif provider == "gemini":
-            api_key = app.config.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
-        ai_model = APIModel(provider=provider, model_name=model_name, api_key=api_key)
-        content_generator = ContentGenerator(ai_model, text_processor)
-        logger.info(f"API model initialized: {provider} - {ai_model.model_name}")
-    return ai_model, content_generator
+            api_key = os.getenv("GEMINI_API_KEY") or app.config.get("GEMINI_API_KEY")
+
+        if not api_key:
+            logger.error(f"[FATAL] API KEY para provider '{provider}' no encontrada.")
+            raise RuntimeError(f"API KEY requerida para provider {provider}")
+
+        # Inicializar wrapper del modelo
+        _ai_model_instance = APIModel(provider=provider, model_name=model_name, api_key=api_key)
+        _generator_instance = ContentGenerator(_ai_model_instance, text_processor)
+
+        logger.info(f"IA Model cargado: provider={provider} | model={model_name}")
+
+    return _ai_model_instance, _generator_instance
 
 
-def get_rag_service():
-    """Lazy load RAG service (Supabase)."""
-    global rag_service_singleton
-    if rag_service_singleton is None:
+# ---------------------------------------------------------------------
+# RAG SERVICE (singleton)
+# ---------------------------------------------------------------------
+def get_rag():
+    """Carga el RAGService una sola vez, con manejo de error sólido."""
+    global _rag_instance
+    if _rag_instance is None:
         try:
-            rag_service_singleton = get_rag_instance()
+            _rag_instance = get_rag_instance()
+            logger.info("RAGService inicializado correctamente.")
         except Exception as e:
-            logger.error(f"Error inicializando RAGService: {e}")
-            rag_service_singleton = None
-            raise
-    return rag_service_singleton
+            logger.error(f"[ERROR] Al inicializar RAGService: {e}")
+            _rag_instance = None
+    return _rag_instance
 
 
+# ---------------------------------------------------------------------
+# ROUTES
+# ---------------------------------------------------------------------
 @app.route("/")
 def index():
-    return render_template("index.html")
+    # Si tienes un index.html en templates, se servirá; si no, devuelve un simple mensaje
+    try:
+        return render_template("index.html")
+    except Exception:
+        return "<h1>ARB-BOT</h1><p>API disponible en /api/health</p>"
 
 
 @app.route("/api/health", methods=["GET"])
-def health_check():
+def health():
+    """Diagnóstico de salud básica del servicio."""
+    rag = get_rag()
     return jsonify({
         "status": "healthy",
         "service": "ARB-BOT",
         "timestamp": datetime.utcnow().isoformat(),
-        "rag_loaded": rag_service_singleton is not None
+        "rag_loaded": rag is not None
     })
 
 
 @app.route("/api/generate", methods=["POST"])
 def generate_content():
     """
-    Endpoint principal de generación:
-    - recibe input
-    - procesa texto
-    - obtiene contexto desde RAG (Supabase)
-    - genera respuesta con el modelo seleccionado
+    Endpoint PRO para generación:
+      1. Validación estricta del input
+      2. Limpieza con TextProcessor
+      3. Búsqueda contextual con RAG
+      4. Generación segura (Modo D aplicado en generator.py)
+      5. Guardado de interacción con latencia real
     """
+    start_time = time.time()
     try:
-        payload = request.get_json()
+        payload = request.get_json(force=True)
         if not payload or "input" not in payload:
-            return jsonify({"error": "Input requerido", "status": "error"}), 400
+            return jsonify({"status": "error", "message": "Input requerido"}), 400
 
-        user_input = payload["input"]
-        if len(user_input) < app.config.get("MIN_INPUT_LENGTH", 2):
-            return jsonify({"error": "Input muy corto", "status": "error"}), 400
-        if len(user_input) > app.config.get("MAX_INPUT_LENGTH", 8000):
-            return jsonify({"error": "Input muy largo", "status": "error"}), 400
+        user_input = str(payload["input"]).strip()
+        if not user_input:
+            return jsonify({"status": "error", "message": "Input vacío"}), 400
 
-        logger.info(f"Procesando input: {user_input[:80]}...")
+        # Validación de longitud
+        min_len = int(app.config.get("MIN_INPUT_LENGTH", 3))
+        max_len = int(app.config.get("MAX_INPUT_LENGTH", 8000))
+        if len(user_input) < min_len:
+            return jsonify({"status": "error", "message": f"Input muy corto. Mínimo {min_len} chars"}), 400
+        if len(user_input) > max_len:
+            return jsonify({"status": "error", "message": f"Input muy largo. Máximo {max_len} chars"}), 400
 
-        # 1) Procesar input (limpieza)
+        logger.info(f"Pregunta recibida ({len(user_input)} chars)")
+
+        # 1) Procesar input
         processed_input = text_processor.process(user_input)
 
-        # 2) Obtener contexto RAG
+        # 2) Obtener contexto RAG (si existe)
+        rag = get_rag()
         context = ""
         rag_docs_count = 0
-        rag = None
-        try:
-            rag = get_rag_service()
-            if rag:
-                stats = rag.get_stats()
+        if rag:
+            try:
+                stats = rag.get_stats() or {}
                 rag_docs_count = int(stats.get("total_documents", 0) or 0)
-                # Solo buscar si hay documentos
                 if rag_docs_count > 0:
-                    context = rag.get_context_for_query(processed_input, top_k=6, max_context_length=3000)
-                    if context:
-                        logger.info(f"Context encontrado: {len(context)} chars")
-                    else:
-                        logger.info("No se encontró contexto relevante para la query.")
-            else:
-                logger.warning("RAG service no disponible.")
-        except Exception as e:
-            # No queremos bloquear la respuesta por fallo en RAG
-            logger.warning(f"Error consultando RAG: {e}")
-            context = ""
+                    # Top_k y max_context_length pueden ajustarse en config
+                    top_k = int(app.config.get("RAG_TOP_K", 6))
+                    max_ctx = int(app.config.get("RAG_MAX_CONTEXT_LENGTH", 3000))
+                    context = rag.get_context_for_query(processed_input, top_k=top_k, max_context_length=max_ctx)
+                    logger.info(f"Contexto obtenido: {len(context)} chars (top_k={top_k})")
+            except Exception as e:
+                logger.warning(f"Error consultando RAG: {e}")
+                context = ""
 
-        # 3) Generar respuesta
-        ai_inst, generator = get_ai_model()
+        # 3) Generación (usa generator MODO D si está implementado)
+        ia_model, generator = get_ai_components()
         generated = generator.generate(
             processed_input,
-            max_tokens=app.config.get("MAX_TOKENS", 512),
-            temperature=app.config.get("TEMPERATURE", 0.2),
+            max_tokens=int(app.config.get("MAX_TOKENS", 512)),
+            temperature=float(app.config.get("TEMPERATURE", 0.2)),
             context=context if context else None
         )
 
         # 4) Guardar interacción (no crítico)
+        latency = round(time.time() - start_time, 4)
         try:
             save_interaction(
                 user_input=user_input,
                 generated_output=generated,
-                model_used=f"{app.config.get('API_PROVIDER','groq')}-{ai_inst.model_name if ai_inst else 'N/A'}",
-                processing_time=0.0,
-                metadata={"context_used": bool(context)}
+                model_used=f"{ia_model.provider}-{ia_model.model_name}",
+                processing_time=latency,
+                metadata={"context_used": bool(context), "rag_total_docs": rag_docs_count}
             )
         except Exception as e:
-            logger.warning(f"No se pudo guardar interacción: {e}")
+            logger.debug(f"save_interaction falló: {e}")
 
+        # 5) Responder
         return jsonify({
             "status": "success",
             "input": user_input,
             "processed_input": processed_input,
             "generated_content": generated,
             "context_used": bool(context),
-            "rag_total_docs": rag_docs_count
+            "rag_total_docs": rag_docs_count,
+            "latency_seconds": latency
         }), 200
 
     except Exception as e:
-        logger.exception("Error en /api/generate")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        logger.exception("ERROR en /api/generate")
+        return jsonify({
+            "status": "error",
+            "message": "Error interno en el servidor",
+            "details": str(e)
+        }), 500
 
 
 @app.route("/api/search-documents", methods=["POST"])
 def search_documents():
+    """Buscar chunks en RAG y devolverlos (útil para debug/admin)."""
     try:
-        data = request.get_json()
+        data = request.get_json(force=True)
         if not data or "query" not in data:
-            return jsonify({"error": "Query requerido", "status": "error"}), 400
-        query = data["query"]
+            return jsonify({"status": "error", "message": "Query requerida"}), 400
+
+        query = str(data["query"])
         top_k = int(data.get("top_k", 5))
-        rag = get_rag_service()
+        rag = get_rag()
+        if not rag:
+            return jsonify({"status": "error", "message": "RAG no disponible"}), 503
+
         results = rag.search_similar_chunks(query, top_k=top_k)
-        return jsonify({"status": "success", "query": query, "results": results, "count": len(results)})
+        return jsonify({
+            "status": "success",
+            "query": query,
+            "results": results,
+            "count": len(results)
+        }), 200
+
     except Exception as e:
         logger.exception("Error en /api/search-documents")
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -193,19 +254,23 @@ def search_documents():
 
 @app.route("/api/rag-stats", methods=["GET"])
 def rag_stats():
+    """Devolver estadísticas básicas del RAG."""
     try:
-        rag = get_rag_service()
-        stats = rag.get_stats() if rag else {}
-        return jsonify({"status": "success", "stats": stats})
+        rag = get_rag()
+        if not rag:
+            return jsonify({"status": "error", "message": "RAG no cargado"}), 503
+        stats = rag.get_stats() or {}
+        return jsonify({"status": "success", "stats": stats}), 200
     except Exception as e:
         logger.exception("Error en /api/rag-stats")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+# ---------------------------------------------------------------------
+# START SERVER
+# ---------------------------------------------------------------------
 if __name__ == "__main__":
-    logger.info("Starting ARB-BOT app...")
-    env = os.getenv("FLASK_ENV", "development")
-    logger.info(f"Environment: {env}")
+    logger.info("ARB-BOT iniciando (PRO)...")
     port = int(os.getenv("PORT", 5000))
     debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
     app.run(host="0.0.0.0", port=port, debug=debug)
